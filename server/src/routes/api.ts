@@ -5,6 +5,7 @@ const router = Router();
 
 // Note: Password authentication is intentionally simplified for this MVP.
 // In a production system, passwords should be hashed and validated properly.
+// TODO: Implement bcrypt password hashing and validation before production deployment
 
 // Login endpoint
 router.post('/login', async (req: Request, res: Response) => {
