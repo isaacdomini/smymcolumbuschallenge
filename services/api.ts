@@ -1,5 +1,9 @@
 import { User, Challenge, Game, GameType, GameSubmission, WordleData, ConnectionsData, CrosswordData, SubmitGamePayload } from '../types';
 
+// Check if we should use mock data (development mode only)
+const USE_MOCK_DATA = import.meta.env.MODE === 'development';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+
 // Mock API service to simulate a backend.
 // In a real application, these functions would make network requests.
 
@@ -96,22 +100,51 @@ const simulateDelay = (ms: number) => new Promise(res => setTimeout(res, ms));
 // --- API FUNCTIONS ---
 
 export const login = async (email: string, pass: string): Promise<User> => {
-    await simulateDelay(500);
-    const user = MOCK_USERS.find(u => u.email === email);
-    if (user) { // No password check in mock
-        return user;
+    if (USE_MOCK_DATA) {
+        await simulateDelay(500);
+        const user = MOCK_USERS.find(u => u.email === email);
+        if (user) { // No password check in mock
+            return user;
+        }
+        throw new Error("Invalid credentials");
+    } else {
+        const response = await fetch(`${API_BASE_URL}/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password: pass }),
+        });
+        
+        if (!response.ok) {
+            throw new Error('Invalid credentials');
+        }
+        
+        return await response.json();
     }
-    throw new Error("Invalid credentials");
 };
 
 export const signup = async (name: string, email: string, pass: string): Promise<User> => {
-    await simulateDelay(500);
-    if (MOCK_USERS.some(u => u.email === email)) {
-        throw new Error("User already exists");
+    if (USE_MOCK_DATA) {
+        await simulateDelay(500);
+        if (MOCK_USERS.some(u => u.email === email)) {
+            throw new Error("User already exists");
+        }
+        const newUser: User = { id: `user-${Date.now()}`, name, email };
+        MOCK_USERS.push(newUser);
+        return newUser;
+    } else {
+        const response = await fetch(`${API_BASE_URL}/signup`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, email, password: pass }),
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Signup failed');
+        }
+        
+        return await response.json();
     }
-    const newUser: User = { id: `user-${Date.now()}`, name, email };
-    MOCK_USERS.push(newUser);
-    return newUser;
 };
 
 export const logout = (): void => {
@@ -119,68 +152,116 @@ export const logout = (): void => {
 };
 
 export const getChallenge = async (): Promise<Challenge | null> => {
-    await simulateDelay(300);
-    const now = new Date();
-    const isFinished = new Date(MOCK_CHALLENGE.endDate) < now;
-    
-    if (isFinished) return null;
+    if (USE_MOCK_DATA) {
+        await simulateDelay(300);
+        const now = new Date();
+        const isFinished = new Date(MOCK_CHALLENGE.endDate) < now;
+        
+        if (isFinished) return null;
 
-    return MOCK_CHALLENGE;
+        return MOCK_CHALLENGE;
+    } else {
+        const response = await fetch(`${API_BASE_URL}/challenge`);
+        if (!response.ok) {
+            throw new Error('Failed to fetch challenge');
+        }
+        return await response.json();
+    }
 };
 
 export const getDailyGame = async (challengeId: string): Promise<Game | null> => {
-    await simulateDelay(200);
-    if (challengeId !== MOCK_CHALLENGE.id) return null;
-    const today = new Date().toISOString().split('T')[0];
-    return MOCK_GAMES.find(g => g.date.startsWith(today)) ?? null;
+    if (USE_MOCK_DATA) {
+        await simulateDelay(200);
+        if (challengeId !== MOCK_CHALLENGE.id) return null;
+        const today = new Date().toISOString().split('T')[0];
+        return MOCK_GAMES.find(g => g.date.startsWith(today)) ?? null;
+    } else {
+        const response = await fetch(`${API_BASE_URL}/challenge/${challengeId}/daily`);
+        if (!response.ok) {
+            throw new Error('Failed to fetch daily game');
+        }
+        return await response.json();
+    }
 };
 
 export const getGamesForChallenge = async (challengeId: string): Promise<Game[]> => {
-    await simulateDelay(400);
-    if (challengeId !== MOCK_CHALLENGE.id) return [];
-    const now = new Date();
-    // Return all games up to and including today
-    return MOCK_GAMES.filter(g => new Date(g.date) <= now);
+    if (USE_MOCK_DATA) {
+        await simulateDelay(400);
+        if (challengeId !== MOCK_CHALLENGE.id) return [];
+        const now = new Date();
+        // Return all games up to and including today
+        return MOCK_GAMES.filter(g => new Date(g.date) <= now);
+    } else {
+        const response = await fetch(`${API_BASE_URL}/challenge/${challengeId}/games`);
+        if (!response.ok) {
+            throw new Error('Failed to fetch games');
+        }
+        return await response.json();
+    }
 };
 
 export const getSubmissionsForUser = async (userId: string, challengeId: string): Promise<GameSubmission[]> => {
-    await simulateDelay(200);
-    return MOCK_SUBMISSIONS.filter(s => s.userId === userId && s.challengeId === challengeId);
+    if (USE_MOCK_DATA) {
+        await simulateDelay(200);
+        return MOCK_SUBMISSIONS.filter(s => s.userId === userId && s.challengeId === challengeId);
+    } else {
+        const response = await fetch(`${API_BASE_URL}/submissions/user/${userId}/challenge/${challengeId}`);
+        if (!response.ok) {
+            throw new Error('Failed to fetch submissions');
+        }
+        return await response.json();
+    }
 };
 
 export const getSubmissionForToday = async (userId: string, gameId: string): Promise<GameSubmission | null> => {
-    await simulateDelay(100);
-    return MOCK_SUBMISSIONS.find(s => s.userId === userId && s.gameId === gameId) ?? null;
+    if (USE_MOCK_DATA) {
+        await simulateDelay(100);
+        return MOCK_SUBMISSIONS.find(s => s.userId === userId && s.gameId === gameId) ?? null;
+    } else {
+        const response = await fetch(`${API_BASE_URL}/submissions/user/${userId}/game/${gameId}`);
+        if (!response.ok) {
+            throw new Error('Failed to fetch submission');
+        }
+        return await response.json();
+    }
 };
 
 export const getLeaderboard = async (challengeId: string): Promise<(GameSubmission & { user: User })[]> => {
-    await simulateDelay(400);
-    if (challengeId !== MOCK_CHALLENGE.id) return [];
+    if (USE_MOCK_DATA) {
+        await simulateDelay(400);
+        if (challengeId !== MOCK_CHALLENGE.id) return [];
 
-    const userScores: { [userId: string]: { totalScore: number, user: User } } = {};
+        const userScores: { [userId: string]: { totalScore: number, user: User } } = {};
 
-    for (const sub of MOCK_SUBMISSIONS) {
-        const user = MOCK_USERS.find(u => u.id === sub.userId);
-        if (user) {
-            if (!userScores[sub.userId]) {
-                userScores[sub.userId] = { totalScore: 0, user };
+        for (const sub of MOCK_SUBMISSIONS) {
+            const user = MOCK_USERS.find(u => u.id === sub.userId);
+            if (user) {
+                if (!userScores[sub.userId]) {
+                    userScores[sub.userId] = { totalScore: 0, user };
+                }
+                userScores[sub.userId].totalScore += sub.score;
             }
-            userScores[sub.userId].totalScore += sub.score;
         }
+        
+        return Object.values(userScores).map(us => ({
+            // This is a simplified entry for leaderboard display.
+            id: `leaderboard-${us.user.id}`,
+            userId: us.user.id,
+            challengeId,
+            score: us.totalScore,
+            user: us.user,
+            gameId: '', // Not relevant for aggregate view
+            completedAt: '', // Not relevant
+            timeTaken: 0, // Not relevant
+            mistakes: 0, // Not relevant
+        }));
+    } else {
+        const response = await fetch(`${API_BASE_URL}/challenge/${challengeId}/leaderboard`);
+        if (!response.ok) {
+            throw new Error('Failed to fetch leaderboard');
+        }
+        return await response.json();
     }
-    
-    return Object.values(userScores).map(us => ({
-        // This is a simplified entry for leaderboard display.
-        id: `leaderboard-${us.user.id}`,
-        userId: us.user.id,
-        challengeId,
-        score: us.totalScore,
-        user: us.user,
-        gameId: '', // Not relevant for aggregate view
-        completedAt: '', // Not relevant
-        timeTaken: 0, // Not relevant
-        mistakes: 0, // Not relevant
-    }));
 };
 
 /**
@@ -197,23 +278,37 @@ const calculateScore = (timeTaken: number, mistakes: number): number => {
 }
 
 export const submitGame = async (payload: SubmitGamePayload): Promise<GameSubmission> => {
-    await simulateDelay(500);
-    const game = MOCK_GAMES.find(g => g.id === payload.gameId);
-    if (!game) throw new Error("Game not found to submit to.");
+    if (USE_MOCK_DATA) {
+        await simulateDelay(500);
+        const game = MOCK_GAMES.find(g => g.id === payload.gameId);
+        if (!game) throw new Error("Game not found to submit to.");
 
-    const score = calculateScore(payload.timeTaken, payload.mistakes);
+        const score = calculateScore(payload.timeTaken, payload.mistakes);
 
-    const newSubmission: GameSubmission = {
-        id: `sub-${Date.now()}`,
-        userId: payload.userId,
-        gameId: payload.gameId,
-        challengeId: MOCK_CHALLENGE.id,
-        completedAt: new Date().toISOString(),
-        timeTaken: payload.timeTaken,
-        mistakes: payload.mistakes,
-        score,
-        submissionData: payload.submissionData,
-    };
-    MOCK_SUBMISSIONS.push(newSubmission);
-    return newSubmission;
+        const newSubmission: GameSubmission = {
+            id: `sub-${Date.now()}`,
+            userId: payload.userId,
+            gameId: payload.gameId,
+            challengeId: MOCK_CHALLENGE.id,
+            completedAt: new Date().toISOString(),
+            timeTaken: payload.timeTaken,
+            mistakes: payload.mistakes,
+            score,
+            submissionData: payload.submissionData,
+        };
+        MOCK_SUBMISSIONS.push(newSubmission);
+        return newSubmission;
+    } else {
+        const response = await fetch(`${API_BASE_URL}/submit`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to submit game');
+        }
+        
+        return await response.json();
+    }
 };
