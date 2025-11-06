@@ -3,6 +3,9 @@ import pool from '../db/pool.js';
 
 const router = Router();
 
+// Note: Password authentication is intentionally simplified for this MVP.
+// In a production system, passwords should be hashed and validated properly.
+
 // Login endpoint
 router.post('/login', async (req: Request, res: Response) => {
   try {

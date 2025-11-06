@@ -119,7 +119,7 @@ async function seedDatabase() {
         submissionData: { guesses: ['OTHER', 'GRACE'] }
       },
       {
-        id: 'sub-4',
+        id: 'sub-3',
         userId: 'user-2',
         gameId: games[1].id,
         challengeId,
