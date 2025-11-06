@@ -1,6 +1,7 @@
-
 import React from 'react';
 import { GameSubmission, User } from '../../types';
+import Tooltip from '../ui/Tooltip';
+import { ICONS } from '../../constants';
 
 interface LeaderboardProps {
   data: (GameSubmission & { user: User })[];
@@ -18,7 +19,14 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data }) => {
 
   return (
     <div className="bg-gray-800 rounded-lg p-6 shadow-lg">
-      <h2 className="text-3xl font-bold text-center mb-6 text-yellow-400">Leaderboard</h2>
+      <div className="flex items-center justify-center mb-6">
+        <h2 className="text-3xl font-bold text-center text-yellow-400">Leaderboard</h2>
+        <div className="ml-2 text-gray-400">
+            <Tooltip text="This is the total score for all completed games in the challenge.">
+              {ICONS.info}
+            </Tooltip>
+        </div>
+      </div>
       <div className="space-y-3">
         {sortedData.length > 0 ? sortedData.map((entry, index) => (
           <div key={entry.id} className={`flex items-center justify-between p-3 rounded-lg bg-gray-700/50 border-l-4 ${getRankColor(index)}`}>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ConnectionsData, GameSubmission } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
-import { submitGame } from '../../services/api';
+import { submitGame, getGameState, saveGameState, clearGameState } from '../../services/api';
 
 interface ConnectionsGameProps {
   gameId: string;
@@ -17,21 +17,56 @@ const ConnectionsGame: React.FC<ConnectionsGameProps> = ({ gameId, gameData, sub
   const [foundGroups, setFoundGroups] = useState<ConnectionsData['categories']>([]);
   const [mistakes, setMistakes] = useState(0);
   const [gameState, setGameState] = useState<'playing' | 'won' | 'lost'>('playing');
-  const [startTime] = useState(Date.now());
+  const [startTime, setStartTime] = useState(Date.now());
   const isReadOnly = !!submission;
 
   useEffect(() => {
-    if (isReadOnly && submission) {
-      // In revisit mode, show the full solution
-      setFoundGroups(gameData.categories);
-      setWords([]);
-      setMistakes(submission.mistakes);
-      setGameState(submission.mistakes >= 4 ? 'lost' : 'won');
-    } else {
-      // Shuffle words for a new game
-      setWords([...gameData.words].sort(() => Math.random() - 0.5));
-    }
-  }, [gameData, isReadOnly, submission]);
+    const loadState = async () => {
+        if (isReadOnly && submission) {
+            // In revisit mode, show the full solution
+            setFoundGroups(gameData.categories);
+            setWords([]);
+            setMistakes(submission.mistakes);
+            setGameState(submission.mistakes >= 4 ? 'lost' : 'won');
+        } else if (user) {
+            const savedProgress = await getGameState(user.id, gameId);
+            if (savedProgress?.gameState) {
+                try {
+                    const savedState = savedProgress.gameState;
+                    setWords(savedState.words || []);
+                    setFoundGroups(savedState.foundGroups || []);
+                    setMistakes(savedState.mistakes || 0);
+                    setGameState(savedState.gameState || 'playing');
+                    setStartTime(savedState.startTime || Date.now());
+                } catch (e) {
+                    console.error("Failed to parse saved Connections state", e);
+                    setWords([...gameData.words].sort(() => Math.random() - 0.5));
+                }
+            } else {
+                 // No saved state, so shuffle for a new game
+                setWords([...gameData.words].sort(() => Math.random() - 0.5));
+            }
+        }
+    };
+    loadState();
+  }, [gameData, isReadOnly, submission, gameId, user]);
+
+  useEffect(() => {
+    if (isReadOnly || gameState !== 'playing' || !user || !words.length) return;
+    const stateToSave = {
+      words,
+      foundGroups,
+      mistakes,
+      gameState,
+      startTime,
+    };
+    
+    const handler = setTimeout(() => {
+        saveGameState(user.id, gameId, stateToSave);
+    }, 1000);
+
+    return () => clearTimeout(handler);
+  }, [words, foundGroups, mistakes, gameState, startTime, isReadOnly, user, gameId]);
 
   const handleWordClick = (word: string) => {
     if (gameState !== 'playing' || isReadOnly || foundGroups.flatMap(g => g.words).includes(word)) return;
@@ -70,20 +105,23 @@ const ConnectionsGame: React.FC<ConnectionsGameProps> = ({ gameId, gameData, sub
      const saveResult = async () => {
         if ((gameState === 'won' || gameState === 'lost') && !isReadOnly) {
             if (!user) return;
+            await clearGameState(user.id, gameId);
             const timeTaken = Math.round((Date.now() - startTime) / 1000);
             await submitGame({
                 userId: user.id,
                 gameId,
                 timeTaken,
                 mistakes,
-                submissionData: { foundGroups: foundGroups.map(g => g.name) }
+                submissionData: { 
+                    foundGroups: foundGroups.map(g => g.name),
+                    categoriesFound: foundGroups.length,
+                }
             });
             setTimeout(onComplete, 3000);
         }
      }
      saveResult();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gameState, user, isReadOnly]);
+  }, [gameState, user, isReadOnly, gameId, mistakes, onComplete, startTime, foundGroups]);
   
   return (
     <div className="w-full max-w-xl mx-auto flex flex-col items-center">

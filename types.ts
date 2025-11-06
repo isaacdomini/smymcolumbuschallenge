@@ -22,12 +22,21 @@ export interface ConnectionsData {
   }[];
 }
 
+export type Direction = 'across' | 'down';
+
+export interface Clue {
+  number: number;
+  clue: string;
+  answer: string;
+  row: number;
+  col: number;
+  direction: Direction;
+}
+
 export interface CrosswordData {
-  grid: (string | null)[][];
-  clues: {
-    across: { [key: number]: string };
-    down: { [key: number]: string };
-  };
+  gridSize: number;
+  acrossClues: Clue[];
+  downClues: Clue[];
 }
 
 // FIX: Replaced the `Game` interface with a discriminated union type to allow for correct type narrowing based on game type.
@@ -58,7 +67,7 @@ export interface Challenge {
 }
 
 export interface GameSubmission {
-  id: string;
+  id:string;
   userId: string;
   gameId: string;
   challengeId: string;
@@ -75,4 +84,12 @@ export interface SubmitGamePayload {
     timeTaken: number;
     mistakes: number;
     submissionData?: any;
+}
+
+export interface GameProgress {
+  id: string;
+  userId: string;
+  gameId: string;
+  gameState: any;
+  updatedAt: string;
 }

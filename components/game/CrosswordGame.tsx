@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { CrosswordData, GameSubmission } from '../../types';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { CrosswordData, GameSubmission, Clue } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
-import { submitGame } from '../../services/api';
+import { submitGame, getGameState, saveGameState, clearGameState } from '../../services/api';
+import { DarkModeCrossword } from './DarkModeCrossword';
 
 interface CrosswordGameProps {
   gameId: string;
@@ -12,29 +13,82 @@ interface CrosswordGameProps {
 
 const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submission, onComplete }) => {
   const { user } = useAuth();
-  const [grid, setGrid] = useState<(string | null)[][]>([]);
-  const [isComplete, setIsComplete] = useState(false);
-  const [startTime] = useState(Date.now());
+  const [userGrid, setUserGrid] = useState<(string | null)[][]>(() => 
+    Array(gameData.gridSize).fill(null).map(() => Array(gameData.gridSize).fill(null))
+  );
+  const [isSubmitted, setIsSubmitted] = useState(!!submission);
+  const [startTime, setStartTime] = useState(Date.now());
   const isReadOnly = !!submission;
+  
+  const solutionGrid = useMemo(() => {
+    const grid: (string | null)[][] = Array(gameData.gridSize).fill(null).map(() => Array(gameData.gridSize).fill(null));
+    const allClues: Clue[] = [...gameData.acrossClues, ...gameData.downClues];
+    allClues.forEach(clue => {
+        for (let i = 0; i < clue.answer.length; i++) {
+            const r = clue.direction === 'across' ? clue.row : clue.row + i;
+            const c = clue.direction === 'across' ? clue.col + i : clue.col;
+            if (grid[r]) {
+                grid[r][c] = clue.answer[i];
+            }
+        }
+    });
+    return grid;
+  }, [gameData]);
 
   useEffect(() => {
     if (isReadOnly && submission) {
-      setGrid(submission.submissionData.grid);
-      setIsComplete(true);
-    } else {
-      setGrid(gameData.grid.map(row => row.map(cell => cell === '#' ? '#' : null)));
+      setUserGrid(submission.submissionData?.grid || Array(gameData.gridSize).fill(null).map(() => Array(gameData.gridSize).fill(null)));
+      return;
     }
-  }, [isReadOnly, submission, gameData]);
+    if (!user) return;
 
-  const handleSubmit = async () => {
-    if (!user || isReadOnly) return;
+    const loadState = async () => {
+        const savedProgress = await getGameState(user.id, gameId);
+        if (savedProgress?.gameState) {
+            try {
+                const savedState = savedProgress.gameState;
+                setUserGrid(savedState.grid || Array(gameData.gridSize).fill(null).map(() => Array(gameData.gridSize).fill(null)));
+                setStartTime(savedState.startTime || Date.now());
+            } catch(e) {
+                console.error("Failed to parse saved Crossword state", e);
+            }
+        }
+    };
+    loadState();
+  }, [gameId, isReadOnly, submission, gameData.gridSize, user]);
+
+  useEffect(() => {
+    if (isReadOnly || isSubmitted || !user) return;
+    const stateToSave = {
+      grid: userGrid,
+      startTime,
+    };
+    
+    const handler = setTimeout(() => {
+        saveGameState(user.id, gameId, stateToSave);
+    }, 1000);
+
+    return () => clearTimeout(handler);
+  }, [userGrid, startTime, isReadOnly, isSubmitted, user, gameId]);
+
+  const handleSubmit = useCallback(async () => {
+    if (!user || isReadOnly || isSubmitted) return;
+
     const timeTaken = Math.round((Date.now() - startTime) / 1000);
     
     let mistakes = 0;
-    for(let r=0; r < gameData.grid.length; r++) {
-        for (let c=0; c < gameData.grid[r].length; c++) {
-            if(gameData.grid[r][c] !== '#' && grid[r][c] !== gameData.grid[r][c]) {
-                mistakes++;
+    let correctCells = 0;
+    let totalFillableCells = 0;
+
+    for(let r = 0; r < gameData.gridSize; r++) {
+        for (let c = 0; c < gameData.gridSize; c++) {
+            if (solutionGrid[r][c] !== null) { // This is a fillable cell
+                totalFillableCells++;
+                if (userGrid[r][c] === solutionGrid[r][c]) {
+                    correctCells++;
+                } else if (userGrid[r][c] !== null) {
+                    mistakes++;
+                }
             }
         }
     }
@@ -44,92 +98,58 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
       gameId,
       timeTaken,
       mistakes,
-      submissionData: { grid },
+      submissionData: { 
+        grid: userGrid,
+        correctCells,
+        totalFillableCells
+      },
     });
-    setIsComplete(true);
+    
+    setIsSubmitted(true);
+    await clearGameState(user.id, gameId);
     setTimeout(onComplete, 3000);
-  };
-
-  const handleInputChange = (r: number, c: number, value: string) => {
-    if (isComplete) return;
-    const newGrid = grid.map(row => [...row]);
-    newGrid[r][c] = value.toUpperCase().slice(-1);
-    setGrid(newGrid);
-  };
-
-  const getCellColor = (r: number, c: number) => {
-    if (!isReadOnly || grid[r][c] === '#' || !grid[r][c]) {
-      return 'bg-gray-700';
-    }
-    if (grid[r][c] === gameData.grid[r][c]) {
-      return 'bg-green-700'; // Correct
-    }
-    return 'bg-red-700'; // Incorrect
-  };
-
-  if (!grid.length) {
-    return <div>Loading...</div>; // Render nothing until grid is initialized
-  }
+  }, [user, isReadOnly, isSubmitted, startTime, gameData.gridSize, userGrid, solutionGrid, gameId, onComplete]);
+  
+  const handleCellChange = useCallback((row: number, col: number, char: string | null) => {
+    if (isSubmitted) return;
+    setUserGrid(currentGrid => {
+        const newGrid = currentGrid.map(r => [...r]);
+        newGrid[row][col] = char;
+        return newGrid;
+    });
+  }, [isSubmitted]);
 
   return (
-    <div className="w-full max-w-4xl mx-auto flex flex-col lg:flex-row gap-8">
-      <div className="flex-grow">
-        <h2 className="text-2xl font-bold mb-4 text-center">Crossword</h2>
-        <div className="aspect-square bg-gray-800 p-2 rounded-lg grid" style={{gridTemplateColumns: `repeat(${grid[0].length}, minmax(0, 1fr))`}}>
-          {grid.map((row, r) =>
-            row.map((cell, c) => (
-              <div key={`${r}-${c}`} className={`aspect-square ${cell === '#' ? 'bg-gray-900' : ''}`}>
-                {cell !== '#' && (
-                  <input
-                    type="text"
-                    maxLength={1}
-                    value={grid[r][c] || ''}
-                    onChange={(e) => handleInputChange(r, c, e.target.value)}
-                    className={`w-full h-full text-center text-white font-bold uppercase focus:outline-none focus:bg-gray-600 ${isReadOnly ? getCellColor(r, c) : 'bg-gray-700'}`}
-                    disabled={isComplete}
-                  />
-                )}
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-      <div className="flex-shrink-0 lg:w-1/3">
-        <div className="space-y-6">
-            <div>
-                <h3 className="text-xl font-bold text-yellow-400 border-b border-gray-600 pb-2 mb-2">Across</h3>
-                <ul className="space-y-1 text-sm">
-                    {Object.entries(gameData.clues.across).map(([num, clue]) => <li key={`a-${num}`}><strong className="mr-2">{num}.</strong>{clue}</li>)}
-                </ul>
-            </div>
-             <div>
-                <h3 className="text-xl font-bold text-yellow-400 border-b border-gray-600 pb-2 mb-2">Down</h3>
-                <ul className="space-y-1 text-sm">
-                    {Object.entries(gameData.clues.down).map(([num, clue]) => <li key={`d-${num}`}><strong className="mr-2">{num}.</strong>{clue}</li>)}
-                </ul>
-            </div>
-        </div>
-        {!isReadOnly ? (
-          <button 
-              onClick={handleSubmit} 
-              disabled={isComplete}
-              className="w-full mt-6 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg disabled:bg-gray-600 disabled:cursor-not-allowed"
-            >
-              {isComplete ? "Submitted!" : "Submit Puzzle"}
-          </button>
-        ) : (
-          <div className="mt-6 text-center p-4 rounded-lg bg-gray-800 w-full">
-              {submission && (
-                <div className="text-sm text-gray-300">
-                  <p>Time Taken: {submission.timeTaken}s | Mistakes: {submission.mistakes} | Score: {submission.score}</p>
+    <div className="w-full max-w-5xl mx-auto flex flex-col items-center">
+        <DarkModeCrossword
+            puzzleData={gameData}
+            onCellChange={isReadOnly || isSubmitted ? undefined : handleCellChange}
+            onPuzzleComplete={isReadOnly ? undefined : handleSubmit}
+            initialGrid={userGrid}
+            isReviewMode={isReadOnly}
+        />
+        <div className="mt-6 w-full max-w-md">
+            {!isReadOnly ? (
+                <button 
+                    onClick={handleSubmit} 
+                    disabled={isSubmitted}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg text-lg disabled:bg-gray-600 disabled:cursor-not-allowed"
+                >
+                    {isSubmitted ? "Submitted!" : "Submit Puzzle"}
+                </button>
+            ) : (
+                <div className="text-center p-4 rounded-lg bg-gray-800 w-full">
+                    {submission && (
+                        <div className="text-lg text-gray-300">
+                            <p>Time Taken: {submission.timeTaken}s | Mistakes: {submission.mistakes} | Score: {submission.score}</p>
+                        </div>
+                    )}
+                    <button onClick={onComplete} className="mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                        Back to Dashboard
+                    </button>
                 </div>
-              )}
-              <button onClick={onComplete} className="mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                  Back
-              </button>
-          </div>
-        )}
-      </div>
+            )}
+        </div>
     </div>
   );
 };

@@ -104,6 +104,28 @@ router.get('/challenge/:challengeId/daily', async (req: Request, res: Response) 
   }
 });
 
+router.get('/games/:gameId', async (req: Request, res: Response) => {
+  try {
+    const { gameId } = req.params;
+    const result = await pool.query('SELECT * FROM games WHERE id = $1', [gameId]);
+    if (result.rows.length > 0) {
+      const game = result.rows[0];
+      res.json({
+        id: game.id,
+        challengeId: game.challenge_id,
+        date: game.date.toISOString(),
+        type: game.type,
+        data: game.data,
+      });
+    } else {
+      res.status(404).json({ error: 'Game not found' });
+    }
+  } catch (error) {
+    console.error('Get game error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Get games for challenge
 router.get('/challenge/:challengeId/games', async (req: Request, res: Response) => {
   try {
@@ -272,6 +294,88 @@ router.post('/submit', async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Submit game error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.get('/game-state/user/:userId/game/:gameId', async (req: Request, res: Response) => {
+  try {
+    const { userId, gameId } = req.params;
+    const result = await pool.query(
+      'SELECT * FROM game_progress WHERE user_id = $1 AND game_id = $2',
+      [userId, gameId]
+    );
+    if (result.rows.length > 0) {
+      const progress = result.rows[0];
+      res.json({
+        id: progress.id,
+        userId: progress.user_id,
+        gameId: progress.game_id,
+        gameState: progress.game_state,
+        updatedAt: progress.updated_at.toISOString(),
+      });
+    } else {
+      res.json(null);
+    }
+  } catch (error) {
+    console.error('Get game state error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.post('/game-state/user/:userId/game/:gameId', async (req: Request, res: Response) => {
+  try {
+    const { userId, gameId } = req.params;
+    const { gameState } = req.body;
+    const now = new Date();
+
+    // Check if progress exists
+    const existing = await pool.query(
+      'SELECT * FROM game_progress WHERE user_id = $1 AND game_id = $2',
+      [userId, gameId]
+    );
+
+    let progress;
+    if (existing.rows.length > 0) {
+      // Update
+      const result = await pool.query(
+        'UPDATE game_progress SET game_state = $1, updated_at = $2 WHERE user_id = $3 AND game_id = $4 RETURNING *',
+        [JSON.stringify(gameState), now, userId, gameId]
+      );
+      progress = result.rows[0];
+    } else {
+      // Insert
+      const progressId = `progress-${userId}-${gameId}`;
+      const result = await pool.query(
+        'INSERT INTO game_progress (id, user_id, game_id, game_state, updated_at) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+        [progressId, userId, gameId, JSON.stringify(gameState), now]
+      );
+      progress = result.rows[0];
+    }
+
+    res.json({
+      id: progress.id,
+      userId: progress.user_id,
+      gameId: progress.game_id,
+      gameState: progress.game_state,
+      updatedAt: progress.updated_at.toISOString(),
+    });
+  } catch (error) {
+    console.error('Save game state error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.delete('/game-state/user/:userId/game/:gameId', async (req: Request, res: Response) => {
+  try {
+    const { userId, gameId } = req.params;
+    await pool.query(
+      'DELETE FROM game_progress WHERE user_id = $1 AND game_id = $2',
+      [userId, gameId]
+    );
+    res.status(204).send();
+  } catch (error) {
+    console.error('Clear game state error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
