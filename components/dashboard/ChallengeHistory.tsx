@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getGamesForChallenge, getSubmissionsForUser } from '../../services/api';
-import { Game, GameSubmission } from '../../types';
+import { Game, GameSubmission, GameType } from '../../types';
+import Tooltip from '../ui/Tooltip';
 
 interface ChallengeHistoryProps {
   challengeId: string;
@@ -8,6 +9,19 @@ interface ChallengeHistoryProps {
   onPlayGame: (game: Game) => void;
   onRevisitGame: (game: Game, submission: GameSubmission) => void;
   onBack: () => void;
+}
+
+const getScoringTooltipText = (gameType: GameType): string => {
+    switch (gameType) {
+        case GameType.WORDLE:
+            return "Score based on guesses and speed. Fewer guesses and faster times earn more points. 0 for a loss.";
+        case GameType.CONNECTIONS:
+            return "Score based on categories found, mistakes made, and speed. Each category adds points, mistakes subtract, and speed adds a bonus.";
+        case GameType.CROSSWORD:
+            return "Score based on accuracy and speed. A higher percentage of correct cells and a faster time result in a higher score.";
+        default:
+            return "Scoring is based on performance in the game.";
+    }
 }
 
 const ChallengeHistory: React.FC<ChallengeHistoryProps> = ({ challengeId, userId, onPlayGame, onRevisitGame, onBack }) => {
@@ -65,10 +79,12 @@ const ChallengeHistory: React.FC<ChallengeHistoryProps> = ({ challengeId, userId
                 </div>
                 <div>
                   {submission ? (
-                    <div className="text-right">
-                        <p className="font-semibold text-lg">{submission.score} pts</p>
-                        <button onClick={() => onRevisitGame(game, submission)} className="text-blue-400 hover:text-blue-300">Revisit</button>
-                    </div>
+                    <Tooltip text={getScoringTooltipText(game.type)}>
+                        <div className="text-right">
+                            <p className="font-semibold text-lg cursor-help">{submission.score} pts</p>
+                            <button onClick={() => onRevisitGame(game, submission)} className="text-blue-400 hover:text-blue-300">Revisit</button>
+                        </div>
+                    </Tooltip>
                   ) : (
                     <button onClick={() => onPlayGame(game)} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">Play</button>
                   )}

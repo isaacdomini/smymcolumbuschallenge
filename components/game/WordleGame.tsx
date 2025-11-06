@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { WordleData, GameSubmission } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
-import { submitGame } from '../../services/api';
+import { submitGame, getGameState, saveGameState, clearGameState } from '../../services/api';
 
 interface WordleGameProps {
   gameId: string;
@@ -17,9 +17,47 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
   const [activeGuessIndex, setActiveGuessIndex] = useState(0);
   const [isRevealing, setIsRevealing] = useState(false);
   const [gameState, setGameState] = useState<'playing' | 'won' | 'lost'>('playing');
-  const [startTime] = useState(Date.now());
+  const [startTime, setStartTime] = useState(Date.now());
   const isReadOnly = !!submission;
   const solution = gameData.solution.toUpperCase();
+
+  useEffect(() => {
+    if (isReadOnly || !user) return;
+
+    const loadState = async () => {
+        const savedProgress = await getGameState(user.id, gameId);
+        if (savedProgress?.gameState) {
+            try {
+                const savedState = savedProgress.gameState;
+                setGuesses(savedState.guesses || Array(6).fill(''));
+                setActiveGuessIndex(savedState.activeGuessIndex || 0);
+                setGameState(savedState.gameState || 'playing');
+                setStartTime(savedState.startTime || Date.now());
+            } catch (e) {
+                console.error("Failed to parse saved Wordle state", e);
+            }
+        }
+    };
+    loadState();
+  }, [gameId, isReadOnly, user]);
+
+  useEffect(() => {
+    if (isReadOnly || gameState !== 'playing' || !user) return;
+
+    const stateToSave = {
+      guesses,
+      activeGuessIndex,
+      gameState,
+      startTime,
+    };
+    
+    const handler = setTimeout(() => {
+        saveGameState(user.id, gameId, stateToSave);
+    }, 1000); // Debounce save
+
+    return () => clearTimeout(handler);
+  }, [guesses, activeGuessIndex, gameState, startTime, isReadOnly, user, gameId]);
+
 
   useEffect(() => {
     if (isReadOnly && submission) {
@@ -85,6 +123,7 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
      const saveResult = async () => {
         if ((gameState === 'won' || gameState === 'lost') && !isReadOnly) {
             if (!user) return;
+            await clearGameState(user.id, gameId);
             const timeTaken = Math.round((Date.now() - startTime) / 1000);
             const mistakes = gameState === 'won' ? activeGuessIndex : 6;
             await submitGame({
@@ -98,8 +137,7 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
         }
      }
      saveResult();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gameState, user, isReadOnly]);
+  }, [gameState, user, isReadOnly, startTime, activeGuessIndex, gameId, guesses, onComplete]);
 
 
   return (

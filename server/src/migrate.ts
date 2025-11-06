@@ -41,6 +41,16 @@ const migrations = [
     submission_data JSONB,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )`,
+
+  // Game progress table
+  `CREATE TABLE IF NOT EXISTS game_progress (
+    id VARCHAR(255) PRIMARY KEY,
+    user_id VARCHAR(255) NOT NULL REFERENCES users(id),
+    game_id VARCHAR(255) NOT NULL REFERENCES games(id),
+    game_state JSONB NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, game_id)
+  )`,
   
   // Indexes for better performance
   `CREATE INDEX IF NOT EXISTS idx_games_challenge_id ON games(challenge_id)`,

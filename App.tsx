@@ -10,6 +10,7 @@ import ChallengeHistory from './components/dashboard/ChallengeHistory';
 import ChallengeIntro from './components/dashboard/ChallengeIntro';
 import { Game, GameType, Challenge, GameSubmission } from './types';
 import { getChallenge, getDailyGame, getLeaderboard, getSubmissionForToday } from './services/api';
+import ScoringCriteria from './components/dashboard/ScoringCriteria';
 
 const App: React.FC = () => {
   return (
@@ -129,6 +130,8 @@ const MainContent: React.FC = () => {
                 )}
             </div>
         )}
+
+        {challengeStarted && <ScoringCriteria />}
     </div>
   );
 
