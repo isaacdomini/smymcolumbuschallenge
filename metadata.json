@@ -1,0 +1,5 @@
+{
+  "name": "SMYM Columbus Bible Games",
+  "description": "A web-based application to host daily Bible-themed game challenges like Wordle, Connections, and Crossword for the Syro Malabar Youth Mission (SMYM) Columbus community, fostering engagement and friendly competition.",
+  "requestFramePermissions": []
+}
