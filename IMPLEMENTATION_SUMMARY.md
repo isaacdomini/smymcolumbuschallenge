@@ -112,7 +112,7 @@ Successfully updated the SMYM Columbus Bible Games application to run on a serve
 - `package.json` - Added backend dependencies and scripts
 - `services/api.ts` - Added environment detection and real API calls
 - `.gitignore` - Excluded env files and build artifacts
-- `vite.config.ts` - Changed dev port from 3000 to 5173
+- `vite.config.ts` - Changed dev port from 3000 to 5173 to avoid conflict with backend server
 - `README.md` - Updated with new setup instructions
 
 ## Deployment Options
