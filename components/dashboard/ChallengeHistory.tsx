@@ -1,0 +1,85 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { getGamesForChallenge, getSubmissionsForUser } from '../../services/api';
+import { Game, GameSubmission } from '../../types';
+
+interface ChallengeHistoryProps {
+  challengeId: string;
+  userId: string;
+  onPlayGame: (game: Game) => void;
+  onRevisitGame: (game: Game, submission: GameSubmission) => void;
+  onBack: () => void;
+}
+
+const ChallengeHistory: React.FC<ChallengeHistoryProps> = ({ challengeId, userId, onPlayGame, onRevisitGame, onBack }) => {
+  const [games, setGames] = useState<Game[]>([]);
+  const [submissions, setSubmissions] = useState<GameSubmission[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        const [gamesData, submissionsData] = await Promise.all([
+          getGamesForChallenge(challengeId),
+          getSubmissionsForUser(userId, challengeId)
+        ]);
+        setGames(gamesData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())); // Sort descending
+        setSubmissions(submissionsData);
+      } catch (error) {
+        console.error("Failed to fetch history", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchData();
+  }, [challengeId, userId]);
+  
+  const submissionsMap = useMemo(() => {
+    return new Map(submissions.map(s => [s.gameId, s]));
+  }, [submissions]);
+
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  return (
+    <div className="w-full max-w-2xl mx-auto">
+        <div className="flex justify-between items-center mb-6">
+            <h2 className="text-3xl font-bold text-yellow-400">Challenge History</h2>
+            <button onClick={onBack} className="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded">
+                &larr; Back
+            </button>
+        </div>
+      
+      {isLoading ? (
+        <p>Loading history...</p>
+      ) : (
+        <div className="space-y-3">
+          {games.map((game, index) => {
+            const submission = submissionsMap.get(game.id);
+            const isToday = game.date.startsWith(todayStr);
+
+            return (
+              <div key={game.id} className="bg-gray-800 p-4 rounded-lg flex justify-between items-center">
+                <div>
+                  <p className="text-gray-400 text-sm">{new Date(game.date).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+                  <p className="text-xl font-bold capitalize">{game.type} {isToday && <span className="text-xs text-yellow-400 ml-2">TODAY</span>}</p>
+                </div>
+                <div>
+                  {submission ? (
+                    <div className="text-right">
+                        <p className="font-semibold text-lg">{submission.score} pts</p>
+                        <button onClick={() => onRevisitGame(game, submission)} className="text-blue-400 hover:text-blue-300">Revisit</button>
+                    </div>
+                  ) : (
+                    <button onClick={() => onPlayGame(game)} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">Play</button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default ChallengeHistory;
