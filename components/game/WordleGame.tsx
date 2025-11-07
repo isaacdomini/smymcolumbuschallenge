@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { WordleData, GameSubmission } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
 import { submitGame, getGameState, saveGameState, clearGameState } from '../../services/api';
@@ -20,6 +20,7 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
   const [startTime, setStartTime] = useState(Date.now());
   const isReadOnly = !!submission;
   const solution = gameData.solution.toUpperCase();
+
 
   useEffect(() => {
     if (isReadOnly || !user) return;
@@ -139,6 +140,26 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
      saveResult();
   }, [gameState, user, isReadOnly, startTime, activeGuessIndex, gameId, guesses, onComplete]);
 
+  const letterStatuses = useMemo(() => {
+    const statuses: { [key: string]: 'correct' | 'present' | 'absent' } = {};
+    const submittedGuesses = guesses.slice(0, activeGuessIndex);
+
+    submittedGuesses.forEach(guess => {
+        [...guess].forEach((char, i) => {
+            if (solution[i] === char) {
+                statuses[char] = 'correct';
+            } else if (solution.includes(char)) {
+                if (statuses[char] !== 'correct') {
+                    statuses[char] = 'present';
+                }
+            } else {
+                statuses[char] = 'absent';
+            }
+        });
+    });
+    return statuses;
+  }, [guesses, activeGuessIndex, solution]);
+
 
   return (
     <div className="w-full max-w-md mx-auto flex flex-col items-center">
@@ -166,6 +187,10 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
                 Back to Dashboard
             </button>
         </div>
+      )}
+
+      {!isReadOnly && gameState === 'playing' && (
+        <Keyboard onKeyPress={handleKeyPress} letterStatuses={letterStatuses} />
       )}
     </div>
   );
@@ -216,6 +241,44 @@ const Tile: React.FC<{char?: string; status: 'empty' | 'correct' | 'present' | '
             {char}
         </div>
     );
-}
+};
+
+const KEY_ROWS = [
+  ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
+  ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
+  ['Enter', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', 'Backspace'],
+];
+
+const Keyboard: React.FC<{ onKeyPress: (key: string) => void; letterStatuses: { [key: string]: 'correct' | 'present' | 'absent' };}> = ({ onKeyPress, letterStatuses }) => {
+  return (
+    <div className="w-full mt-4">
+      {KEY_ROWS.map((row, i) => (
+        <div key={i} className="flex justify-center gap-1 my-1 w-full">
+          {row.map(key => {
+            const status = letterStatuses[key];
+            const keyClasses = {
+                correct: 'bg-green-600 hover:bg-green-700',
+                present: 'bg-yellow-500 hover:bg-yellow-600',
+                absent: 'bg-gray-700 hover:bg-gray-600',
+                default: 'bg-gray-500 hover:bg-gray-600'
+            };
+            const flexClass = (key === 'Enter' || key === 'Backspace') ? 'flex-1.5' : 'flex-1';
+            
+            return (
+                <button 
+                    key={key} 
+                    onClick={() => onKeyPress(key)}
+                    className={`h-14 rounded font-semibold uppercase text-white transition-colors ${flexClass} ${status ? keyClasses[status] : keyClasses.default}`}
+                >
+                    {key === 'Backspace' ? '⌫' : key}
+                </button>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+};
+
 
 export default WordleGame;

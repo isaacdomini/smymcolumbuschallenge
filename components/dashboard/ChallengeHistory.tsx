@@ -67,15 +67,21 @@ const ChallengeHistory: React.FC<ChallengeHistoryProps> = ({ challengeId, userId
         <p>Loading history...</p>
       ) : (
         <div className="space-y-3">
-          {games.map((game, index) => {
+          {games.map((game) => {
             const submission = submissionsMap.get(game.id);
-            const isToday = game.date.startsWith(todayStr);
+            const gameDateStr = game.date.split('T')[0];
+            const isToday = gameDateStr === todayStr;
+            const isFuture = gameDateStr > todayStr;
 
             return (
               <div key={game.id} className="bg-gray-800 p-4 rounded-lg flex justify-between items-center">
                 <div>
                   <p className="text-gray-400 text-sm">{new Date(game.date).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</p>
-                  <p className="text-xl font-bold capitalize">{game.type} {isToday && <span className="text-xs text-yellow-400 ml-2">TODAY</span>}</p>
+                  <p className="text-xl font-bold capitalize">
+                    {game.type} 
+                    {isToday && <span className="text-xs text-yellow-400 ml-2">TODAY</span>}
+                    {isFuture && <span className="text-xs text-gray-500 ml-2">UPCOMING</span>}
+                  </p>
                 </div>
                 <div>
                   {submission ? (
@@ -85,6 +91,8 @@ const ChallengeHistory: React.FC<ChallengeHistoryProps> = ({ challengeId, userId
                             <button onClick={() => onRevisitGame(game, submission)} className="text-blue-400 hover:text-blue-300">Revisit</button>
                         </div>
                     </Tooltip>
+                  ) : isFuture ? (
+                    <span className="text-gray-500 font-semibold py-2 px-4">Upcoming</span>
                   ) : (
                     <button onClick={() => onPlayGame(game)} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">Play</button>
                   )}

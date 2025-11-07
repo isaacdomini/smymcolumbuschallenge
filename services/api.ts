@@ -1,4 +1,4 @@
-import { User, Challenge, Game, GameType, GameSubmission, WordleData, ConnectionsData, CrosswordData, SubmitGamePayload } from '../types';
+import { User, Challenge, Game, GameType, GameSubmission, WordleData, ConnectionsData, CrosswordData, SubmitGamePayload, GameProgress} from '../types';
 
 // Check if we should use mock data (development mode only)
 const USE_MOCK_DATA = import.meta.env.MODE === 'development';

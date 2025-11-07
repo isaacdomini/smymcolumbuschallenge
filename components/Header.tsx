@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import AuthModal from './auth/AuthModal';
@@ -6,9 +5,10 @@ import { ICONS } from '../constants';
 
 interface HeaderProps {
     challengeName?: string;
+    onLogoClick?: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ challengeName }) => {
+const Header: React.FC<HeaderProps> = ({ challengeName, onLogoClick }) => {
     const { user, logout } = useAuth();
     const [isAuthModalOpen, setAuthModalOpen] = useState(false);
 
@@ -16,7 +16,7 @@ const Header: React.FC<HeaderProps> = ({ challengeName }) => {
         <>
             <header className="bg-gray-800 shadow-md">
                 <div className="container mx-auto px-4 py-3 flex justify-between items-center">
-                    <div className="flex items-center space-x-3">
+                    <div onClick={onLogoClick} className="flex items-center space-x-3 cursor-pointer">
                         {ICONS.smymLogo}
                         <div>
                             <h1 className="text-lg md:text-xl font-bold text-yellow-400">SMYM Bible Games</h1>
