@@ -159,6 +159,46 @@ export const logout = (): void => {
     // No-op in mock, session is managed client-side
 };
 
+// ADDED: Forgot Password
+export const forgotPassword = async (email: string): Promise<{ message: string }> => {
+    if (USE_MOCK_DATA) {
+        await simulateDelay(500);
+        return { message: 'If an account with that email exists, a password reset link has been sent. (Mock)' };
+    } else {
+        const response = await fetch(`${API_BASE_URL}/forgot-password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email }),
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to request password reset');
+        }
+        return await response.json();
+    }
+}
+
+// ADDED: Reset Password
+export const resetPassword = async (token: string, password: string): Promise<{ message: string }> => {
+    if (USE_MOCK_DATA) {
+        await simulateDelay(500);
+         return { message: 'Password has been reset successfully. You can now log in. (Mock)' };
+    } else {
+        const response = await fetch(`${API_BASE_URL}/reset-password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token, password }),
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to reset password');
+        }
+        return await response.json();
+    }
+}
+
 export const getChallenge = async (): Promise<Challenge | null> => {
     if (USE_MOCK_DATA) {
         await simulateDelay(300);

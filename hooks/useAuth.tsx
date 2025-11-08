@@ -7,6 +7,8 @@ interface AuthContextType {
   login: (email: string, pass: string) => Promise<void>;
   signup: (name: string, email: string, pass: string, emailNotifications: boolean) => Promise<{ message: string }>;
   logout: () => void;
+  forgotPassword: (email: string) => Promise<{ message: string }>; // ADDED
+  resetPassword: (token: string, pass: string) => Promise<{ message: string }>; // ADDED
   isLoading: boolean;
 }
 
@@ -34,6 +36,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // Remove sensitive info just in case
     delete (loggedInUser as any).password;
     delete (loggedInUser as any).verification_token;
+    delete (loggedInUser as any).reset_password_token;
+    delete (loggedInUser as any).reset_password_expires;
     
     setUser(loggedInUser);
     localStorage.setItem('smym-user', JSON.stringify(loggedInUser));
@@ -51,8 +55,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     localStorage.removeItem('smym-user');
   }, []);
 
+  // ADDED: Wrap API calls
+  const forgotPassword = async (email: string) => {
+      return await api.forgotPassword(email);
+  }
+
+  const resetPassword = async (token: string, pass: string) => {
+      return await api.resetPassword(token, pass);
+  }
+
   return (
-    <AuthContext.Provider value={{ user, login, signup, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, login, signup, logout, forgotPassword, resetPassword, isLoading }}>
       {children}
     </AuthContext.Provider>
   );
