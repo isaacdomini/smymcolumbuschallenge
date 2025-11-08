@@ -9,16 +9,10 @@ const migrations = [
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     password VARCHAR(255),
     is_verified BOOLEAN DEFAULT false,
-    verification_token VARCHAR(255)
+    verification_token VARCHAR(255),
+    email_notifications BOOLEAN DEFAULT true
   )`,
   
-  // Add columns to users table if it already exists (for idempotency)
-  `ALTER TABLE users ADD COLUMN IF NOT EXISTS password VARCHAR(255);`,
-  `ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT false;`,
-  `ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_token VARCHAR(255);`,
-  // ADDED: email_notifications column
-  `ALTER TABLE users ADD COLUMN IF NOT EXISTS email_notifications BOOLEAN DEFAULT true;`,
-
   // Challenges table
   `CREATE TABLE IF NOT EXISTS challenges (
     id VARCHAR(255) PRIMARY KEY,
@@ -45,17 +39,13 @@ const migrations = [
     game_id VARCHAR(255) NOT NULL REFERENCES games(id),
     challenge_id VARCHAR(255) NOT NULL REFERENCES challenges(id),
     completed_at TIMESTAMP NOT NULL,
+    started_at TIMESTAMP,
     time_taken INTEGER NOT NULL,
     mistakes INTEGER NOT NULL,
     score INTEGER NOT NULL,
     submission_data JSONB,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )`,
-
-  // ADDED: started_at column to game_submissions
-  `ALTER TABLE game_submissions ADD COLUMN IF NOT EXISTS started_at TIMESTAMP;`,
-  // Backfill started_at for existing records if it's null
-  `UPDATE game_submissions SET started_at = completed_at - (time_taken || ' seconds')::interval WHERE started_at IS NULL;`,
 
   // Game progress table
   `CREATE TABLE IF NOT EXISTS game_progress (
@@ -66,13 +56,23 @@ const migrations = [
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(user_id, game_id)
   )`,
+
+  // ADDED: push_subscriptions table
+  `CREATE TABLE IF NOT EXISTS push_subscriptions (
+    id SERIAL PRIMARY KEY,
+    user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    endpoint TEXT NOT NULL UNIQUE,
+    keys JSONB NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`,
   
-  // Indexes for better performance
+  // Indexes
   `CREATE INDEX IF NOT EXISTS idx_games_challenge_id ON games(challenge_id)`,
   `CREATE INDEX IF NOT EXISTS idx_games_date ON games(date)`,
   `CREATE INDEX IF NOT EXISTS idx_submissions_user_id ON game_submissions(user_id)`,
   `CREATE INDEX IF NOT EXISTS idx_submissions_game_id ON game_submissions(game_id)`,
   `CREATE INDEX IF NOT EXISTS idx_submissions_challenge_id ON game_submissions(challenge_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user_id ON push_subscriptions(user_id)`,
 ];
 
 async function runMigrations() {
@@ -91,7 +91,6 @@ async function runMigrations() {
   }
 }
 
-// Check if this script is run directly
 if (process.argv[1] && process.argv[1].includes('migrate.js')) {
   runMigrations().then(() => pool.end());
 } else {
