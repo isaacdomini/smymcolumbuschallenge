@@ -9,6 +9,9 @@ export default defineConfig(({ mode }) => {
         port: 5173,
         host: '0.0.0.0',
       },
+      build: {
+        target: 'es2020', // Better compatibility for iOS Safari
+      },
       plugins: [react()],
       define: {
         'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),

@@ -117,6 +117,12 @@ const MainContent: React.FC = () => {
     // --- Router Logic ---
 
     if (locationPath.startsWith('/game/')) {
+        // Protect game routes: redirect to home if not logged in
+        if (!user) {
+            navigate('/');
+            return null;
+        }
+
         const gameId = locationPath.split('/')[2];
         if (!gameId) {
             navigate('/');

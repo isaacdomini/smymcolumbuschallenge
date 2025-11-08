@@ -10,6 +10,7 @@ export const initScheduler = () => {
     // cron.schedule('0 22 * * *', async () => {
     // 7:55am EST is 11:55 UTC (EST is UTC-4 during daylight saving time)
     // 7:55am EST/EDT is 11:55 UTC, 6:00pm EST/EDT is 22:00 UTC
+    push.sendPushNotification('user-1762603882983', { title: 'Console Test', body: 'Hello from the prod console! 👋' });
     cron.schedule('55 11,22 * * *', async () => {
         console.log('Running daily reminder job...');
         try {
