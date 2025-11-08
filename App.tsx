@@ -11,6 +11,7 @@ import ChallengeIntro from '@/components/dashboard/ChallengeIntro';
 import { Game, GameType, Challenge, GameSubmission, User } from '@/types';
 import { getChallenge, getDailyGame, getLeaderboard, getSubmissionForToday, getGamesForChallenge, getSubmissionsForUser } from '@/services/api';
 import ScoringCriteria from '@/components/dashboard/ScoringCriteria';
+import AddToHomeScreen from '@/components/ui/AddToHomeScreen'; // ADDED IMPORT
 
 const App: React.FC = () => {
   return (
@@ -21,6 +22,7 @@ const App: React.FC = () => {
 };
 
 const MainContent: React.FC = () => {
+  // ... existing state and hooks ...
   const { user } = useAuth();
   const [challenge, setChallenge] = useState<Challenge | null>(null);
   const [todaysGame, setTodaysGame] = useState<Game | null>(null);
@@ -32,21 +34,19 @@ const MainContent: React.FC = () => {
   const [locationPath, setLocationPath] = useState(window.location.pathname);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [globalMessage, setGlobalMessage] = useState<string | null>(null); // For verification message
+  const [globalMessage, setGlobalMessage] = useState<string | null>(null);
 
   const navigate = useCallback((path: string) => {
     window.history.pushState({}, '', path);
     setLocationPath(path);
   }, []);
 
-  // Check for email verification query param
+  // ... existing useEffects for auth verification and data fetching ...
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('verified') === 'true') {
       setGlobalMessage('Your email has been verified! You can now log in.');
-      navigate('/'); // Clear query param
-      
-      // Hide message after a few seconds
+      navigate('/');
       const timer = setTimeout(() => setGlobalMessage(null), 5000);
       return () => clearTimeout(timer);
     }
@@ -59,7 +59,6 @@ const MainContent: React.FC = () => {
       const currentChallenge = await getChallenge();
       setChallenge(currentChallenge);
       if (currentChallenge) {
-        // Check if challenge has started
         const now = new Date();
         const challengeStartDate = new Date(currentChallenge.startDate);
 
@@ -81,8 +80,6 @@ const MainContent: React.FC = () => {
                 setTodaysSubmission(null);
             }
         }
-        // If challenge hasn't started, todaysGame remains null
-        // and leaderboard won't fetch (handled in LeaderboardWrapper)
       }
     } catch (err) {
       setError('Failed to load challenge data.');
@@ -110,40 +107,23 @@ const MainContent: React.FC = () => {
   const challengeStarted = challenge && new Date(challenge.startDate) <= now;
 
   const renderContent = () => {
+    // ... existing render logic ...
     if (isLoading) return <div className="text-center p-10">Loading Challenge...</div>;
     if (error) return <div className="text-center p-10 text-red-400">{error}</div>;
     if (!challenge) return <div className="text-center p-10">No active challenge found.</div>;
 
-    // --- Router Logic ---
-
     if (locationPath.startsWith('/game/')) {
-        // Protect game routes: redirect to home if not logged in
-        if (!user) {
-            navigate('/');
-            return null;
-        }
-
+        if (!user) { navigate('/'); return null; }
         const gameId = locationPath.split('/')[2];
-        if (!gameId) {
-            navigate('/');
-            return null;
-        }
-        
-        // Find the game in the list of *all* games (in case user is revisiting)
+        if (!gameId) { navigate('/'); return null; }
         const activeGame = allChallengeGames.find(g => g.id === gameId);
-        
-        // Also check today's game, in case it's the one being played but fetchAll hasn't completed
         const gameToPlay = activeGame || (todaysGame?.id === gameId ? todaysGame : null);
-        
         const activeSubmission = allUserSubmissions.find(s => s.gameId === gameId) ?? null;
 
-        if (!gameToPlay) {
-             // This can happen if data is still loading, or bad URL
-            return <div className="text-center p-10">Loading game... (or game not found)</div>;
-        }
+        if (!gameToPlay) return <div className="text-center p-10">Loading game... (or game not found)</div>;
 
         const onComplete = () => {
-          fetchInitialData(); // refetch to update submission status
+          fetchInitialData();
           navigate('/');
         }
         
@@ -154,25 +134,15 @@ const MainContent: React.FC = () => {
                 return <ConnectionsGame gameData={gameToPlay.data} onComplete={onComplete} submission={activeSubmission} gameId={gameToPlay.id} />;
             case GameType.CROSSWORD:
                 return <CrosswordGame gameData={gameToPlay.data} onComplete={onComplete} submission={activeSubmission} gameId={gameToPlay.id} />;
-            default:
-                // This case should not be reachable if types are correct
-                const _exhaustiveCheck: never = gameToPlay;
-                return <p>Unknown game type.</p>;
+            default: return <p>Unknown game type.</p>;
         }
     }
 
     if (locationPath === '/history') {
         if (!user) { navigate('/'); return null; }
-        return <ChallengeHistory 
-                    challengeId={challenge.id} 
-                    userId={user.id} 
-                    onPlayGame={(game) => navigate(`/game/${game.id}`)} 
-                    onRevisitGame={(game, submission) => navigate(`/game/${game.id}`)}
-                    onBack={() => navigate('/')}
-                />;
+        return <ChallengeHistory challengeId={challenge.id} userId={user.id} onPlayGame={(game) => navigate(`/game/${game.id}`)} onRevisitGame={(game, submission) => navigate(`/game/${game.id}`)} onBack={() => navigate('/')} />;
     }
     
-    // --- Dashboard (Default View) ---
     return (
         <div>
             {!user && challengeStarted && <ChallengeIntro />}
@@ -193,10 +163,7 @@ const MainContent: React.FC = () => {
                             >
                                 {todaysGame ? (todaysSubmission ? "Revisit Today's Game" : "Play Today's Game") : "No Game Today"}
                             </button>
-                            <button
-                                onClick={() => navigate('/history')}
-                                 className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg text-xl shadow-lg transition-transform transform hover:scale-105"
-                            >
+                            <button onClick={() => navigate('/history')} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg text-xl shadow-lg transition-transform transform hover:scale-105">
                                 View Challenge History
                             </button>
                         </>
@@ -205,14 +172,13 @@ const MainContent: React.FC = () => {
                     )}
                 </div>
             )}
-
             <ScoringCriteria />
         </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-gray-100 font-sans">
+    <div className="min-h-screen bg-gray-900 text-gray-100 font-sans pb-20"> {/* ADDED pb-20 to make room for banner */}
       <Header challengeName={challenge?.name} onLogoClick={() => navigate('/')} />
       <main className="container mx-auto p-4 md:p-6">
         {globalMessage && (
@@ -222,24 +188,24 @@ const MainContent: React.FC = () => {
         )}
         {renderContent()}
       </main>
+      <AddToHomeScreen /> {/* ADDED COMPONENT HERE */}
     </div>
   );
 };
 
 const LeaderboardWrapper: React.FC<{ challengeId: string }> = ({ challengeId }) => {
+    // ... existing leaderboard wrapper ...
     const [leaderboardData, setLeaderboardData] = useState<(GameSubmission & { user: User })[]>([]);
     useEffect(() => {
-        // Only fetch leaderboard if challenge ID is present
         if(challengeId) {
             getLeaderboard(challengeId).then(setLeaderboardData).catch(err => {
                 console.error("Failed to load leaderboard", err);
-                setLeaderboardData([]); // Clear data on error
+                setLeaderboardData([]);
             });
         }
     }, [challengeId]);
 
     return <Leaderboard data={leaderboardData} />;
 }
-
 
 export default App;
