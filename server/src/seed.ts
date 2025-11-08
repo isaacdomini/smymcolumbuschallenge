@@ -7,28 +7,28 @@ async function seedDatabase() {
     console.log('Seeding database...');
 
     // Hash a password for seed users
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash('password123', salt);
+    // const salt = await bcrypt.genSalt(10);
+    // const hashedPassword = await bcrypt.hash('password123', salt);
 
-    // Seed users
-    const users = [
-      { id: 'user-1', name: 'John Doe', email: 'john@example.com', password: hashedPassword, is_verified: true },
-      { id: 'user-2', name: 'Jane Smith', email: 'jane@example.com', password: hashedPassword, is_verified: true },
-      { id: 'user-3', name: 'Peter Jones', email: 'peter@example.com', password: hashedPassword, is_verified: true },
-    ];
+    // // Seed users
+    // const users = [
+    //   { id: 'user-1', name: 'John Doe', email: 'john@example.com', password: hashedPassword, is_verified: true },
+    //   { id: 'user-2', name: 'Jane Smith', email: 'jane@example.com', password: hashedPassword, is_verified: true },
+    //   { id: 'user-3', name: 'Peter Jones', email: 'peter@example.com', password: hashedPassword, is_verified: true },
+    // ];
 
-    for (const user of users) {
-      await client.query(
-        'INSERT INTO users (id, name, email, password, is_verified) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (email) DO UPDATE SET name = $2, password = $4, is_verified = $5',
-        [user.id, user.name, user.email, user.password, user.is_verified]
-      );
-    }
-    console.log('Users seeded');
+    // for (const user of users) {
+    //   await client.query(
+    //     'INSERT INTO users (id, name, email, password, is_verified) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (email) DO UPDATE SET name = $2, password = $4, is_verified = $5',
+    //     [user.id, user.name, user.email, user.password, user.is_verified]
+    //   );
+    // }
+    // console.log('Users seeded');
 
     // Seed challenge
     const challengeId = 'challenge-1';
     const challengeName = 'Advent Challenge 2025';
-    const startDate = new Date(Date.now() - 1000 * 60 * 60 * 24 * 2); // 2 days ago
+    const startDate = new Date(Date.now() + 1000 * 60 * 60 * 24 * 2); // 2 days from now
     const endDate = new Date(Date.now() + 1000 * 60 * 60 * 24 * 38); // 38 days from now
 
     await client.query(
@@ -107,48 +107,48 @@ async function seedDatabase() {
     console.log('Games seeded');
 
     // Seed submissions
-    const submissions = [
-      {
-        id: 'sub-1',
-        userId: 'user-1',
-        gameId: games[0].id,
-        challengeId,
-        completedAt: new Date(),
-        timeTaken: 60,
-        mistakes: 2,
-        score: 76,
-        submissionData: { guesses: ['WRONG', 'GUESS', 'GRACE'] }
-      },
-      {
-        id: 'sub-2',
-        userId: 'user-2',
-        gameId: games[0].id,
-        challengeId,
-        completedAt: new Date(),
-        timeTaken: 45,
-        mistakes: 1,
-        score: 87,
-        submissionData: { guesses: ['OTHER', 'GRACE'] }
-      },
-      {
-        id: 'sub-3',
-        userId: 'user-2',
-        gameId: games[1].id,
-        challengeId,
-        completedAt: new Date(),
-        timeTaken: 90,
-        mistakes: 0,
-        score: 94
-      },
-    ];
+    // const submissions = [
+    //   {
+    //     id: 'sub-1',
+    //     userId: 'user-1',
+    //     gameId: games[0].id,
+    //     challengeId,
+    //     completedAt: new Date(),
+    //     timeTaken: 60,
+    //     mistakes: 2,
+    //     score: 76,
+    //     submissionData: { guesses: ['WRONG', 'GUESS', 'GRACE'] }
+    //   },
+    //   {
+    //     id: 'sub-2',
+    //     userId: 'user-2',
+    //     gameId: games[0].id,
+    //     challengeId,
+    //     completedAt: new Date(),
+    //     timeTaken: 45,
+    //     mistakes: 1,
+    //     score: 87,
+    //     submissionData: { guesses: ['OTHER', 'GRACE'] }
+    //   },
+    //   {
+    //     id: 'sub-3',
+    //     userId: 'user-2',
+    //     gameId: games[1].id,
+    //     challengeId,
+    //     completedAt: new Date(),
+    //     timeTaken: 90,
+    //     mistakes: 0,
+    //     score: 94
+    //   },
+    // ];
 
-    for (const sub of submissions) {
-      await client.query(
-        'INSERT INTO game_submissions (id, user_id, game_id, challenge_id, completed_at, time_taken, mistakes, score, submission_data) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) ON CONFLICT (id) DO NOTHING',
-        [sub.id, sub.userId, sub.gameId, sub.challengeId, sub.completedAt, sub.timeTaken, sub.mistakes, sub.score, JSON.stringify(sub.submissionData)]
-      );
-    }
-    console.log('Submissions seeded');
+    // for (const sub of submissions) {
+    //   await client.query(
+    //     'INSERT INTO game_submissions (id, user_id, game_id, challenge_id, completed_at, time_taken, mistakes, score, submission_data) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) ON CONFLICT (id) DO NOTHING',
+    //     [sub.id, sub.userId, sub.gameId, sub.challengeId, sub.completedAt, sub.timeTaken, sub.mistakes, sub.score, JSON.stringify(sub.submissionData)]
+    //   );
+    // }
+    // console.log('Submissions seeded');
 
     console.log('Database seeded successfully!');
   } catch (error) {
