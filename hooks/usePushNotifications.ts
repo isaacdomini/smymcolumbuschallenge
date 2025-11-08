@@ -22,10 +22,17 @@ export const usePushNotifications = () => {
     const { user } = useAuth();
     const [isSupported, setIsSupported] = useState(false);
     const [isSubscribed, setIsSubscribed] = useState(false);
-    const [notificationPermission, setNotificationPermission] = useState(Notification.permission);
+    // SAFARI FIX: Check if Notification exists before accessing .permission
+    const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>(() => {
+        if (typeof Notification !== 'undefined') {
+            return Notification.permission;
+        }
+        return 'denied'; // Default to 'denied' if API is missing
+    });
 
     useEffect(() => {
-        if ('serviceWorker' in navigator && 'PushManager' in window) {
+        // SAFARI FIX: Added explicit check for 'Notification' in window
+        if ('serviceWorker' in navigator && 'PushManager' in window && typeof Notification !== 'undefined') {
             setIsSupported(true);
             navigator.serviceWorker.register('/service-worker.js')
                 .then(registration => {
@@ -40,11 +47,13 @@ export const usePushNotifications = () => {
                 .catch(error => console.error('Service Worker registration failed:', error));
         } else {
              console.warn('Push notifications are not supported in this browser.');
+             setIsSupported(false);
         }
     }, []);
 
     const subscribeToPush = useCallback(async () => {
-        if (!user || !isSupported) {
+        // SAFARI FIX: Added check for Notification existence here too
+        if (!user || !isSupported || typeof Notification === 'undefined') {
              console.warn('Cannot subscribe: User not logged in or push not supported.');
              return;
         }
