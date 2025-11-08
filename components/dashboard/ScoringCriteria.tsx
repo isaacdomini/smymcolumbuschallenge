@@ -36,9 +36,9 @@ const ScoringCriteria: React.FC = () => {
           <div key={item.title} className="bg-gray-700/50 p-4 rounded-lg border-l-4 border-yellow-500">
             <h3 className="text-xl font-bold text-white mb-2">{item.title}</h3>
             <p className="text-gray-300 mb-3 text-sm">{item.description}</p>
-            <ul className="list-disc list-inside space-y-1 text-gray-400 text-sm">
+            <ul className="list-none space-y-1 text-gray-400 text-sm">
               {item.points.map((point, index) => (
-                <li key={index}>{point}</li>
+              <li key={index}>{point}</li>
               ))}
             </ul>
           </div>

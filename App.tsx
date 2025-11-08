@@ -200,7 +200,7 @@ const MainContent: React.FC = () => {
                 </div>
             )}
 
-            {challengeStarted && <ScoringCriteria />}
+            <ScoringCriteria />
         </div>
     );
   }
