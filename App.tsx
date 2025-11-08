@@ -8,10 +8,11 @@ import ConnectionsGame from '@/components/game/ConnectionsGame';
 import CrosswordGame from '@/components/game/CrosswordGame';
 import ChallengeHistory from '@/components/dashboard/ChallengeHistory';
 import ChallengeIntro from '@/components/dashboard/ChallengeIntro';
+import ResetPassword from '@/components/auth/ResetPassword'; // ADDED
 import { Game, GameType, Challenge, GameSubmission, User } from '@/types';
 import { getChallenge, getDailyGame, getLeaderboard, getSubmissionForToday, getGamesForChallenge, getSubmissionsForUser } from '@/services/api';
 import ScoringCriteria from '@/components/dashboard/ScoringCriteria';
-import AddToHomeScreen from '@/components/ui/AddToHomeScreen'; // ADDED IMPORT
+import AddToHomeScreen from '@/components/ui/AddToHomeScreen';
 
 const App: React.FC = () => {
   return (
@@ -41,18 +42,24 @@ const MainContent: React.FC = () => {
     setLocationPath(path);
   }, []);
 
-  // ... existing useEffects for auth verification and data fetching ...
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('verified') === 'true') {
       setGlobalMessage('Your email has been verified! You can now log in.');
-      navigate('/');
+      // Clean up URL
+      window.history.replaceState({}, '', '/');
       const timer = setTimeout(() => setGlobalMessage(null), 5000);
       return () => clearTimeout(timer);
     }
-  }, [navigate]);
+  }, []);
 
   const fetchInitialData = useCallback(async () => {
+    // Don't fetch if we are on the reset password page
+    if (window.location.pathname.startsWith('/reset-password')) {
+        setIsLoading(false);
+        return;
+    }
+
     setIsLoading(true);
     setError(null);
     try {
@@ -82,7 +89,10 @@ const MainContent: React.FC = () => {
         }
       }
     } catch (err) {
-      setError('Failed to load challenge data.');
+      // Only show error if we aren't on a special route that doesn't need challenge data
+      if (window.location.pathname === '/') {
+          setError('Failed to load challenge data.');
+      }
       console.error(err);
     } finally {
       setIsLoading(false);
@@ -107,7 +117,10 @@ const MainContent: React.FC = () => {
   const challengeStarted = challenge && new Date(challenge.startDate) <= now;
 
   const renderContent = () => {
-    // ... existing render logic ...
+    if (locationPath.startsWith('/reset-password')) {
+        return <ResetPassword />;
+    }
+
     if (isLoading) return <div className="text-center p-10">Loading Challenge...</div>;
     if (error) return <div className="text-center p-10 text-red-400">{error}</div>;
     if (!challenge) return <div className="text-center p-10">No active challenge found.</div>;
@@ -178,23 +191,22 @@ const MainContent: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-gray-100 font-sans pb-20"> {/* ADDED pb-20 to make room for banner */}
+    <div className="min-h-screen bg-gray-900 text-gray-100 font-sans pb-20">
       <Header challengeName={challenge?.name} onLogoClick={() => navigate('/')} />
       <main className="container mx-auto p-4 md:p-6">
         {globalMessage && (
-          <div className="mb-4 p-4 text-center bg-green-700 text-white rounded-lg shadow-lg">
+          <div className="mb-4 p-4 text-center bg-green-700 text-white rounded-lg shadow-lg animate-fade-in">
             {globalMessage}
           </div>
         )}
         {renderContent()}
       </main>
-      <AddToHomeScreen /> {/* ADDED COMPONENT HERE */}
+      <AddToHomeScreen />
     </div>
   );
 };
 
 const LeaderboardWrapper: React.FC<{ challengeId: string }> = ({ challengeId }) => {
-    // ... existing leaderboard wrapper ...
     const [leaderboardData, setLeaderboardData] = useState<(GameSubmission & { user: User })[]>([]);
     useEffect(() => {
         if(challengeId) {

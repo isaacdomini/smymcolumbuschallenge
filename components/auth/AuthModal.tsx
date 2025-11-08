@@ -7,9 +7,11 @@ interface AuthModalProps {
   onClose: () => void;
 }
 
+type AuthView = 'login' | 'signup' | 'forgot-password';
+
 const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
-  const [isLoginView, setIsLoginView] = useState(true);
-  const { login, signup } = useAuth();
+  const [currentView, setCurrentView] = useState<AuthView>('login');
+  const { login, signup, forgotPassword } = useAuth();
   const { isSupported, subscribeToPush, notificationPermission } = usePushNotifications();
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -27,19 +29,22 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
     setMessage('');
     setIsLoading(true);
     try {
-      if (isLoginView) {
+      if (currentView === 'login') {
         await login(email, password);
         if (pushNotifications && isSupported && notificationPermission === 'default') {
              await subscribeToPush();
         }
         onClose();
-      } else {
+      } else if (currentView === 'signup') {
         const response = await signup(name, email, password, emailNotifications);
         if (pushNotifications && isSupported && notificationPermission === 'default') {
              setMessage(response.message + " You can enable browser notifications after you log in.");
         } else {
              setMessage(response.message);
         }
+      } else if (currentView === 'forgot-password') {
+          const response = await forgotPassword(email);
+          setMessage(response.message);
       }
     } catch (err: any) {
       setError(err.message || 'An error occurred.');
@@ -48,14 +53,22 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
     }
   };
 
-  const switchView = (view: 'login' | 'signup') => {
-      setIsLoginView(view === 'login');
+  const switchView = (view: AuthView) => {
+      setCurrentView(view);
       setError('');
       setMessage('');
   };
 
+  const getTitle = () => {
+      switch(currentView) {
+          case 'login': return 'Login';
+          case 'signup': return 'Create Account';
+          case 'forgot-password': return 'Reset Password';
+      }
+  }
+
   return (
-    <Modal onClose={onClose} title={isLoginView ? 'Login' : 'Create Account'}>
+    <Modal onClose={onClose} title={getTitle()}>
       {message ? (
         <div className="text-center animate-fade-in w-full">
           <div className="text-green-400 mb-6 bg-green-900/30 p-4 rounded-lg border border-green-800 break-words">
@@ -70,26 +83,28 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-6 w-full">
-          {/* Toggle Switch */}
-          <div className="flex p-1 bg-gray-900/50 rounded-lg">
-            <button
-              type="button"
-              className={`flex-1 py-2.5 text-sm sm:text-base font-semibold rounded-md transition-all ${isLoginView ? 'bg-gray-700 text-yellow-400 shadow-sm' : 'text-gray-400 hover:text-gray-200'}`}
-              onClick={() => switchView('login')}
-            >
-              Login
-            </button>
-            <button
-              type="button"
-              className={`flex-1 py-2.5 text-sm sm:text-base font-semibold rounded-md transition-all ${!isLoginView ? 'bg-gray-700 text-yellow-400 shadow-sm' : 'text-gray-400 hover:text-gray-200'}`}
-              onClick={() => switchView('signup')}
-            >
-              Sign Up
-            </button>
-          </div>
+          {currentView !== 'forgot-password' && (
+             /* Toggle Switch */
+            <div className="flex p-1 bg-gray-900/50 rounded-lg">
+                <button
+                type="button"
+                className={`flex-1 py-2.5 text-sm sm:text-base font-semibold rounded-md transition-all ${currentView === 'login' ? 'bg-gray-700 text-yellow-400 shadow-sm' : 'text-gray-400 hover:text-gray-200'}`}
+                onClick={() => switchView('login')}
+                >
+                Login
+                </button>
+                <button
+                type="button"
+                className={`flex-1 py-2.5 text-sm sm:text-base font-semibold rounded-md transition-all ${currentView === 'signup' ? 'bg-gray-700 text-yellow-400 shadow-sm' : 'text-gray-400 hover:text-gray-200'}`}
+                onClick={() => switchView('signup')}
+                >
+                Sign Up
+                </button>
+            </div>
+          )}
 
           <div className="space-y-4">
-              {!isLoginView && (
+              {currentView === 'signup' && (
                 <div className="space-y-1.5">
                     <label className="text-sm font-medium text-gray-300 block ml-1">Name</label>
                     <input
@@ -102,6 +117,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
                     />
                 </div>
               )}
+              
               <div className="space-y-1.5">
                 <label className="text-sm font-medium text-gray-300 block ml-1">Email</label>
                 <input
@@ -113,21 +129,35 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
                     className="w-full p-3 bg-gray-900 border border-gray-700 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent outline-none transition-all text-white placeholder-gray-500"
                 />
               </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-gray-300 block ml-1">Password</label>
-                <input
-                    type="password"
-                    placeholder={isLoginView ? "Enter password" : "Min 6 characters"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    minLength={isLoginView ? undefined : 6}
-                    className="w-full p-3 bg-gray-900 border border-gray-700 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent outline-none transition-all text-white placeholder-gray-500"
-                />
-              </div>
+
+              {currentView !== 'forgot-password' && (
+                <div className="space-y-1.5">
+                    <div className="flex justify-between items-center ml-1">
+                        <label className="text-sm font-medium text-gray-300 block">Password</label>
+                        {currentView === 'login' && (
+                            <button 
+                                type="button"
+                                onClick={() => switchView('forgot-password')}
+                                className="text-xs text-yellow-500 hover:text-yellow-400 transition-colors"
+                            >
+                                Forgot password?
+                            </button>
+                        )}
+                    </div>
+                    <input
+                        type="password"
+                        placeholder={currentView === 'login' ? "Enter password" : "Min 6 characters"}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                        minLength={currentView === 'signup' ? 6 : undefined}
+                        className="w-full p-3 bg-gray-900 border border-gray-700 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent outline-none transition-all text-white placeholder-gray-500"
+                    />
+                </div>
+              )}
               
               <div className="space-y-2">
-                  {!isLoginView && (
+                  {currentView === 'signup' && (
                       <div className="flex items-center space-x-2">
                           <input
                               type="checkbox"
@@ -142,7 +172,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
                       </div>
                   )}
                   {/* Only show push notification checkbox if supported and permission is default */}
-                  {isLoginView && isSupported && notificationPermission === 'default' && (
+                  {currentView === 'login' && isSupported && notificationPermission === 'default' && (
                        <div className="flex items-center space-x-2">
                           <input
                               type="checkbox"
@@ -176,10 +206,24 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    {isLoginView ? 'Logging in...' : 'Creating Account...'}
+                    Processing...
                 </span>
-            ) : (isLoginView ? 'Login' : 'Create Account')}
+            ) : (
+                currentView === 'login' ? 'Login' : 
+                currentView === 'signup' ? 'Create Account' : 
+                'Send Reset Link'
+            )}
           </button>
+          
+          {currentView === 'forgot-password' && (
+             <button 
+                type="button"
+                onClick={() => switchView('login')}
+                className="w-full text-gray-400 hover:text-white text-sm py-2 transition-colors"
+            >
+                Back to Login
+            </button>
+          )}
         </form>
       )}
     </Modal>

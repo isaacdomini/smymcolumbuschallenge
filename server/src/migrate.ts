@@ -1,7 +1,7 @@
 import pool from './db/pool.js';
 
 const migrations = [
-  // Users table
+  // Users table - Initial creation
   `CREATE TABLE IF NOT EXISTS users (
     id VARCHAR(255) PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
@@ -12,6 +12,10 @@ const migrations = [
     verification_token VARCHAR(255),
     email_notifications BOOLEAN DEFAULT true
   )`,
+
+  // ADDED: Columns for password reset
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_password_token VARCHAR(255)`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_password_expires BIGINT`,
   
   // Challenges table
   `CREATE TABLE IF NOT EXISTS challenges (
@@ -66,7 +70,7 @@ const migrations = [
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )`,
 
-  // NEW: visit_logs table
+  // visit_logs table
   `CREATE TABLE IF NOT EXISTS visit_logs (
     id SERIAL PRIMARY KEY,
     ip_address INET,
@@ -85,7 +89,6 @@ const migrations = [
   `CREATE INDEX IF NOT EXISTS idx_submissions_game_id ON game_submissions(game_id)`,
   `CREATE INDEX IF NOT EXISTS idx_submissions_challenge_id ON game_submissions(challenge_id)`,
   `CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user_id ON push_subscriptions(user_id)`,
-  // New indexes for logs
   `CREATE INDEX IF NOT EXISTS idx_visit_logs_created_at ON visit_logs(created_at)`,
   `CREATE INDEX IF NOT EXISTS idx_visit_logs_ip_address ON visit_logs(ip_address)`,
   `CREATE INDEX IF NOT EXISTS idx_visit_logs_path ON visit_logs(path)`

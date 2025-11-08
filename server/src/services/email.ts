@@ -23,7 +23,6 @@ const transporter = nodemailer.createTransport({
 export const sendVerificationEmail = async (email: string, token: string, host?: string) => {
   const baseUrl = getAppUrl(host);
   // If development mode and using separate frontend/backend ports, ensure we point to frontend
-  const verificationUrl = `${baseUrl}/?verified=true&token=${token}`; 
   // Note: The actual verification endpoint is on the API, but we want to redirect to frontend ultimately.
   // Let's stick to the API endpoint for the actual click, which then redirects.
   const apiVerificationUrl = `${baseUrl}/api/verify-email?token=${token}`;
@@ -81,3 +80,34 @@ export const sendDailyReminder = async (email: string, name: string, gameType: s
         console.error(`Failed to send reminder email to ${email}:`, error);
     }
 };
+
+// ADDED: Password reset email
+export const sendPasswordResetEmail = async (email: string, token: string, host?: string) => {
+    const baseUrl = getAppUrl(host);
+    const resetUrl = `${baseUrl}/reset-password?token=${token}`;
+  
+    try {
+      await transporter.sendMail({
+        from: process.env.EMAIL_FROM,
+        to: email,
+        subject: 'Password Reset Request for SMYM Bible Games',
+        html: `
+          <div style="font-family: sans-serif; color: #333;">
+            <h2>Password Reset Request</h2>
+            <p>You requested a password reset for your SMYM Bible Games account.</p>
+            <p>Please click the button below to reset your password. This link will expire in 1 hour.</p>
+            <p>
+              <a href="${resetUrl}" style="background-color: #DC2626; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
+                Reset Password
+              </a>
+            </p>
+            <p style="font-size: 12px; color: #666;">If the button doesn't work, copy and paste this link: ${resetUrl}</p>
+            <p>If you did not request a password reset, please ignore this email.</p>
+          </div>
+        `,
+      });
+      console.log(`Password reset email sent to ${email}`);
+    } catch (error) {
+      console.error(`Failed to send password reset email to ${email}:`, error);
+    }
+  };

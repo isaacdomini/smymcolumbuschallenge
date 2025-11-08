@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import pool from '../db/pool.js';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
-import { sendVerificationEmail } from '../services/email.js';
+import { sendVerificationEmail, sendPasswordResetEmail } from '../services/email.js';
 import { getVapidPublicKey, saveSubscription } from '../services/push.js';
 
 const router = Router();
@@ -10,20 +10,18 @@ const router = Router();
 // --- Push Notification Endpoints ---
 
 router.get('/vapid-public-key', (req, res) => {
-    console.log('GET /vapid-public-key called');
+    // console.log('GET /vapid-public-key called'); // Reduced log noise
     res.json({ publicKey: getVapidPublicKey() });
 });
 
 router.post('/subscribe', async (req, res) => {
-    console.log('POST /subscribe called', req.body);
+    // console.log('POST /subscribe called'); // Reduced log noise
     try {
         const { userId, subscription } = req.body;
         if (!userId || !subscription) {
-            console.warn('Missing userId or subscription data in /subscribe request');
             return res.status(400).json({ error: 'Missing userId or subscription data' });
         }
         await saveSubscription(userId, subscription);
-        console.log(`Successfully subscribed user ${userId}`);
         res.status(201).json({ message: 'Subscribed successfully' });
     } catch (error) {
         console.error('Subscription error:', error);
@@ -31,7 +29,7 @@ router.post('/subscribe', async (req, res) => {
     }
 });
 
-// --- Existing Authentication Endpoints ---
+// --- Authentication Endpoints ---
 
 // Login endpoint
 router.post('/login', async (req: Request, res: Response) => {
@@ -65,6 +63,8 @@ router.post('/login', async (req: Request, res: Response) => {
 
     delete user.password;
     delete user.verification_token;
+    delete user.reset_password_token;
+    delete user.reset_password_expires;
     res.json(user);
 
   } catch (error) {
@@ -144,6 +144,74 @@ router.get('/verify-email', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Email verification error:', error);
     res.status(500).send('Internal server error during email verification.');
+  }
+});
+
+// ADDED: Forgot Password endpoint
+router.post('/forgot-password', async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    const userResult = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    if (userResult.rows.length === 0) {
+      // Don't reveal if user exists or not for security
+      return res.json({ message: 'If an account with that email exists, a password reset link has been sent.' });
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expires = Date.now() + 3600000; // 1 hour from now
+
+    await pool.query(
+      'UPDATE users SET reset_password_token = $1, reset_password_expires = $2 WHERE email = $3',
+      [token, expires, email]
+    );
+
+    await sendPasswordResetEmail(email, token, req.get('host'));
+
+    res.json({ message: 'If an account with that email exists, a password reset link has been sent.' });
+
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ADDED: Reset Password endpoint
+router.post('/reset-password', async (req: Request, res: Response) => {
+  try {
+    const { token, password } = req.body;
+
+    if (!token || !password) {
+      return res.status(400).json({ error: 'Token and new password are required' });
+    }
+
+    // Find user with valid, non-expired token
+    const userResult = await pool.query(
+      'SELECT * FROM users WHERE reset_password_token = $1 AND reset_password_expires > $2',
+      [token, Date.now()]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(400).json({ error: 'Password reset token is invalid or has expired.' });
+    }
+
+    const user = userResult.rows[0];
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    await pool.query(
+      'UPDATE users SET password = $1, reset_password_token = NULL, reset_password_expires = NULL WHERE id = $2',
+      [hashedPassword, user.id]
+    );
+
+    res.json({ message: 'Password has been reset successfully. You can now log in.' });
+
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
