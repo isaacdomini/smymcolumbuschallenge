@@ -13,6 +13,27 @@ const IGNORED_PATHS = [
     '/service-worker.js'
 ];
 
+// Helper to extract the real client IP, handling various proxy scenarios
+function getClientIp(req: Request): string | undefined {
+    // 1. Check standard X-Forwarded-For header
+    // It can contain multiple IPs: "client, proxy1, proxy2". We want the first one.
+    const xForwardedFor = req.headers['x-forwarded-for'];
+    if (typeof xForwardedFor === 'string') {
+        return xForwardedFor.split(',')[0].trim();
+    } else if (Array.isArray(xForwardedFor)) {
+        return xForwardedFor[0].trim();
+    }
+
+    // 2. Check Cloudflare specific header if applicable
+    const cfConnectingIp = req.headers['cf-connecting-ip'];
+    if (typeof cfConnectingIp === 'string') {
+        return cfConnectingIp;
+    }
+
+    // 3. Fallback to Express req.ip (which uses 'trust proxy' setting) or the direct socket IP
+    return req.ip || req.socket.remoteAddress;
+}
+
 export const visitLogger = (req: Request, res: Response, next: NextFunction) => {
     // Fire and forget - don't await this so we don't slow down the actual request
     logVisit(req).catch(err => {
@@ -29,8 +50,8 @@ async function logVisit(req: Request) {
         return;
     }
 
-    // Get IP address - req.ip works best if 'trust proxy' is set in express
-    const ip = req.ip || req.socket.remoteAddress;
+    // Get IP address using robust extractor
+    const ip = getClientIp(req);
     const userAgent = req.get('User-Agent') || null;
     const method = req.method;
 
@@ -38,14 +59,7 @@ async function logVisit(req: Request) {
     // const geoData = await lookupGeoIP(ip); 
     const metadata = null; 
 
-    // Try to extract user ID if standard Authorization header is present (basic check)
-    // This is a simplistic check and might need adjustment based on exactly how auth is handled in all routes
-    // A more robust way is to use this logger *after* auth middleware for authenticated routes,
-    // but putting it first ensures we catch *all* visitors.
     let userId = null;
-    // If you ever want to log authenticated users, you'd extract it here, possibly by decoding the JWT 
-    // if it's available in the header, without fully verifying it to save time, 
-    // relying on the actual auth middleware for real security.
 
     try {
         await pool.query(

@@ -16,9 +16,10 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Trust proxy is crucial when running behind a load balancer or reverse proxy (like in many Docker/cloud setups)
-// to correctly identify the client's IP address for logging and rate limiting.
-app.set('trust proxy', 1);
+// Trust proxy is crucial when running behind a load balancer or reverse proxy.
+// using 'true' trusts standard proxy headers, which is often necessary in container environments
+// or when behind multiple layers (e.g., Cloudflare -> Nginx -> Docker).
+app.set('trust proxy', true);
 
 // Rate limiting middleware
 const limiter = rateLimit({
