@@ -1,16 +1,16 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { AuthProvider, useAuth } from './hooks/useAuth';
-import Header from './components/Header';
-import Countdown from './components/dashboard/Countdown';
-import Leaderboard from './components/dashboard/Leaderboard';
-import WordleGame from './components/game/WordleGame';
-import ConnectionsGame from './components/game/ConnectionsGame';
-import CrosswordGame from './components/game/CrosswordGame';
-import ChallengeHistory from './components/dashboard/ChallengeHistory';
-import ChallengeIntro from './components/dashboard/ChallengeIntro';
-import { Game, GameType, Challenge, GameSubmission } from './types';
-import { getChallenge, getDailyGame, getLeaderboard, getSubmissionForToday, getGamesForChallenge, getSubmissionsForUser } from './services/api';
-import ScoringCriteria from './components/dashboard/ScoringCriteria';
+import { AuthProvider, useAuth } from '@/hooks/useAuth';
+import Header from '@/components/Header';
+import Countdown from '@/components/dashboard/Countdown';
+import Leaderboard from '@/components/dashboard/Leaderboard';
+import WordleGame from '@/components/game/WordleGame';
+import ConnectionsGame from '@/components/game/ConnectionsGame';
+import CrosswordGame from '@/components/game/CrosswordGame';
+import ChallengeHistory from '@/components/dashboard/ChallengeHistory';
+import ChallengeIntro from '@/components/dashboard/ChallengeIntro';
+import { Game, GameType, Challenge, GameSubmission, User } from '@/types';
+import { getChallenge, getDailyGame, getLeaderboard, getSubmissionForToday, getGamesForChallenge, getSubmissionsForUser } from '@/services/api';
+import ScoringCriteria from '@/components/dashboard/ScoringCriteria';
 
 const App: React.FC = () => {
   return (
@@ -32,11 +32,25 @@ const MainContent: React.FC = () => {
   const [locationPath, setLocationPath] = useState(window.location.pathname);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [globalMessage, setGlobalMessage] = useState<string | null>(null); // For verification message
 
-  const navigate = (path: string) => {
+  const navigate = useCallback((path: string) => {
     window.history.pushState({}, '', path);
     setLocationPath(path);
-  };
+  }, []);
+
+  // Check for email verification query param
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('verified') === 'true') {
+      setGlobalMessage('Your email has been verified! You can now log in.');
+      navigate('/'); // Clear query param
+      
+      // Hide message after a few seconds
+      const timer = setTimeout(() => setGlobalMessage(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [navigate]);
 
   const fetchInitialData = useCallback(async () => {
     setIsLoading(true);
@@ -45,22 +59,30 @@ const MainContent: React.FC = () => {
       const currentChallenge = await getChallenge();
       setChallenge(currentChallenge);
       if (currentChallenge) {
-        const game = await getDailyGame(currentChallenge.id);
-        setTodaysGame(game);
+        // Check if challenge has started
+        const now = new Date();
+        const challengeStartDate = new Date(currentChallenge.startDate);
 
-        const [games, userSubmissions] = await Promise.all([
-          getGamesForChallenge(currentChallenge.id),
-          user ? getSubmissionsForUser(user.id, currentChallenge.id) : Promise.resolve([])
-        ]);
-        setAllChallengeGames(games);
-        setAllUserSubmissions(userSubmissions);
-        
-        if (user && game) {
-            const todaySub = userSubmissions.find(s => s.gameId === game.id) ?? null;
-            setTodaysSubmission(todaySub);
-        } else {
-            setTodaysSubmission(null);
+        if (now >= challengeStartDate) {
+            const game = await getDailyGame(currentChallenge.id);
+            setTodaysGame(game);
+
+            const [games, userSubmissions] = await Promise.all([
+              getGamesForChallenge(currentChallenge.id),
+              user ? getSubmissionsForUser(user.id, currentChallenge.id) : Promise.resolve([])
+            ]);
+            setAllChallengeGames(games);
+            setAllUserSubmissions(userSubmissions);
+            
+            if (user && game) {
+                const todaySub = userSubmissions.find(s => s.gameId === game.id) ?? null;
+                setTodaysSubmission(todaySub);
+            } else {
+                setTodaysSubmission(null);
+            }
         }
+        // If challenge hasn't started, todaysGame remains null
+        // and leaderboard won't fetch (handled in LeaderboardWrapper)
       }
     } catch (err) {
       setError('Failed to load challenge data.');
@@ -101,12 +123,17 @@ const MainContent: React.FC = () => {
             return null;
         }
         
+        // Find the game in the list of *all* games (in case user is revisiting)
         const activeGame = allChallengeGames.find(g => g.id === gameId);
+        
+        // Also check today's game, in case it's the one being played but fetchAll hasn't completed
+        const gameToPlay = activeGame || (todaysGame?.id === gameId ? todaysGame : null);
+        
         const activeSubmission = allUserSubmissions.find(s => s.gameId === gameId) ?? null;
 
-        if (!activeGame) {
-             // This can happen if data is still loading, show a message.
-            return <div className="text-center p-10">Loading game...</div>;
+        if (!gameToPlay) {
+             // This can happen if data is still loading, or bad URL
+            return <div className="text-center p-10">Loading game... (or game not found)</div>;
         }
 
         const onComplete = () => {
@@ -114,14 +141,16 @@ const MainContent: React.FC = () => {
           navigate('/');
         }
         
-        switch (activeGame.type) {
+        switch (gameToPlay.type) {
             case GameType.WORDLE:
-                return <WordleGame gameData={activeGame.data} onComplete={onComplete} submission={activeSubmission} gameId={activeGame.id} />;
+                return <WordleGame gameData={gameToPlay.data} onComplete={onComplete} submission={activeSubmission} gameId={gameToPlay.id} />;
             case GameType.CONNECTIONS:
-                return <ConnectionsGame gameData={activeGame.data} onComplete={onComplete} submission={activeSubmission} gameId={activeGame.id} />;
+                return <ConnectionsGame gameData={gameToPlay.data} onComplete={onComplete} submission={activeSubmission} gameId={gameToPlay.id} />;
             case GameType.CROSSWORD:
-                return <CrosswordGame gameData={activeGame.data} onComplete={onComplete} submission={activeSubmission} gameId={activeGame.id} />;
+                return <CrosswordGame gameData={gameToPlay.data} onComplete={onComplete} submission={activeSubmission} gameId={gameToPlay.id} />;
             default:
+                // This case should not be reachable if types are correct
+                const _exhaustiveCheck: never = gameToPlay;
                 return <p>Unknown game type.</p>;
         }
     }
@@ -147,15 +176,16 @@ const MainContent: React.FC = () => {
                 challenge && <LeaderboardWrapper challengeId={challenge.id} />
             )}
             
-            {challengeStarted && todaysGame && (
+            {challengeStarted && (
                 <div className="mt-8 flex flex-col sm:flex-row justify-center items-center gap-4">
                     {user ? (
                         <>
                             <button 
                                 onClick={() => todaysGame && navigate(`/game/${todaysGame.id}`)}
-                                className="bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold py-3 px-8 rounded-lg text-xl shadow-lg transition-transform transform hover:scale-105"
+                                disabled={!todaysGame}
+                                className="bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold py-3 px-8 rounded-lg text-xl shadow-lg transition-transform transform hover:scale-105 disabled:bg-gray-600 disabled:cursor-not-allowed"
                             >
-                                {todaysSubmission ? "Revisit Today's Game" : "Play Today's Game"}
+                                {todaysGame ? (todaysSubmission ? "Revisit Today's Game" : "Play Today's Game") : "No Game Today"}
                             </button>
                             <button
                                 onClick={() => navigate('/history')}
@@ -179,6 +209,11 @@ const MainContent: React.FC = () => {
     <div className="min-h-screen bg-gray-900 text-gray-100 font-sans">
       <Header challengeName={challenge?.name} onLogoClick={() => navigate('/')} />
       <main className="container mx-auto p-4 md:p-6">
+        {globalMessage && (
+          <div className="mb-4 p-4 text-center bg-green-700 text-white rounded-lg shadow-lg">
+            {globalMessage}
+          </div>
+        )}
         {renderContent()}
       </main>
     </div>
@@ -186,9 +221,15 @@ const MainContent: React.FC = () => {
 };
 
 const LeaderboardWrapper: React.FC<{ challengeId: string }> = ({ challengeId }) => {
-    const [leaderboardData, setLeaderboardData] = useState<any[]>([]);
+    const [leaderboardData, setLeaderboardData] = useState<(GameSubmission & { user: User })[]>([]);
     useEffect(() => {
-        getLeaderboard(challengeId).then(setLeaderboardData);
+        // Only fetch leaderboard if challenge ID is present
+        if(challengeId) {
+            getLeaderboard(challengeId).then(setLeaderboardData).catch(err => {
+                console.error("Failed to load leaderboard", err);
+                setLeaderboardData([]); // Clear data on error
+            });
+        }
     }, [challengeId]);
 
     return <Leaderboard data={leaderboardData} />;

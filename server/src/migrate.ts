@@ -6,9 +6,17 @@ const migrations = [
     id VARCHAR(255) PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    password VARCHAR(255),
+    is_verified BOOLEAN DEFAULT false,
+    verification_token VARCHAR(255)
   )`,
   
+  // Add columns to users table if it already exists (for idempotency)
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS password VARCHAR(255);`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT false;`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_token VARCHAR(255);`,
+
   // Challenges table
   `CREATE TABLE IF NOT EXISTS challenges (
     id VARCHAR(255) PRIMARY KEY,
@@ -73,8 +81,16 @@ async function runMigrations() {
     throw error;
   } finally {
     client.release();
-    await pool.end();
+    // Only end pool in production migration script, not if pool is shared
+    // await pool.end(); 
   }
 }
 
-runMigrations();
+// Check if this script is run directly
+if (process.argv[1] && process.argv[1].includes('migrate.js')) {
+  runMigrations().then(() => pool.end());
+} else {
+  // If imported, just export the function
+  // This seems to be the pattern from package.json
+  runMigrations().then(() => pool.end());
+}

@@ -12,15 +12,19 @@ interface WordleGameProps {
 
 const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, onComplete }) => {
   const { user } = useAuth();
-  const [guesses, setGuesses] = useState<string[]>(Array(6).fill(''));
+  const solution = useMemo(() => gameData.solution.toUpperCase(), [gameData.solution]);
+  const wordLength = useMemo(() => solution.length, [solution]);
+  const maxGuesses = 6; // You can make this dynamic, e.g., wordLength + 1
+
+  const [guesses, setGuesses] = useState<string[]>(() => Array(maxGuesses).fill(''));
   const [currentGuess, setCurrentGuess] = useState('');
   const [activeGuessIndex, setActiveGuessIndex] = useState(0);
   const [isRevealing, setIsRevealing] = useState(false);
   const [gameState, setGameState] = useState<'playing' | 'won' | 'lost'>('playing');
   const [startTime, setStartTime] = useState(Date.now());
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false); // For word validation
   const isReadOnly = !!submission;
-  const solution = gameData.solution.toUpperCase();
-
 
   useEffect(() => {
     if (isReadOnly || !user) return;
@@ -30,17 +34,23 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
         if (savedProgress?.gameState) {
             try {
                 const savedState = savedProgress.gameState;
-                setGuesses(savedState.guesses || Array(6).fill(''));
+                // Ensure saved state matches current game params
+                if (savedState.guesses && savedState.guesses.length === maxGuesses) {
+                  setGuesses(savedState.guesses);
+                } else {
+                  setGuesses(Array(maxGuesses).fill(''));
+                }
                 setActiveGuessIndex(savedState.activeGuessIndex || 0);
                 setGameState(savedState.gameState || 'playing');
                 setStartTime(savedState.startTime || Date.now());
             } catch (e) {
                 console.error("Failed to parse saved Wordle state", e);
+                setGuesses(Array(maxGuesses).fill('')); // Reset on parse error
             }
         }
     };
     loadState();
-  }, [gameId, isReadOnly, user]);
+  }, [gameId, isReadOnly, user, maxGuesses]);
 
   useEffect(() => {
     if (isReadOnly || gameState !== 'playing' || !user) return;
@@ -64,7 +74,7 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
     if (isReadOnly && submission) {
       const submittedGuesses = submission.submissionData.guesses;
       const finalGuesses = [...submittedGuesses];
-      while (finalGuesses.length < 6) {
+      while (finalGuesses.length < maxGuesses) {
         finalGuesses.push('');
       }
       setGuesses(finalGuesses);
@@ -77,24 +87,58 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
         setGameState('lost');
       }
     }
-  }, [isReadOnly, submission, solution]);
+  }, [isReadOnly, submission, solution, maxGuesses]);
 
-  const handleKeyPress = useCallback((key: string) => {
-    if (gameState !== 'playing' || isRevealing || isReadOnly) return;
+  // New function to check word validity
+  const checkWordValidity = async (word: string): Promise<boolean> => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      // Using a free dictionary API. Note: This has rate limits and is for demo purposes.
+      const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word.toLowerCase()}`);
+      setIsLoading(false);
+      if (response.ok) {
+        return true;
+      }
+      if (response.status === 404) {
+        setError("Not in word list");
+        return false;
+      }
+      setError("Error checking word");
+      return false; // Fail safe
+    } catch (err) {
+      console.error("Dictionary API error:", err);
+      setIsLoading(false);
+      setError("Could not check word");
+      return false; // Fail safe if API is down
+    }
+  };
+
+  const handleKeyPress = useCallback(async (key: string) => {
+    if (gameState !== 'playing' || isRevealing || isReadOnly || isLoading) return;
 
     if (key === 'Enter') {
-      if (currentGuess.length === 5) {
+      if (currentGuess.length === wordLength) {
+        const isValid = await checkWordValidity(currentGuess);
+        if (!isValid) {
+          // Error state is set by checkWordValidity
+          return;
+        }
         const newGuesses = [...guesses];
         newGuesses[activeGuessIndex] = currentGuess;
         setGuesses(newGuesses);
         setIsRevealing(true);
+      } else {
+        setError(`Word must be ${wordLength} letters`);
       }
     } else if (key === 'Backspace') {
+      setError(null);
       setCurrentGuess(prev => prev.slice(0, -1));
-    } else if (currentGuess.length < 5 && /^[A-Z]$/i.test(key)) {
+    } else if (currentGuess.length < wordLength && /^[A-Z]$/i.test(key)) {
+      setError(null);
       setCurrentGuess(prev => prev + key.toUpperCase());
     }
-  }, [currentGuess, activeGuessIndex, guesses, gameState, isRevealing, isReadOnly]);
+  }, [currentGuess, activeGuessIndex, guesses, gameState, isRevealing, isReadOnly, isLoading, wordLength, checkWordValidity]);
   
   useEffect(() => {
     const handler = (e: KeyboardEvent) => handleKeyPress(e.key);
@@ -107,18 +151,19 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
 
     const guess = guesses[activeGuessIndex];
     
+    // Wait for tile flip animation
     setTimeout(() => {
         if (guess === solution) {
             setGameState('won');
-        } else if (activeGuessIndex === 5) {
+        } else if (activeGuessIndex === maxGuesses - 1) {
             setGameState('lost');
         } else {
             setActiveGuessIndex(prev => prev + 1);
             setCurrentGuess('');
             setIsRevealing(false);
         }
-    }, 5 * 350);
-  }, [isRevealing, activeGuessIndex, guesses, solution]);
+    }, wordLength * 350); // Animation delay based on word length
+  }, [isRevealing, activeGuessIndex, guesses, solution, maxGuesses, wordLength]);
 
   useEffect(() => {
      const saveResult = async () => {
@@ -126,7 +171,7 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
             if (!user) return;
             await clearGameState(user.id, gameId);
             const timeTaken = Math.round((Date.now() - startTime) / 1000);
-            const mistakes = gameState === 'won' ? activeGuessIndex : 6;
+            const mistakes = gameState === 'won' ? activeGuessIndex : maxGuesses;
             await submitGame({
                 userId: user.id,
                 gameId,
@@ -138,11 +183,11 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
         }
      }
      saveResult();
-  }, [gameState, user, isReadOnly, startTime, activeGuessIndex, gameId, guesses, onComplete]);
+  }, [gameState, user, isReadOnly, startTime, activeGuessIndex, gameId, guesses, onComplete, maxGuesses]);
 
   const letterStatuses = useMemo(() => {
     const statuses: { [key: string]: 'correct' | 'present' | 'absent' } = {};
-    const submittedGuesses = guesses.slice(0, activeGuessIndex);
+    const submittedGuesses = guesses.slice(0, activeGuessIndex + (isRevealing ? 1 : 0));
 
     submittedGuesses.forEach(guess => {
         [...guess].forEach((char, i) => {
@@ -158,19 +203,34 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
         });
     });
     return statuses;
-  }, [guesses, activeGuessIndex, solution]);
+  }, [guesses, activeGuessIndex, solution, isRevealing]);
 
 
   return (
     <div className="w-full max-w-md mx-auto flex flex-col items-center">
       <h2 className="text-2xl font-bold mb-4">Wordle</h2>
-      <div className="grid grid-rows-6 gap-1.5 mb-4">
+      
+      {/* Error/Loading Display */}
+      <div className="h-8 mb-2 flex items-center justify-center">
+        {isLoading && (
+          <div className="text-blue-400">Checking word...</div>
+        )}
+        {error && !isLoading && (
+          <div className="text-red-400 bg-red-900/50 px-3 py-1 rounded-md">{error}</div>
+        )}
+      </div>
+      
+      <div 
+        className="grid gap-1.5 mb-4"
+        style={{ gridTemplateRows: `repeat(${maxGuesses}, 1fr)` }}
+      >
         {guesses.map((guess, i) => (
           <Row
             key={i}
             guess={i === activeGuessIndex ? currentGuess : guess}
             isSubmitted={i < activeGuessIndex || (i === activeGuessIndex && (isRevealing || isReadOnly))}
             solution={solution}
+            wordLength={wordLength}
           />
         ))}
       </div>
@@ -197,10 +257,13 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
 };
 
 
-const Row: React.FC<{ guess: string; isSubmitted: boolean; solution: string; }> = ({ guess, isSubmitted, solution }) => {
-  const letters = Array.from(Array(5));
+const Row: React.FC<{ guess: string; isSubmitted: boolean; solution: string; wordLength: number; }> = ({ guess, isSubmitted, solution, wordLength }) => {
+  const letters = Array.from(Array(wordLength));
   return (
-    <div className="grid grid-cols-5 gap-1.5">
+    <div 
+      className="grid gap-1.5"
+      style={{ gridTemplateColumns: `repeat(${wordLength}, 1fr)` }}
+    >
       {letters.map((_, i) => {
         const char = guess[i];
         const status = getTileStatus(char, i, isSubmitted, solution, guess);
@@ -214,16 +277,39 @@ const getTileStatus = (char: string, index: number, isSubmitted: boolean, soluti
     if (!isSubmitted || !char) return 'empty';
     if (solution[index] === char) return 'correct';
     if (solution.includes(char)) {
-       const solutionCount = [...solution].filter(x => x === char).length;
-       const guessCount = [...guess].slice(0, index + 1).filter(x => x === char).length;
-       const correctPositions = [...guess].filter((x, pos) => x === char && solution[pos] === char).length;
-       if (guessCount <= solutionCount - correctPositions) return 'present';
+       // Handle duplicate letters
+       const solutionChars = [...solution];
+       const guessChars = [...guess];
+       
+       let solutionCount = 0;
+       solutionChars.forEach(sChar => {
+         if (sChar === char) solutionCount++;
+       });
+
+       let correctCount = 0;
+       guessChars.forEach((gChar, i) => {
+          if(gChar === char && solutionChars[i] === char) {
+            correctCount++;
+          }
+       });
+
+       let presentCount = 0;
+       for (let i = 0; i <= index; i++) {
+         if (guessChars[i] === char && solutionChars[i] !== char) {
+           presentCount++;
+         }
+       }
+
+       if (presentCount <= solutionCount - correctCount) {
+         return 'present';
+       }
     }
     return 'absent';
 };
 
 const Tile: React.FC<{char?: string; status: 'empty' | 'correct' | 'present' | 'absent'; isRevealing: boolean; index: number}> = ({ char, status, isRevealing, index }) => {
-    const baseClasses = "w-14 h-14 sm:w-16 sm:h-16 border-2 flex items-center justify-center text-3xl font-bold uppercase transition-all duration-300";
+    // Responsive tile size
+    const baseClasses = "w-12 h-12 sm:w-14 sm:h-14 border-2 flex items-center justify-center text-2xl sm:text-3xl font-bold uppercase transition-all duration-300";
     const statusClasses = {
         empty: 'border-gray-600',
         absent: 'bg-gray-700 border-gray-700',
@@ -231,15 +317,36 @@ const Tile: React.FC<{char?: string; status: 'empty' | 'correct' | 'present' | '
         correct: 'bg-green-600 border-green-600',
     };
     const animationDelay = isRevealing ? `${index * 350}ms` : '0ms';
+    // Custom animation classes (make sure these are defined in your global CSS or index.html if not using Tailwind JIT)
+    // For this environment, let's just use opacity transition
     const transformClass = isRevealing ? 'animate-flip-in' : '';
 
+    // Add animation to index.html if not present
+    // @keyframes flip-in { 0% { transform: rotateX(0deg); } 50% { transform: rotateX(90deg); } 100% { transform: rotateX(0deg); } }
+    // .animate-flip-in { animation: flip-in 0.5s ease; }
+    // Adding it via style tag in component is not ideal but necessary here
+    
     return (
+        <>
+        <style>
+            {`
+            @keyframes flip-in {
+                0% { transform: rotateX(0deg); background-color: #4B5563; border-color: #4B5563; }
+                50% { transform: rotateX(90deg); background-color: #4B5563; border-color: #4B5563; }
+                100% { transform: rotateX(0deg); }
+            }
+            .animate-flip-in {
+                animation: flip-in 0.5s ease;
+            }
+            `}
+        </style>
         <div 
         className={`${baseClasses} ${isRevealing ? statusClasses[status] : statusClasses.empty} ${transformClass}`}
         style={{ animationDelay }}
         >
             {char}
         </div>
+        </>
     );
 };
 
@@ -251,7 +358,7 @@ const KEY_ROWS = [
 
 const Keyboard: React.FC<{ onKeyPress: (key: string) => void; letterStatuses: { [key: string]: 'correct' | 'present' | 'absent' };}> = ({ onKeyPress, letterStatuses }) => {
   return (
-    <div className="w-full mt-4">
+    <div className="w-full max-w-lg mt-4">
       {KEY_ROWS.map((row, i) => (
         <div key={i} className="flex justify-center gap-1 my-1 w-full">
           {row.map(key => {
@@ -262,13 +369,14 @@ const Keyboard: React.FC<{ onKeyPress: (key: string) => void; letterStatuses: { 
                 absent: 'bg-gray-700 hover:bg-gray-600',
                 default: 'bg-gray-500 hover:bg-gray-600'
             };
-            const flexClass = (key === 'Enter' || key === 'Backspace') ? 'flex-1.5' : 'flex-1';
+            const flexClass = (key === 'Enter' || key === 'Backspace') ? 'flex-[1.5]' : 'flex-1';
+            const textSize = (key === 'Enter' || key === 'Backspace') ? 'text-xs' : 'text-sm';
             
             return (
                 <button 
                     key={key} 
                     onClick={() => onKeyPress(key)}
-                    className={`h-14 rounded font-semibold uppercase text-white transition-colors ${flexClass} ${status ? keyClasses[status] : keyClasses.default}`}
+                    className={`h-12 rounded font-semibold uppercase text-white transition-colors ${flexClass} ${status ? keyClasses[status] : keyClasses.default} ${textSize}`}
                 >
                     {key === 'Backspace' ? '⌫' : key}
                 </button>

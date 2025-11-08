@@ -1,23 +1,84 @@
 import { Router, Request, Response } from 'express';
 import pool from '../db/pool.js';
+import bcrypt from 'bcrypt';
+import nodemailer from 'nodemailer';
+import crypto from 'crypto';
 
 const router = Router();
 
-// Note: Password authentication is intentionally simplified for this MVP.
-// In a production system, passwords should be hashed and validated properly.
-// TODO: Implement bcrypt password hashing and validation before production deployment
+// --- Nodemailer Setup ---
+// We use process.env to configure the email transporter
+// Users must set these in their .env file
+const transporter = nodemailer.createTransport({
+  host: process.env.EMAIL_HOST,
+  port: parseInt(process.env.EMAIL_PORT || '587'),
+  secure: (process.env.EMAIL_PORT === '465'), // true for 465, false for other ports
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
+
+const sendVerificationEmail = async (email: string, token: string, host: string) => {
+  const verificationUrl = `${process.env.NODE_ENV === 'development' ? 'http' : 'https'}://${host}/api/verify-email?token=${token}`;
+  
+  try {
+    await transporter.sendMail({
+      from: process.env.EMAIL_FROM, // sender address
+      to: email, // list of receivers
+      subject: 'Verify Your Email for SMYM Bible Games', // Subject line
+      html: `
+        <p>Welcome to the SMYM Bible Games!</p>
+        <p>Please click the link below to verify your email address:</p>
+        <p><a href="${verificationUrl}">${verificationUrl}</a></p>
+        <p>If you did not sign up for this account, you can ignore this email.</p>
+      `,
+    });
+    console.log(`Verification email sent to ${email}`);
+  } catch (error) {
+    console.error(`Failed to send verification email to ${email}:`, error);
+    // We don't throw here, as the signup can still succeed.
+    // In production, you might want to handle this more robustly.
+  }
+};
+
 
 // Login endpoint
 router.post('/login', async (req: Request, res: Response) => {
   try {
-    const { email } = req.body;
+    const { email, password } = req.body;
+    
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
+
     const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
     
-    if (result.rows.length > 0) {
-      res.json(result.rows[0]);
-    } else {
-      res.status(401).json({ error: 'Invalid credentials' });
+    if (result.rows.length === 0) {
+      return res.status(401).json({ error: 'Invalid credentials' });
     }
+
+    const user = result.rows[0];
+
+    // Check if password is set (for users created before password auth)
+    if (!user.password) {
+      return res.status(401).json({ error: 'Account created before password auth. Please sign up again.' });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    if (!user.is_verified) {
+      return res.status(401).json({ error: 'Please check your email to verify your account.' });
+    }
+
+    // Don't send password hash back to client
+    delete user.password;
+    delete user.verification_token;
+    res.json(user);
+
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -27,34 +88,91 @@ router.post('/login', async (req: Request, res: Response) => {
 // Signup endpoint
 router.post('/signup', async (req: Request, res: Response) => {
   try {
-    const { name, email } = req.body;
+    const { name, email, password } = req.body;
+
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: 'Name, email, and password are required' });
+    }
     
     // Check if user exists
-    const existingUser = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-    if (existingUser.rows.length > 0) {
-      return res.status(400).json({ error: 'User already exists' });
+    const existingUserResult = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    if (existingUserResult.rows.length > 0) {
+      const existingUser = existingUserResult.rows[0];
+      if (existingUser.is_verified) {
+         return res.status(400).json({ error: 'User already exists' });
+      } else {
+        // User exists but is not verified. Resend verification email.
+        if (!existingUser.verification_token) {
+          // Should not happen, but fix it if it does
+          existingUser.verification_token = crypto.randomBytes(32).toString('hex');
+          await pool.query('UPDATE users SET verification_token = $1 WHERE id = $2', [existingUser.verification_token, existingUser.id]);
+        }
+        await sendVerificationEmail(existingUser.email, existingUser.verification_token, req.headers.host || 'localhost:3000');
+        return res.status(201).json({ message: 'Account already registered. Verification email resent. Please check your email.' });
+      }
     }
     
     // Create new user
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+    const verificationToken = crypto.randomBytes(32).toString('hex');
     const userId = `user-${Date.now()}`;
-    const result = await pool.query(
-      'INSERT INTO users (id, name, email) VALUES ($1, $2, $3) RETURNING *',
-      [userId, name, email]
-    );
     
-    res.json(result.rows[0]);
+    const result = await pool.query(
+      'INSERT INTO users (id, name, email, password, is_verified, verification_token) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      [userId, name, email, hashedPassword, false, verificationToken]
+    );
+
+    // Send verification email
+    await sendVerificationEmail(email, verificationToken, req.headers.host || 'localhost:3000');
+    
+    res.status(201).json({ message: 'Signup successful. Please check your email to verify your account.' });
+  
   } catch (error) {
     console.error('Signup error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
+// Email verification endpoint
+router.get('/verify-email', async (req: Request, res: Response) => {
+  try {
+    const { token } = req.query;
+
+    if (!token || typeof token !== 'string') {
+      return res.status(400).send('Invalid verification token.');
+    }
+
+    const result = await pool.query('SELECT * FROM users WHERE verification_token = $1', [token]);
+    if (result.rows.length === 0) {
+      return res.status(400).send('Invalid or expired verification token.');
+    }
+
+    const user = result.rows[0];
+
+    await pool.query(
+      'UPDATE users SET is_verified = true, verification_token = NULL WHERE id = $1',
+      [user.id]
+    );
+
+    // Redirect to the frontend with a success query param
+    const frontendUrl = process.env.NODE_ENV === 'development' ? 'http://localhost:5173' : '/';
+    return res.redirect(`${frontendUrl}?verified=true`);
+
+  } catch (error) {
+    console.error('Email verification error:', error);
+    res.status(500).send('Internal server error during email verification.');
+  }
+});
+
+
 // Get current challenge
 router.get('/challenge', async (req: Request, res: Response) => {
   try {
     const now = new Date();
+    // Get the most recent challenge that has started and not ended
     const result = await pool.query(
-      'SELECT * FROM challenges WHERE start_date <= $1 AND end_date >= $1 LIMIT 1',
+      'SELECT * FROM challenges WHERE start_date <= $1 AND end_date >= $1 ORDER BY start_date DESC LIMIT 1',
       [now]
     );
     
@@ -67,7 +185,22 @@ router.get('/challenge', async (req: Request, res: Response) => {
         endDate: challenge.end_date.toISOString(),
       });
     } else {
-      res.json(null);
+      // Check for the next upcoming challenge
+      const upcomingResult = await pool.query(
+        'SELECT * FROM challenges WHERE start_date > $1 ORDER BY start_date ASC LIMIT 1',
+        [now]
+      );
+      if (upcomingResult.rows.length > 0) {
+        const challenge = upcomingResult.rows[0];
+        res.json({
+          id: challenge.id,
+          name: challenge.name,
+          startDate: challenge.start_date.toISOString(),
+          endDate: challenge.end_date.toISOString(),
+        });
+      } else {
+         res.json(null); // No active or upcoming challenge
+      }
     }
   } catch (error) {
     console.error('Get challenge error:', error);
@@ -132,8 +265,9 @@ router.get('/challenge/:challengeId/games', async (req: Request, res: Response) 
     const { challengeId } = req.params;
     const now = new Date();
     
+    // Return all games for the challenge that are on or before today
     const result = await pool.query(
-      'SELECT * FROM games WHERE challenge_id = $1 AND date <= $2 ORDER BY date ASC',
+      "SELECT * FROM games WHERE challenge_id = $1 AND DATE(date) <= DATE($2) ORDER BY date ASC",
       [challengeId, now]
     );
     
@@ -223,7 +357,8 @@ router.get('/challenge/:challengeId/leaderboard', async (req: Request, res: Resp
         u.id as user_id,
         u.name,
         u.email,
-        SUM(gs.score) as total_score
+        SUM(gs.score) as total_score,
+        COUNT(gs.id) as games_played
       FROM game_submissions gs
       JOIN users u ON gs.user_id = u.id
       WHERE gs.challenge_id = $1
@@ -236,13 +371,15 @@ router.get('/challenge/:challengeId/leaderboard', async (req: Request, res: Resp
       id: `leaderboard-${row.user_id}`,
       userId: row.user_id,
       challengeId,
-      score: row.total_score,
+      score: parseInt(row.total_score, 10), // Ensure score is a number
       user: {
         id: row.user_id,
         name: row.name,
         email: row.email,
       },
-      gameId: '',
+      gamesPlayed: parseInt(row.games_played, 10),
+      // Dummy values for type compatibility
+      gameId: '', 
       completedAt: '',
       timeTaken: 0,
       mistakes: 0,
@@ -258,7 +395,7 @@ router.get('/challenge/:challengeId/leaderboard', async (req: Request, res: Resp
 // Submit game
 router.post('/submit', async (req: Request, res: Response) => {
   try {
-    const { userId, gameId, timeTaken, mistakes, submissionData } = req.body;
+    const { userId, gameId, timeTaken, mistakes, submissionData, score } = req.body;
     
     // Get the game to find challenge ID
     const gameResult = await pool.query('SELECT * FROM games WHERE id = $1', [gameId]);
@@ -267,13 +404,45 @@ router.post('/submit', async (req: Request, res: Response) => {
     }
     
     const game = gameResult.rows[0];
+
+    // Check for existing submission
+    const existingSub = await pool.query(
+      'SELECT * FROM game_submissions WHERE user_id = $1 AND game_id = $2',
+      [userId, gameId]
+    );
+
+    if (existingSub.rows.length > 0) {
+      // User has already submitted for this game.
+      // We'll update their score if the new one is higher
+      const oldScore = existingSub.rows[0].score;
+      if (score > oldScore) {
+        const result = await pool.query(
+          'UPDATE game_submissions SET completed_at = $1, time_taken = $2, mistakes = $3, score = $4, submission_data = $5 WHERE id = $6 RETURNING *',
+          [new Date(), timeTaken, mistakes, score, JSON.stringify(submissionData), existingSub.rows[0].id]
+        );
+         const sub = result.rows[0];
+         res.json({
+            id: sub.id,
+            userId: sub.user_id,
+            gameId: sub.game_id,
+            challengeId: sub.challenge_id,
+            completedAt: sub.completed_at.toISOString(),
+            timeTaken: sub.time_taken,
+            mistakes: sub.mistakes,
+            score: sub.score,
+            submissionData: sub.submission_data,
+         });
+      } else {
+        // Old score is better or equal, just return the old submission
+        res.json({
+            ...existingSub.rows[0],
+            completedAt: existingSub.rows[0].completed_at.toISOString(),
+        });
+      }
+      return; // Stop execution
+    }
     
-    // Calculate score
-    const timePenalty = Math.floor(timeTaken / 15);
-    const mistakePenalty = mistakes * 10;
-    const score = Math.max(0, 100 - mistakePenalty - timePenalty);
-    
-    // Create submission
+    // Create new submission
     const submissionId = `sub-${Date.now()}`;
     const result = await pool.query(
       'INSERT INTO game_submissions (id, user_id, game_id, challenge_id, completed_at, time_taken, mistakes, score, submission_data) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *',

@@ -1,12 +1,11 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { User } from '../types';
-import * as api from '../services/api';
+import { User } from '@/types';
+import * as api from '@/services/api';
 
 interface AuthContextType {
   user: User | null;
   login: (email: string, pass: string) => Promise<void>;
-  signup: (name: string, email: string, pass: string) => Promise<void>;
+  signup: (name: string, email: string, pass: string) => Promise<{ message: string }>;
   logout: () => void;
   isLoading: boolean;
 }
@@ -32,14 +31,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const login = async (email: string, pass: string) => {
     const loggedInUser = await api.login(email, pass);
+    // Remove sensitive info just in case
+    delete (loggedInUser as any).password;
+    delete (loggedInUser as any).verification_token;
+    
     setUser(loggedInUser);
     localStorage.setItem('smym-user', JSON.stringify(loggedInUser));
   };
 
-  const signup = async (name: string, email: string, pass: string) => {
-    const newUser = await api.signup(name, email, pass);
-    setUser(newUser);
-    localStorage.setItem('smym-user', JSON.stringify(newUser));
+  const signup = async (name: string, email: string, pass: string): Promise<{ message: string }> => {
+    // Signup API now returns a message, not a user object
+    const response = await api.signup(name, email, pass);
+    return response;
   };
 
   const logout = useCallback(() => {
