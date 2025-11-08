@@ -1,43 +1,37 @@
 import { Router, Request, Response } from 'express';
 import pool from '../db/pool.js';
 import bcrypt from 'bcrypt';
-import nodemailer from 'nodemailer';
 import crypto from 'crypto';
+import { sendVerificationEmail } from '../services/email.js';
+import { getVapidPublicKey, saveSubscription } from '../services/push.js';
 
 const router = Router();
 
-// --- Nodemailer Setup ---
-const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST,
-  port: parseInt(process.env.EMAIL_PORT || '587'),
-  secure: (process.env.EMAIL_PORT === '465'),
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
+// --- Push Notification Endpoints ---
+
+router.get('/vapid-public-key', (req, res) => {
+    console.log('GET /vapid-public-key called');
+    res.json({ publicKey: getVapidPublicKey() });
 });
 
-const sendVerificationEmail = async (email: string, token: string, host: string) => {
-  const verificationUrl = `${process.env.NODE_ENV === 'development' ? 'http' : 'https'}://${host}/api/verify-email?token=${token}`;
-  
-  try {
-    await transporter.sendMail({
-      from: process.env.EMAIL_FROM,
-      to: email,
-      subject: 'Verify Your Email for SMYM Bible Games',
-      html: `
-        <p>Welcome to the SMYM Bible Games!</p>
-        <p>Please click the link below to verify your email address:</p>
-        <p><a href="${verificationUrl}">${verificationUrl}</a></p>
-        <p>If you did not sign up for this account, you can ignore this email.</p>
-      `,
-    });
-    console.log(`Verification email sent to ${email}`);
-  } catch (error) {
-    console.error(`Failed to send verification email to ${email}:`, error);
-  }
-};
+router.post('/subscribe', async (req, res) => {
+    console.log('POST /subscribe called', req.body);
+    try {
+        const { userId, subscription } = req.body;
+        if (!userId || !subscription) {
+            console.warn('Missing userId or subscription data in /subscribe request');
+            return res.status(400).json({ error: 'Missing userId or subscription data' });
+        }
+        await saveSubscription(userId, subscription);
+        console.log(`Successfully subscribed user ${userId}`);
+        res.status(201).json({ message: 'Subscribed successfully' });
+    } catch (error) {
+        console.error('Subscription error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
 
+// --- Existing Authentication Endpoints ---
 
 // Login endpoint
 router.post('/login', async (req: Request, res: Response) => {
@@ -82,7 +76,7 @@ router.post('/login', async (req: Request, res: Response) => {
 // Signup endpoint
 router.post('/signup', async (req: Request, res: Response) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, emailNotifications = true } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({ error: 'Name, email, and password are required' });
@@ -96,9 +90,9 @@ router.post('/signup', async (req: Request, res: Response) => {
       } else {
         if (!existingUser.verification_token) {
           existingUser.verification_token = crypto.randomBytes(32).toString('hex');
-          await pool.query('UPDATE users SET verification_token = $1 WHERE id = $2', [existingUser.verification_token, existingUser.id]);
+          await pool.query('UPDATE users SET verification_token = $1, email_notifications = $2 WHERE id = $3', [existingUser.verification_token, emailNotifications, existingUser.id]);
         }
-        await sendVerificationEmail(existingUser.email, existingUser.verification_token, req.headers.host || 'localhost:3000');
+        await sendVerificationEmail(existingUser.email, existingUser.verification_token, req.get('host'));
         return res.status(201).json({ message: 'Account already registered. Verification email resent. Please check your email.' });
       }
     }
@@ -109,11 +103,11 @@ router.post('/signup', async (req: Request, res: Response) => {
     const userId = `user-${Date.now()}`;
     
     await pool.query(
-      'INSERT INTO users (id, name, email, password, is_verified, verification_token) VALUES ($1, $2, $3, $4, $5, $6)',
-      [userId, name, email, hashedPassword, false, verificationToken]
+      'INSERT INTO users (id, name, email, password, is_verified, verification_token, email_notifications) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+      [userId, name, email, hashedPassword, false, verificationToken, emailNotifications]
     );
 
-    await sendVerificationEmail(email, verificationToken, req.headers.host || 'localhost:3000');
+    await sendVerificationEmail(email, verificationToken, req.get('host'));
     
     res.status(201).json({ message: 'Signup successful. Please check your email to verify your account.' });
   
@@ -144,7 +138,7 @@ router.get('/verify-email', async (req: Request, res: Response) => {
       [user.id]
     );
 
-    const frontendUrl = process.env.NODE_ENV === 'development' ? 'http://localhost:5173' : '/';
+    const frontendUrl = process.env.APP_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5173' : '/');
     return res.redirect(`${frontendUrl}?verified=true`);
 
   } catch (error) {
@@ -249,8 +243,6 @@ router.get('/games/:gameId', async (req: Request, res: Response) => {
 router.get('/challenge/:challengeId/games', async (req: Request, res: Response) => {
   try {
     const { challengeId } = req.params;
-    // REMOVED: const now = new Date(); 
-    // Updated query to fetch ALL games for the challenge, regardless of date
     const result = await pool.query(
       "SELECT * FROM games WHERE challenge_id = $1 ORDER BY date ASC",
       [challengeId]
