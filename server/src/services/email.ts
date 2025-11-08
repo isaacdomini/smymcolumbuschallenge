@@ -26,7 +26,7 @@ export const sendVerificationEmail = async (email: string, token: string, host?:
   const verificationUrl = `${baseUrl}/?verified=true&token=${token}`; 
   // Note: The actual verification endpoint is on the API, but we want to redirect to frontend ultimately.
   // Let's stick to the API endpoint for the actual click, which then redirects.
-  const apiVerificationUrl = `${process.env.VITE_API_URL || 'http://localhost:3000/api'}/verify-email?token=${token}`;
+  const apiVerificationUrl = `${baseUrl}/api/verify-email?token=${token}`;
 
   try {
     await transporter.sendMail({
