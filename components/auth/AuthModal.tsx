@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import Modal from '../ui/Modal';
 import { useAuth } from '../../hooks/useAuth';
+import { usePushNotifications } from '../../hooks/usePushNotifications';
 
 interface AuthModalProps {
   onClose: () => void;
@@ -9,6 +10,7 @@ interface AuthModalProps {
 const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
   const [isLoginView, setIsLoginView] = useState(true);
   const { login, signup } = useAuth();
+  const { isSupported, subscribeToPush, notificationPermission } = usePushNotifications();
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -17,6 +19,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [emailNotifications, setEmailNotifications] = useState(true);
+  const [pushNotifications, setPushNotifications] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,10 +29,17 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
     try {
       if (isLoginView) {
         await login(email, password);
+        if (pushNotifications && isSupported && notificationPermission === 'default') {
+             await subscribeToPush();
+        }
         onClose();
       } else {
         const response = await signup(name, email, password, emailNotifications);
-        setMessage(response.message);
+        if (pushNotifications && isSupported && notificationPermission === 'default') {
+             setMessage(response.message + " You can enable browser notifications after you log in.");
+        } else {
+             setMessage(response.message);
+        }
       }
     } catch (err: any) {
       setError(err.message || 'An error occurred.');
@@ -115,20 +125,38 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
                     className="w-full p-3 bg-gray-900 border border-gray-700 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent outline-none transition-all text-white placeholder-gray-500"
                 />
               </div>
-              {!isLoginView && (
-                  <div className="flex items-center space-x-2 mt-2">
-                      <input
-                          type="checkbox"
-                          id="emailNotifications"
-                          checked={emailNotifications}
-                          onChange={(e) => setEmailNotifications(e.target.checked)}
-                          className="w-4 h-4 text-yellow-500 bg-gray-900 border-gray-700 rounded focus:ring-yellow-500 focus:ring-2"
-                      />
-                      <label htmlFor="emailNotifications" className="text-sm text-gray-300">
-                          Receive daily reminder emails
-                      </label>
-                  </div>
-              )}
+              
+              <div className="space-y-2">
+                  {!isLoginView && (
+                      <div className="flex items-center space-x-2">
+                          <input
+                              type="checkbox"
+                              id="emailNotifications"
+                              checked={emailNotifications}
+                              onChange={(e) => setEmailNotifications(e.target.checked)}
+                              className="w-4 h-4 text-yellow-500 bg-gray-900 border-gray-700 rounded focus:ring-yellow-500 focus:ring-2"
+                          />
+                          <label htmlFor="emailNotifications" className="text-sm text-gray-300">
+                              Receive daily reminder emails
+                          </label>
+                      </div>
+                  )}
+                  {/* Only show push notification checkbox if supported and permission is default */}
+                  {isLoginView && isSupported && notificationPermission === 'default' && (
+                       <div className="flex items-center space-x-2">
+                          <input
+                              type="checkbox"
+                              id="pushNotifications"
+                              checked={pushNotifications}
+                              onChange={(e) => setPushNotifications(e.target.checked)}
+                              className="w-4 h-4 text-yellow-500 bg-gray-900 border-gray-700 rounded focus:ring-yellow-500 focus:ring-2"
+                          />
+                          <label htmlFor="pushNotifications" className="text-sm text-gray-300">
+                              Enable browser notifications on this device
+                          </label>
+                      </div>
+                  )}
+              </div>
           </div>
 
           {error && (
