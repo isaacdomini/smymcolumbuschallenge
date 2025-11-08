@@ -24,88 +24,108 @@ async function seedDatabase() {
     //   );
     // }
     // console.log('Users seeded');
-
-    // Seed challenge
-    const challengeId = 'challenge-1';
-    const challengeName = 'Advent Challenge 2025';
-    const startDate = new Date(Date.now() - 1000 * 60 * 60 * 24 * 2); // 2 days ago
-    const endDate = new Date(Date.now() + 1000 * 60 * 60 * 24 * 38); // 38 days from now
+// Seed challenge
+    const challengeId = 'challenge-advent-2025';
+    const challengeName = 'November 2025 Christian Challenge';
+    // Set dates to cover the requested range (Nov 8 - Nov 15, 2025)
+    const startDate = new Date('2025-11-08T00:00:00Z'); // Saturday
+    const endDate = new Date('2025-11-15T23:59:59Z');   // Saturday following
 
     await client.query(
-      'INSERT INTO challenges (id, name, start_date, end_date) VALUES ($1, $2, $3, $4) ON CONFLICT (id) DO NOTHING',
+      'INSERT INTO challenges (id, name, start_date, end_date) VALUES ($1, $2, $3, $4) ON CONFLICT (id) DO UPDATE SET start_date = EXCLUDED.start_date, end_date = EXCLUDED.end_date',
       [challengeId, challengeName, startDate, endDate]
     );
     console.log('Challenge seeded');
 
-    // Seed games
-    const games = [];
-    for (let i = 0; i < 40; i++) {
-      const gameDate = new Date(startDate);
-      gameDate.setDate(startDate.getDate() + i);
-      const dateStr = gameDate.toISOString().split('T')[0];
+    // Define specific games for the requested week
+    const gamesToSeed = [
+        // Nov 8, 2025 - Saturday - Connections (Hard)
+        {
+            date: '2025-11-08',
+            type: 'connections',
+            data: {
+                words: [
+                    'ELOHIM', 'YAHWEH', 'ADONAI', 'SHADDAI',
+                    'TAMAR', 'RAHAB', 'RUTH', 'BATHSHEBA',
+                    'FROGS', 'GNATS', 'HAIL', 'BOILS',
+                    'WISDOM', 'KNOWLEDGE', 'FAITH', 'HEALING'
+                ],
+                categories: [
+                    { name: 'HEBREW NAMES OF GOD', words: ['ELOHIM', 'YAHWEH', 'ADONAI', 'SHADDAI'] },
+                    { name: 'WOMEN IN MATTHEW\'S GENEALOGY', words: ['TAMAR', 'RAHAB', 'RUTH', 'BATHSHEBA'] },
+                    { name: 'PLAGUES OF EGYPT', words: ['FROGS', 'GNATS', 'HAIL', 'BOILS'] },
+                    { name: 'SPIRITUAL GIFTS (1 COR 12)', words: ['WISDOM', 'KNOWLEDGE', 'FAITH', 'HEALING'] },
+                ]
+            }
+        },
+        // Nov 9, 2025 - Sunday - Christian Crossword
+        {
+             date: '2025-11-09',
+             type: 'crossword',
+             data: {
+                 gridSize: 5,
+                 // Grid Layout:
+                 // H O P E .
+                 // O P E N .
+                 // S E N T .
+                 // T E N T .
+                 // . . . . .
+                 acrossClues: [
+                     { number: 1, clue: 'And now these three remain: faith, ___, and love', answer: 'HOPE', row: 0, col: 0, direction: 'across' },
+                     { number: 5, clue: '"Knock and the door will be ___ to you"', answer: 'OPEN', row: 1, col: 0, direction: 'across' },
+                     { number: 6, clue: '"Here I am, ___ me!" (Isaiah 6:8)', answer: 'SENT', row: 2, col: 0, direction: 'across' },
+                     { number: 7, clue: 'Dwelling for Abraham or Paul\'s trade', answer: 'TENT', row: 3, col: 0, direction: 'across' }
+                 ],
+                 downClues: [
+                     { number: 1, clue: 'Heavenly army', answer: 'HOST', row: 0, col: 0, direction: 'down' },
+                     { number: 2, clue: 'Not closed (reused word)', answer: 'OPEN', row: 0, col: 1, direction: 'down' },
+                     { number: 3, clue: 'Fifty days after Passover (Acts 2)', answer: 'PENT', row: 0, col: 2, direction: 'down' },
+                     { number: 4, clue: 'Garden of first sin (var. sp.)', answer: 'ENT', row: 0, col: 3, direction: 'down' } 
+                 ]
+             }
+        },
+        // Nov 10, 2025 - Monday - Wordle
+        { date: '2025-11-10', type: 'wordle', data: { solution: 'FAITH' } },
+        // Nov 11, 2025 - Tuesday - Wordle
+        { date: '2025-11-11', type: 'wordle', data: { solution: 'GRACE' } },
+        // Nov 12, 2025 - Wednesday - Wordle
+        { date: '2025-11-12', type: 'wordle', data: { solution: 'MERCY' } },
+        // Nov 13, 2025 - Thursday - Wordle
+        { date: '2025-11-13', type: 'wordle', data: { solution: 'GLORY' } },
+        // Nov 14, 2025 - Friday - Wordle
+        { date: '2025-11-14', type: 'wordle', data: { solution: 'PEACE' } },
+        // Nov 15, 2025 - Saturday - Connections (Hard)
+        {
+            date: '2025-11-15',
+            type: 'connections',
+            data: {
+                words: [
+                    'SAUL', 'DAVID', 'SOLOMON', 'REHOBOAM',
+                    'EGYPT', 'ASSYRIA', 'BABYLON', 'PERSIA',
+                    'MATTHEW', 'MARK', 'LUKE', 'JOHN',
+                    'JOSHUA', 'JUDGES', 'RUTH', 'ESTHER'
+                ],
+                categories: [
+                    { name: 'FIRST FOUR KINGS OF JUDAH/ISRAEL', words: ['SAUL', 'DAVID', 'SOLOMON', 'REHOBOAM'] },
+                    { name: 'NATIONS THAT OPPRESSED ISRAEL', words: ['EGYPT', 'ASSYRIA', 'BABYLON', 'PERSIA'] },
+                    { name: 'THE FOUR GOSPELS', words: ['MATTHEW', 'MARK', 'LUKE', 'JOHN'] },
+                    { name: 'OLD TESTAMENT HISTORICAL BOOKS', words: ['JOSHUA', 'JUDGES', 'RUTH', 'ESTHER'] },
+                ]
+            }
+        }
+    ];
 
-      const gameTypeIndex = i % 3;
-      let game: any = {
-        id: '',
-        challengeId,
-        date: gameDate,
-        type: '',
-        data: {}
-      };
-
-      if (gameTypeIndex === 0) {
-        game.id = `game-wordle-${dateStr}`;
-        game.type = 'wordle';
-        // Example of 5 and 6 letter words
-        game.data = { solution: i === 0 ? 'GRACE' : i === 3 ? 'ANGELS' : 'FAITH' }; 
-      } else if (gameTypeIndex === 1) {
-        game.id = `game-conn-${dateStr}`;
-        game.type = 'connections';
-        game.data = {
-          words: [
-            'PETER', 'ANDREW', 'JAMES', 'JOHN',
-            'GENESIS', 'EXODUS', 'LEVITICUS', 'NUMBERS',
-            'BREAD', 'WINE', 'FISH', 'LAMB',
-            'CROSS', 'THORNS', 'NAILS', 'TOMB'
-          ],
-          categories: [
-            { name: 'FIRST FOUR APOSTLES', words: ['PETER', 'ANDREW', 'JAMES', 'JOHN'] },
-            { name: 'BOOKS OF THE PENTATEUCH', words: ['GENESIS', 'EXODUS', 'LEVITICUS', 'NUMBERS'] },
-            { name: 'BIBLICAL FOODS', words: ['BREAD', 'WINE', 'FISH', 'LAMB'] },
-            { name: 'SYMBOLS OF THE PASSION', words: ['CROSS', 'THORNS', 'NAILS', 'TOMB'] },
-          ],
-        };
-      } else {
-        // FIX: Updated crossword data structure
-        game.id = `game-cross-${dateStr}`;
-        game.type = 'crossword';
-        game.data = {
-          gridSize: 5,
-          acrossClues: [
-            { number: 1, clue: 'On the ___ (using Tinder or Bumble)', answer: 'APPS', row: 0, col: 0, direction: 'across' },
-            { number: 5, clue: 'Color of the second-hardest Connections category', answer: 'BLUE', row: 1, col: 0, direction: 'across' },
-            { number: 6, clue: 'Prepare, as a Thanksgiving turkey', answer: 'CARVE', row: 2, col: 0, direction: 'across' },
-            { number: 8, clue: 'Have to have', answer: 'NEED', row: 3, col: 1, direction: 'across' },
-            { number: 9, clue: 'Camper\'s construction', answer: 'TENT', row: 4, col: 1, direction: 'across' },
-          ],
-          downClues: [
-            { number: 1, clue: 'Kimmel\'s channel', answer: 'ABC', row: 0, col: 0, direction: 'down' },
-            { number: 2, clue: 'Audience member who\'s in on the magic trick', answer: 'PLANT', row: 0, col: 1, direction: 'down' },
-            { number: 3, clue: 'Many a baby food', answer: 'PUREE', row: 0, col: 2, direction: 'down' },
-            { number: 4, clue: 'Typical number of objects that humans can hold in working memory, hence phone numbers', answer: 'SEVEN', row: 0, col: 3, direction: 'down' },
-            { number: 7, clue: 'Summer hrs. in N.Y.C.', answer: 'EDT', row: 2, col: 4, direction: 'down' },
-          ],
-        };
-      }
-      games.push(game);
-
-      await client.query(
-        'INSERT INTO games (id, challenge_id, date, type, data) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (id) DO NOTHING',
-        [game.id, game.challengeId, game.date, game.type, JSON.stringify(game.data)]
-      );
+    // Insert the specific games
+    for (const gameData of gamesToSeed) {
+        const gameId = `game-${gameData.type}-${gameData.date}`;
+        // Ensure date is a Date object for the query if needed, or keep as string if DB handles it.
+        // Assuming DB column is DATE or TIMESTAMPTZ, passing ISO string usually works in pg.
+        await client.query(
+            'INSERT INTO games (id, challenge_id, date, type, data) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data, type = EXCLUDED.type',
+            [gameId, challengeId, gameData.date, gameData.type, JSON.stringify(gameData.data)]
+        );
+        console.log(`Seeded ${gameData.type} for ${gameData.date}`);
     }
-    console.log('Games seeded');
-
     // Seed submissions
     // const submissions = [
     //   {
