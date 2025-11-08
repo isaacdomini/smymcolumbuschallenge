@@ -16,6 +16,8 @@ const migrations = [
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS password VARCHAR(255);`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT false;`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_token VARCHAR(255);`,
+  // ADDED: email_notifications column
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS email_notifications BOOLEAN DEFAULT true;`,
 
   // Challenges table
   `CREATE TABLE IF NOT EXISTS challenges (
