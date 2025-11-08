@@ -50,6 +50,11 @@ const migrations = [
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )`,
 
+  // ADDED: started_at column to game_submissions
+  `ALTER TABLE game_submissions ADD COLUMN IF NOT EXISTS started_at TIMESTAMP;`,
+  // Backfill started_at for existing records if it's null
+  `UPDATE game_submissions SET started_at = completed_at - (time_taken || ' seconds')::interval WHERE started_at IS NULL;`,
+
   // Game progress table
   `CREATE TABLE IF NOT EXISTS game_progress (
     id VARCHAR(255) PRIMARY KEY,
@@ -81,8 +86,6 @@ async function runMigrations() {
     throw error;
   } finally {
     client.release();
-    // Only end pool in production migration script, not if pool is shared
-    // await pool.end(); 
   }
 }
 
@@ -90,7 +93,5 @@ async function runMigrations() {
 if (process.argv[1] && process.argv[1].includes('migrate.js')) {
   runMigrations().then(() => pool.end());
 } else {
-  // If imported, just export the function
-  // This seems to be the pattern from package.json
   runMigrations().then(() => pool.end());
 }

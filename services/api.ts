@@ -18,13 +18,10 @@ const MOCK_USERS: User[] = [
 const MOCK_CHALLENGE: Challenge = {
     id: 'challenge-1', 
     name: 'Lenten Challenge 2025', 
-    // Set to start 2 days ago for demonstration
     startDate: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString(), 
-    // Set to end in 38 days
     endDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 38).toISOString() 
 };
 
-// Generate mock games for the challenge duration
 const MOCK_GAMES: Game[] = [];
 const startDate = new Date(MOCK_CHALLENGE.startDate);
 for (let i = 0; i < 40; i++) {
@@ -93,12 +90,14 @@ for (let i = 0; i < 40; i++) {
     MOCK_GAMES.push(game);
 }
 
+const now = new Date();
+const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+const twoDaysAgo = new Date(now.getTime() - 48 * 60 * 60 * 1000);
+
 const MOCK_SUBMISSIONS: GameSubmission[] = [
-    // Submissions for game from 2 days ago
-    { id: 'sub-1', userId: 'user-1', gameId: MOCK_GAMES[0].id, challengeId: MOCK_CHALLENGE.id, completedAt: new Date().toISOString(), timeTaken: 60, mistakes: 2, score: 76, submissionData: { guesses: ['WRONG', 'GUESS', 'GRACE'] } },
-    { id: 'sub-2', userId: 'user-2', gameId: MOCK_GAMES[0].id, challengeId: MOCK_CHALLENGE.id, completedAt: new Date().toISOString(), timeTaken: 45, mistakes: 1, score: 87, submissionData: { guesses: ['OTHER', 'GRACE'] } },
-    // Submissions for game from 1 day ago
-    { id: 'sub-4', userId: 'user-2', gameId: MOCK_GAMES[1].id, challengeId: MOCK_CHALLENGE.id, completedAt: new Date().toISOString(), timeTaken: 90, mistakes: 0, score: 94 },
+    { id: 'sub-1', userId: 'user-1', gameId: MOCK_GAMES[0].id, challengeId: MOCK_CHALLENGE.id, startedAt: new Date(twoDaysAgo.getTime() - 60000).toISOString(), completedAt: twoDaysAgo.toISOString(), timeTaken: 60, mistakes: 2, score: 76, submissionData: { guesses: ['WRONG', 'GUESS', 'GRACE'] } },
+    { id: 'sub-2', userId: 'user-2', gameId: MOCK_GAMES[0].id, challengeId: MOCK_CHALLENGE.id, startedAt: new Date(twoDaysAgo.getTime() - 45000).toISOString(), completedAt: twoDaysAgo.toISOString(), timeTaken: 45, mistakes: 1, score: 87, submissionData: { guesses: ['OTHER', 'GRACE'] } },
+    { id: 'sub-4', userId: 'user-2', gameId: MOCK_GAMES[1].id, challengeId: MOCK_CHALLENGE.id, startedAt: new Date(yesterday.getTime() - 90000).toISOString(), completedAt: yesterday.toISOString(), timeTaken: 90, mistakes: 0, score: 94 },
 ];
 
 const MOCK_GAME_PROGRESS: GameProgress[] = [];
@@ -111,7 +110,7 @@ export const login = async (email: string, pass: string): Promise<User> => {
     if (USE_MOCK_DATA) {
         await simulateDelay(500);
         const user = MOCK_USERS.find(u => u.email === email);
-        if (user) { // No password check in mock
+        if (user) {
             return user;
         }
         throw new Error("Invalid credentials");
@@ -212,7 +211,6 @@ export const getGamesForChallenge = async (challengeId: string): Promise<Game[]>
         await simulateDelay(400);
         if (challengeId !== MOCK_CHALLENGE.id) return [];
         const now = new Date();
-        // Return all games up to and including today
         return MOCK_GAMES.filter(g => new Date(g.date) <= now);
     } else {
         const response = await fetch(`${API_BASE_URL}/challenge/${challengeId}/games`);
@@ -243,7 +241,6 @@ export const getSubmissionForToday = async (userId: string, gameId: string): Pro
     } else {
         const response = await fetch(`${API_BASE_URL}/submissions/user/${userId}/game/${gameId}`);
         if (!response.ok) {
-            // It's okay if there's no submission, just return null if 404 or empty
              if (response.status === 404) return null;
              const data = await response.json();
              return data || null;
@@ -270,16 +267,16 @@ export const getLeaderboard = async (challengeId: string): Promise<(GameSubmissi
         }
         
         return Object.values(userScores).map(us => ({
-            // This is a simplified entry for leaderboard display.
             id: `leaderboard-${us.user.id}`,
             userId: us.user.id,
             challengeId,
             score: us.totalScore,
             user: us.user,
-            gameId: '', // Not relevant for aggregate view
-            completedAt: '', // Not relevant
-            timeTaken: 0, // Not relevant
-            mistakes: 0, // Not relevant
+            gameId: '',
+            startedAt: '',
+            completedAt: '',
+            timeTaken: 0,
+            mistakes: 0,
         }));
     } else {
         const response = await fetch(`${API_BASE_URL}/challenge/${challengeId}/leaderboard`);
@@ -290,30 +287,20 @@ export const getLeaderboard = async (challengeId: string): Promise<(GameSubmissi
     }
 };
 
-/**
- * Calculates a score based on game-specific rules.
- */
 const calculateScore = (payload: SubmitGamePayload, game: Game): number => {
     const { timeTaken, mistakes, submissionData } = payload;
 
     switch (game.type) {
         case GameType.WORDLE: {
-            // Wordle max guesses might vary now, but standard is 6.
-            // Assuming standard scoring based on 6 guesses for now.
             const maxGuesses = 6; 
-            if (mistakes >= maxGuesses) { // Loss
+            if (mistakes >= maxGuesses) {
                 return 0;
             }
-            // mistakes is index of winning guess (0-5)
-            // Score is purely based on how few guesses it took.
-            // 1st guess (index 0): (6 - 0) * 10 = 60 points
-            // 6th guess (index 5): (6 - 5) * 10 = 10 points
             return (maxGuesses - mistakes) * 10;
         }
 
         case GameType.CONNECTIONS: {
             const categoriesFound = submissionData?.categoriesFound ?? 0;
-            // Base score on categories, penalize mistakes. No time bonus.
             const categoryScore = categoriesFound * 20;
             const mistakePenalty = mistakes * 5;
             return Math.max(0, categoryScore - mistakePenalty);
@@ -321,16 +308,15 @@ const calculateScore = (payload: SubmitGamePayload, game: Game): number => {
 
         case GameType.CROSSWORD: {
             const correctCells = submissionData?.correctCells ?? 0;
-            const totalFillableCells = submissionData?.totalFillableCells ?? 1; // Avoid division by zero
+            const totalFillableCells = submissionData?.totalFillableCells ?? 1;
             if (totalFillableCells === 0) return 0;
 
             const accuracyScore = Math.round((correctCells / totalFillableCells) * 70);
-            const timeBonus = Math.max(0, 30 - Math.floor(timeTaken / 60)); // Max 30, drops to 0 after 30 mins
+            const timeBonus = Math.max(0, 30 - Math.floor(timeTaken / 60));
             return Math.max(0, accuracyScore + timeBonus);
         }
 
         default: {
-            // Fallback to old simple scoring for any other game types
             const timePenalty = Math.floor(timeTaken / 15);
             const mistakePenalty = mistakes * 10;
             return Math.max(0, 100 - mistakePenalty - timePenalty);
@@ -351,13 +337,13 @@ export const submitGame = async (payload: SubmitGamePayload): Promise<GameSubmis
             userId: payload.userId,
             gameId: payload.gameId,
             challengeId: MOCK_CHALLENGE.id,
+            startedAt: payload.startedAt,
             completedAt: new Date().toISOString(),
             timeTaken: payload.timeTaken,
             mistakes: payload.mistakes,
             score,
             submissionData: payload.submissionData,
         };
-        // Check if submission already exists and update it (mocking upsert)
         const existingIndex = MOCK_SUBMISSIONS.findIndex(s => s.userId === payload.userId && s.gameId === payload.gameId);
         if (existingIndex > -1) {
              if (score > MOCK_SUBMISSIONS[existingIndex].score) {
@@ -369,12 +355,10 @@ export const submitGame = async (payload: SubmitGamePayload): Promise<GameSubmis
             return newSubmission;
         }
     } else {
-        // Calculate score before submitting (or let backend do it, but we do it here for consistency with mock)
         const game = await getGameById(payload.gameId);
         if (!game) throw new Error('Game not found');
 
         const score = calculateScore(payload, game);
-
         const payloadWithScore = { ...payload, score };
 
         const response = await fetch(`${API_BASE_URL}/submit`, {
@@ -399,7 +383,6 @@ export const getGameState = async (userId: string, gameId: string): Promise<Game
         const response = await fetch(`${API_BASE_URL}/game-state/user/${userId}/game/${gameId}`);
         if (!response.ok) {
              if (response.status === 404) return null;
-             // Sometimes API might return null for no state, handle it gracefully
              const data = await response.json().catch(() => null);
              return data;
         }
