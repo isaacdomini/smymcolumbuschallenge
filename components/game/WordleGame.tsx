@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { WordleData, GameSubmission } from '../../types';
+import { WordleData, GameSubmission, GameType } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
 import { submitGame, getGameState, saveGameState, clearGameState } from '../../services/api';
+import GameInstructionsModal from './GameInstructionsModal';
 
 interface WordleGameProps {
   gameId: string;
@@ -14,17 +15,19 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
   const { user } = useAuth();
   const solution = useMemo(() => gameData.solution.toUpperCase(), [gameData.solution]);
   const wordLength = useMemo(() => solution.length, [solution]);
-  const maxGuesses = 6; // You can make this dynamic, e.g., wordLength + 1
+  const maxGuesses = 6; 
+  const isReadOnly = !!submission;
 
   const [guesses, setGuesses] = useState<string[]>(() => Array(maxGuesses).fill(''));
   const [currentGuess, setCurrentGuess] = useState('');
   const [activeGuessIndex, setActiveGuessIndex] = useState(0);
   const [isRevealing, setIsRevealing] = useState(false);
   const [gameState, setGameState] = useState<'playing' | 'won' | 'lost'>('playing');
-  const [startTime, setStartTime] = useState(Date.now());
+  // startTime is now nullable and set only when game starts
+  const [startTime, setStartTime] = useState<number | null>(null); 
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false); // For word validation
-  const isReadOnly = !!submission;
+  const [isLoading, setIsLoading] = useState(false); 
+  const [showInstructions, setShowInstructions] = useState(!isReadOnly);
 
   useEffect(() => {
     if (isReadOnly || !user) return;
@@ -34,7 +37,6 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
         if (savedProgress?.gameState) {
             try {
                 const savedState = savedProgress.gameState;
-                // Ensure saved state matches current game params
                 if (savedState.guesses && savedState.guesses.length === maxGuesses) {
                   setGuesses(savedState.guesses);
                 } else {
@@ -42,10 +44,14 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
                 }
                 setActiveGuessIndex(savedState.activeGuessIndex || 0);
                 setGameState(savedState.gameState || 'playing');
-                setStartTime(savedState.startTime || Date.now());
+                // Use saved start time, or if it doesn't exist (old save), don't set it yet (wait for user to "start" again if we wanted, but better to just set it now to avoid issues)
+                if (savedState.startTime) {
+                    setStartTime(savedState.startTime);
+                    setShowInstructions(false); // Don't show instructions if resuming
+                }
             } catch (e) {
                 console.error("Failed to parse saved Wordle state", e);
-                setGuesses(Array(maxGuesses).fill('')); // Reset on parse error
+                setGuesses(Array(maxGuesses).fill('')); 
             }
         }
     };
@@ -53,7 +59,8 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
   }, [gameId, isReadOnly, user, maxGuesses]);
 
   useEffect(() => {
-    if (isReadOnly || gameState !== 'playing' || !user) return;
+    // Only save state if the game has actually started (startTime is set)
+    if (isReadOnly || gameState !== 'playing' || !user || startTime === null) return;
 
     const stateToSave = {
       guesses,
@@ -64,7 +71,7 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
     
     const handler = setTimeout(() => {
         saveGameState(user.id, gameId, stateToSave);
-    }, 1000); // Debounce save
+    }, 1000);
 
     return () => clearTimeout(handler);
   }, [guesses, activeGuessIndex, gameState, startTime, isReadOnly, user, gameId]);
@@ -79,6 +86,7 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
       }
       setGuesses(finalGuesses);
       setActiveGuessIndex(submittedGuesses.length);
+      setShowInstructions(false);
       
       const lastGuess = submittedGuesses[submittedGuesses.length - 1];
       if (lastGuess === solution) {
@@ -89,12 +97,10 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
     }
   }, [isReadOnly, submission, solution, maxGuesses]);
 
-  // New function to check word validity
   const checkWordValidity = async (word: string): Promise<boolean> => {
     setIsLoading(true);
     setError(null);
     try {
-      // Using a free dictionary API. Note: This has rate limits and is for demo purposes.
       const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word.toLowerCase()}`);
       setIsLoading(false);
       if (response.ok) {
@@ -105,23 +111,22 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
         return false;
       }
       setError("Error checking word");
-      return false; // Fail safe
+      return false;
     } catch (err) {
       console.error("Dictionary API error:", err);
       setIsLoading(false);
       setError("Could not check word");
-      return false; // Fail safe if API is down
+      return false;
     }
   };
 
   const handleKeyPress = useCallback(async (key: string) => {
-    if (gameState !== 'playing' || isRevealing || isReadOnly || isLoading) return;
+    if (gameState !== 'playing' || isRevealing || isReadOnly || isLoading || showInstructions) return;
 
     if (key === 'Enter') {
       if (currentGuess.length === wordLength) {
         const isValid = await checkWordValidity(currentGuess);
         if (!isValid) {
-          // Error state is set by checkWordValidity
           return;
         }
         const newGuesses = [...guesses];
@@ -138,7 +143,7 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
       setError(null);
       setCurrentGuess(prev => prev + key.toUpperCase());
     }
-  }, [currentGuess, activeGuessIndex, guesses, gameState, isRevealing, isReadOnly, isLoading, wordLength, checkWordValidity]);
+  }, [currentGuess, activeGuessIndex, guesses, gameState, isRevealing, isReadOnly, isLoading, wordLength, checkWordValidity, showInstructions]);
   
   useEffect(() => {
     const handler = (e: KeyboardEvent) => handleKeyPress(e.key);
@@ -151,7 +156,6 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
 
     const guess = guesses[activeGuessIndex];
     
-    // Wait for tile flip animation
     setTimeout(() => {
         if (guess === solution) {
             setGameState('won');
@@ -162,12 +166,13 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
             setCurrentGuess('');
             setIsRevealing(false);
         }
-    }, wordLength * 350); // Animation delay based on word length
+    }, wordLength * 350); 
   }, [isRevealing, activeGuessIndex, guesses, solution, maxGuesses, wordLength]);
 
   useEffect(() => {
      const saveResult = async () => {
-        if ((gameState === 'won' || gameState === 'lost') && !isReadOnly) {
+        // Ensure startTime is present before submitting
+        if ((gameState === 'won' || gameState === 'lost') && !isReadOnly && startTime !== null) {
             if (!user) return;
             await clearGameState(user.id, gameId);
             const timeTaken = Math.round((Date.now() - startTime) / 1000);
@@ -175,6 +180,7 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
             await submitGame({
                 userId: user.id,
                 gameId,
+                startedAt: new Date(startTime).toISOString(), 
                 timeTaken,
                 mistakes,
                 submissionData: { guesses: guesses.filter(g => g) }
@@ -184,6 +190,14 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
      }
      saveResult();
   }, [gameState, user, isReadOnly, startTime, activeGuessIndex, gameId, guesses, onComplete, maxGuesses]);
+
+  const handleInstructionsClose = () => {
+      // Only set start time if it hasn't been set yet AND it's not read-only mode
+      if (startTime === null && !isReadOnly) {
+          setStartTime(Date.now());
+      }
+      setShowInstructions(false);
+  };
 
   const letterStatuses = useMemo(() => {
     const statuses: { [key: string]: 'correct' | 'present' | 'absent' } = {};
@@ -205,12 +219,19 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
     return statuses;
   }, [guesses, activeGuessIndex, solution, isRevealing]);
 
+  if (showInstructions) {
+      return <GameInstructionsModal gameType={GameType.WORDLE} onStart={handleInstructionsClose} onClose={handleInstructionsClose} />;
+  }
 
   return (
     <div className="w-full max-w-md mx-auto flex flex-col items-center">
-      <h2 className="text-2xl font-bold mb-4">Wordle</h2>
+      <div className="flex items-center justify-between w-full mb-4">
+        <h2 className="text-2xl font-bold">Wordle</h2>
+        <button onClick={() => setShowInstructions(true)} className="text-gray-400 hover:text-white" title="Show Instructions">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+        </button>
+      </div>
       
-      {/* Error/Loading Display */}
       <div className="h-8 mb-2 flex items-center justify-center">
         {isLoading && (
           <div className="text-blue-400">Checking word...</div>
@@ -277,7 +298,6 @@ const getTileStatus = (char: string, index: number, isSubmitted: boolean, soluti
     if (!isSubmitted || !char) return 'empty';
     if (solution[index] === char) return 'correct';
     if (solution.includes(char)) {
-       // Handle duplicate letters
        const solutionChars = [...solution];
        const guessChars = [...guess];
        
@@ -308,7 +328,6 @@ const getTileStatus = (char: string, index: number, isSubmitted: boolean, soluti
 };
 
 const Tile: React.FC<{char?: string; status: 'empty' | 'correct' | 'present' | 'absent'; isRevealing: boolean; index: number}> = ({ char, status, isRevealing, index }) => {
-    // Responsive tile size
     const baseClasses = "w-12 h-12 sm:w-14 sm:h-14 border-2 flex items-center justify-center text-2xl sm:text-3xl font-bold uppercase transition-all duration-300";
     const statusClasses = {
         empty: 'border-gray-600',
@@ -317,15 +336,8 @@ const Tile: React.FC<{char?: string; status: 'empty' | 'correct' | 'present' | '
         correct: 'bg-green-600 border-green-600',
     };
     const animationDelay = isRevealing ? `${index * 350}ms` : '0ms';
-    // Custom animation classes (make sure these are defined in your global CSS or index.html if not using Tailwind JIT)
-    // For this environment, let's just use opacity transition
     const transformClass = isRevealing ? 'animate-flip-in' : '';
 
-    // Add animation to index.html if not present
-    // @keyframes flip-in { 0% { transform: rotateX(0deg); } 50% { transform: rotateX(90deg); } 100% { transform: rotateX(0deg); } }
-    // .animate-flip-in { animation: flip-in 0.5s ease; }
-    // Adding it via style tag in component is not ideal but necessary here
-    
     return (
         <>
         <style>

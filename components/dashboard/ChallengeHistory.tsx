@@ -82,6 +82,12 @@ const ChallengeHistory: React.FC<ChallengeHistoryProps> = ({ challengeId, userId
                     {isToday && <span className="text-xs text-yellow-400 ml-2">TODAY</span>}
                     {isFuture && <span className="text-xs text-gray-500 ml-2">UPCOMING</span>}
                   </p>
+                  {/* ADDED: Show started time if available */}
+                  {submission && submission.startedAt && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Started at: {new Date(submission.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  )}
                 </div>
                 <div>
                   {submission ? (

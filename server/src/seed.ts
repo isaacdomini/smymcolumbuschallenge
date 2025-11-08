@@ -28,7 +28,7 @@ async function seedDatabase() {
     // Seed challenge
     const challengeId = 'challenge-1';
     const challengeName = 'Advent Challenge 2025';
-    const startDate = new Date(Date.now() + 1000 * 60 * 60 * 24 * 2); // 2 days from now
+    const startDate = new Date(Date.now() - 1000 * 60 * 60 * 24 * 2); // 2 days ago
     const endDate = new Date(Date.now() + 1000 * 60 * 60 * 24 * 38); // 38 days from now
 
     await client.query(

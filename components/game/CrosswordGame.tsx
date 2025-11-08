@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { CrosswordData, GameSubmission, Clue } from '../../types';
+import { CrosswordData, GameSubmission, Clue, GameType } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
 import { submitGame, getGameState, saveGameState, clearGameState } from '../../services/api';
 import { DarkModeCrossword } from './DarkModeCrossword';
+import GameInstructionsModal from './GameInstructionsModal';
 
 interface CrosswordGameProps {
   gameId: string;
@@ -13,12 +14,13 @@ interface CrosswordGameProps {
 
 const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submission, onComplete }) => {
   const { user } = useAuth();
+  const isReadOnly = !!submission;
   const [userGrid, setUserGrid] = useState<(string | null)[][]>(() => 
     Array(gameData.gridSize).fill(null).map(() => Array(gameData.gridSize).fill(null))
   );
   const [isSubmitted, setIsSubmitted] = useState(!!submission);
-  const [startTime, setStartTime] = useState(Date.now());
-  const isReadOnly = !!submission;
+  const [startTime, setStartTime] = useState<number | null>(null);
+  const [showInstructions, setShowInstructions] = useState(!isReadOnly);
   
   const solutionGrid = useMemo(() => {
     const grid: (string | null)[][] = Array(gameData.gridSize).fill(null).map(() => Array(gameData.gridSize).fill(null));
@@ -38,6 +40,7 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
   useEffect(() => {
     if (isReadOnly && submission) {
       setUserGrid(submission.submissionData?.grid || Array(gameData.gridSize).fill(null).map(() => Array(gameData.gridSize).fill(null)));
+      setShowInstructions(false);
       return;
     }
     if (!user) return;
@@ -48,7 +51,10 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
             try {
                 const savedState = savedProgress.gameState;
                 setUserGrid(savedState.grid || Array(gameData.gridSize).fill(null).map(() => Array(gameData.gridSize).fill(null)));
-                setStartTime(savedState.startTime || Date.now());
+                if (savedState.startTime) {
+                    setStartTime(savedState.startTime);
+                    setShowInstructions(false);
+                }
             } catch(e) {
                 console.error("Failed to parse saved Crossword state", e);
             }
@@ -58,7 +64,7 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
   }, [gameId, isReadOnly, submission, gameData.gridSize, user]);
 
   useEffect(() => {
-    if (isReadOnly || isSubmitted || !user) return;
+    if (isReadOnly || isSubmitted || !user || startTime === null) return;
     const stateToSave = {
       grid: userGrid,
       startTime,
@@ -72,7 +78,7 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
   }, [userGrid, startTime, isReadOnly, isSubmitted, user, gameId]);
 
   const handleSubmit = useCallback(async () => {
-    if (!user || isReadOnly || isSubmitted) return;
+    if (!user || isReadOnly || isSubmitted || startTime === null) return;
 
     const timeTaken = Math.round((Date.now() - startTime) / 1000);
     
@@ -96,6 +102,7 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
     await submitGame({
       userId: user.id,
       gameId,
+      startedAt: new Date(startTime).toISOString(),
       timeTaken,
       mistakes,
       submissionData: { 
@@ -119,8 +126,28 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
     });
   }, [isSubmitted]);
 
+  const handleInstructionsClose = () => {
+    // Only set start time if it hasn't been set yet AND it's not read-only mode
+    if (startTime === null && !isReadOnly) {
+        setStartTime(Date.now());
+    }
+    setShowInstructions(false);
+  };
+
+  if (showInstructions) {
+      return <GameInstructionsModal gameType={GameType.CROSSWORD} onStart={handleInstructionsClose} onClose={handleInstructionsClose} />;
+  }
+
   return (
     <div className="w-full max-w-5xl mx-auto flex flex-col items-center">
+        <div className="flex items-center justify-between w-full max-w-md mb-2 md:mb-0">
+             {/* Spacer to center the title on small screens where layout might shift */}
+             <div className="w-6 md:hidden"></div> 
+             <h2 className="text-2xl font-bold md:hidden">Crossword</h2>
+             <button onClick={() => setShowInstructions(true)} className="text-gray-400 hover:text-white md:hidden" title="Show Instructions">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+            </button>
+        </div>
         <DarkModeCrossword
             puzzleData={gameData}
             onCellChange={isReadOnly || isSubmitted ? undefined : handleCellChange}
@@ -128,7 +155,15 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
             initialGrid={userGrid}
             isReviewMode={isReadOnly}
         />
-        <div className="mt-6 w-full max-w-md">
+        <div className="mt-6 w-full max-w-md flex flex-col items-center">
+             <button 
+                 onClick={() => setShowInstructions(true)} 
+                 className="hidden md:flex items-center text-gray-400 hover:text-white mb-4" 
+                 title="Show Instructions"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                How to Play
+            </button>
             {!isReadOnly ? (
                 <button 
                     onClick={handleSubmit} 

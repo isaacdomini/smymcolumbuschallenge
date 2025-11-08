@@ -39,7 +39,6 @@ export interface CrosswordData {
   downClues: Clue[];
 }
 
-// FIX: Replaced the `Game` interface with a discriminated union type to allow for correct type narrowing based on game type.
 export type Game = {
   id: string;
   challengeId: string;
@@ -71,6 +70,7 @@ export interface GameSubmission {
   userId: string;
   gameId: string;
   challengeId: string;
+  startedAt: string; // ISO string - ADDED
   completedAt: string; // ISO string
   timeTaken: number; // in seconds
   mistakes: number;
@@ -81,6 +81,7 @@ export interface GameSubmission {
 export interface SubmitGamePayload {
     userId: string;
     gameId: string;
+    startedAt: string; // ISO string - ADDED
     timeTaken: number;
     mistakes: number;
     submissionData?: any;
