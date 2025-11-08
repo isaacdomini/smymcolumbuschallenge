@@ -5,7 +5,7 @@ import * as api from '@/services/api';
 interface AuthContextType {
   user: User | null;
   login: (email: string, pass: string) => Promise<void>;
-  signup: (name: string, email: string, pass: string) => Promise<{ message: string }>;
+  signup: (name: string, email: string, pass: string, emailNotifications: boolean) => Promise<{ message: string }>;
   logout: () => void;
   isLoading: boolean;
 }
@@ -39,9 +39,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     localStorage.setItem('smym-user', JSON.stringify(loggedInUser));
   };
 
-  const signup = async (name: string, email: string, pass: string): Promise<{ message: string }> => {
+  const signup = async (name: string, email: string, pass: string, emailNotifications: boolean): Promise<{ message: string }> => {
     // Signup API now returns a message, not a user object
-    const response = await api.signup(name, email, pass);
+    const response = await api.signup(name, email, pass, emailNotifications);
     return response;
   };
 

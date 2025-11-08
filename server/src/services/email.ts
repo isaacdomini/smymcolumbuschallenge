@@ -1,0 +1,83 @@
+import nodemailer from 'nodemailer';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+// Get the application base URL from environment or default to localhost for dev
+const getAppUrl = (host?: string) => {
+    if (process.env.APP_URL) return process.env.APP_URL;
+    if (host) return `${process.env.NODE_ENV === 'development' ? 'http' : 'https'}://${host}`;
+    return 'http://localhost:5173';
+};
+
+const transporter = nodemailer.createTransport({
+  host: process.env.EMAIL_HOST,
+  port: parseInt(process.env.EMAIL_PORT || '587'),
+  secure: (process.env.EMAIL_PORT === '465'),
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
+
+export const sendVerificationEmail = async (email: string, token: string, host?: string) => {
+  const baseUrl = getAppUrl(host);
+  // If development mode and using separate frontend/backend ports, ensure we point to frontend
+  const verificationUrl = `${baseUrl}/?verified=true&token=${token}`; 
+  // Note: The actual verification endpoint is on the API, but we want to redirect to frontend ultimately.
+  // Let's stick to the API endpoint for the actual click, which then redirects.
+  const apiVerificationUrl = `${process.env.VITE_API_URL || 'http://localhost:3000/api'}/verify-email?token=${token}`;
+
+  try {
+    await transporter.sendMail({
+      from: process.env.EMAIL_FROM,
+      to: email,
+      subject: 'Verify Your Email for SMYM Bible Games',
+      html: `
+        <div style="font-family: sans-serif; color: #333;">
+          <h2>Welcome to the SMYM Bible Games!</h2>
+          <p>Please click the link below to verify your email address and start playing:</p>
+          <p>
+            <a href="${apiVerificationUrl}" style="background-color: #EAB308; color: #1F2937; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
+              Verify Email
+            </a>
+          </p>
+          <p style="font-size: 12px; color: #666;">If the button doesn't work, copy and paste this link: ${apiVerificationUrl}</p>
+          <p>If you did not sign up for this account, you can ignore this email.</p>
+        </div>
+      `,
+    });
+    console.log(`Verification email sent to ${email}`);
+  } catch (error) {
+    console.error(`Failed to send verification email to ${email}:`, error);
+  }
+};
+
+export const sendDailyReminder = async (email: string, name: string, gameType: string) => {
+    const baseUrl = getAppUrl();
+    const gameUrl = `${baseUrl}`; // Just direct them to the home page to play today's game
+
+    try {
+        await transporter.sendMail({
+            from: process.env.EMAIL_FROM,
+            to: email,
+            subject: `Daily Challenge Reminder: Time for ${gameType}!`,
+            html: `
+                <div style="font-family: sans-serif; color: #333;">
+                    <h2>Hi ${name},</h2>
+                    <p>Don't forget to play today's <strong>${gameType}</strong> challenge!</p>
+                    <p>Keep your streak alive and climb the leaderboard.</p>
+                    <p>
+                        <a href="${gameUrl}" style="background-color: #2563EB; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
+                            Play Now
+                        </a>
+                    </p>
+                    <p style="font-size: 12px; color: #666;">Good luck!<br/>SMYM Columbus Team</p>
+                </div>
+            `,
+        });
+        console.log(`Reminder email sent to ${email} for ${gameType}`);
+    } catch (error) {
+        console.error(`Failed to send reminder email to ${email}:`, error);
+    }
+};

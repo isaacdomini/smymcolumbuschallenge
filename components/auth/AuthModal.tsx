@@ -16,6 +16,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [emailNotifications, setEmailNotifications] = useState(true);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,7 +28,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
         await login(email, password);
         onClose();
       } else {
-        const response = await signup(name, email, password);
+        const response = await signup(name, email, password, emailNotifications);
         setMessage(response.message);
       }
     } catch (err: any) {
@@ -114,6 +115,20 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
                     className="w-full p-3 bg-gray-900 border border-gray-700 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent outline-none transition-all text-white placeholder-gray-500"
                 />
               </div>
+              {!isLoginView && (
+                  <div className="flex items-center space-x-2 mt-2">
+                      <input
+                          type="checkbox"
+                          id="emailNotifications"
+                          checked={emailNotifications}
+                          onChange={(e) => setEmailNotifications(e.target.checked)}
+                          className="w-4 h-4 text-yellow-500 bg-gray-900 border-gray-700 rounded focus:ring-yellow-500 focus:ring-2"
+                      />
+                      <label htmlFor="emailNotifications" className="text-sm text-gray-300">
+                          Receive daily reminder emails
+                      </label>
+                  </div>
+              )}
           </div>
 
           {error && (

@@ -5,6 +5,7 @@ import rateLimit from 'express-rate-limit';
 import apiRoutes from './routes/api.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { initScheduler } from './scheduler.js';
 
 dotenv.config();
 
@@ -43,4 +44,12 @@ if (process.env.NODE_ENV !== 'development') {
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  
+  // Initialize the daily reminder scheduler
+  if (process.env.NODE_ENV === 'production') {
+      initScheduler();
+  } else {
+      console.log('Scheduler NOT initialized in development mode to avoid spamming.');
+      // initScheduler(); // Uncomment to test in dev if needed
+  }
 });
