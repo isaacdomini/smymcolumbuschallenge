@@ -31,6 +31,9 @@ services:
       DB_NAME: ${DB_NAME:-smym_bible_games}
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      VAPID_PUBLIC_KEY: "${VAPID_PUBLIC_KEY}"
+      VAPID_PRIVATE_KEY: "${VAPID_PRIVATE_KEY}"
+      VAPID_SUBJECT: "${VAPID_SUBJECT}"
     ports:
       - "${PORT:-3000}:${PORT:-3000}"
     depends_on:
