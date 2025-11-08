@@ -210,8 +210,8 @@ export const getGamesForChallenge = async (challengeId: string): Promise<Game[]>
     if (USE_MOCK_DATA) {
         await simulateDelay(400);
         if (challengeId !== MOCK_CHALLENGE.id) return [];
-        const now = new Date();
-        return MOCK_GAMES.filter(g => new Date(g.date) <= now);
+        // Updated to return ALL games, irrespective of current date
+        return MOCK_GAMES;
     } else {
         const response = await fetch(`${API_BASE_URL}/challenge/${challengeId}/games`);
         if (!response.ok) {

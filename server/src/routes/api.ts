@@ -249,11 +249,11 @@ router.get('/games/:gameId', async (req: Request, res: Response) => {
 router.get('/challenge/:challengeId/games', async (req: Request, res: Response) => {
   try {
     const { challengeId } = req.params;
-    const now = new Date();
-    
+    // REMOVED: const now = new Date(); 
+    // Updated query to fetch ALL games for the challenge, regardless of date
     const result = await pool.query(
-      "SELECT * FROM games WHERE challenge_id = $1 AND DATE(date) <= DATE($2) ORDER BY date ASC",
-      [challengeId, now]
+      "SELECT * FROM games WHERE challenge_id = $1 ORDER BY date ASC",
+      [challengeId]
     );
     
     const games = result.rows.map(game => ({
