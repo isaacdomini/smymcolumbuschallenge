@@ -18,7 +18,7 @@ const PORT = process.env.PORT || 3000;
 // Rate limiting middleware
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 1000, // Increased from 100 to 1000 for easier testing
+  max: 1000, 
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests, please try again later.' }
@@ -27,8 +27,6 @@ const limiter = rateLimit({
 // Middleware
 app.use(cors());
 app.use(express.json());
-// Only apply rate limiting to API routes, not static files if we wanted to be specific, 
-// but applying it globally with a higher limit is fine for now.
 app.use('/api', limiter); 
 
 // API routes
@@ -36,13 +34,31 @@ app.use('/api', apiRoutes);
 
 // Serve static files from the React app in production
 if (process.env.NODE_ENV !== 'development') {
+  // Assuming the server is compiled to /server/dist/server.js, 
+  // we need to go up two levels to reach the root, then into /dist
   const distPath = path.join(__dirname, '../../dist');
-  console.log('Serving static files from:', distPath);
+  console.log('Static files path set to:', distPath);
 
-  // Explicitly serve service-worker.js with correct Content-Type
+  // Explicitly serve service-worker.js with correct Content-Type and error handling
   app.get('/service-worker.js', (req, res) => {
-    res.sendFile(path.join(distPath, 'service-worker.js'), {
-      headers: { 'Content-Type': 'application/javascript' }
+    const swPath = path.join(distPath, 'service-worker.js');
+    console.log('Serving SW from:', swPath);
+    
+    res.sendFile(swPath, {
+      headers: { 
+          'Content-Type': 'application/javascript',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+      }
+    }, (err) => {
+      if (err) {
+        console.error("Error serving service-worker.js:", err);
+        // Explicitly send 404 so it doesn't fall through to index.html
+        if (!res.headersSent) {
+            res.status(404).send('Service Worker not found');
+        }
+      }
     });
   });
 
@@ -57,11 +73,10 @@ app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   
-  // Initialize the daily reminder scheduler
   if (process.env.NODE_ENV === 'production') {
       initScheduler();
   } else {
-      console.log('Scheduler NOT initialized in development mode to avoid spamming.');
-      // initScheduler(); // Uncomment to test in dev if needed
+      console.log('Scheduler NOT initialized in development mode.');
+      // initScheduler(); 
   }
 });
