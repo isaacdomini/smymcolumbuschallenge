@@ -4,10 +4,9 @@ const ScoringCriteria: React.FC = () => {
   const criteria = [
     {
       title: 'Wordle',
-      description: 'Your score is based on your speed and the number of guesses.',
+      description: 'Your score is based solely on the number of guesses used.',
       points: [
-        'Guess Score: Up to 60 points (more points for fewer guesses).',
-        'Time Bonus: Up to 40 points (faster completion earns more).',
+        'Guess Score: Up to 60 points (10 points for every unused guess remaining).',
         'Losing (6 incorrect guesses) results in a score of 0.'
       ]
     },
@@ -16,8 +15,7 @@ const ScoringCriteria: React.FC = () => {
       description: 'Solve the puzzle by grouping words into categories.',
       points: [
         'Category Score: 20 points for each correct category found.',
-        'Mistake Penalty: -5 points for each incorrect guess.',
-        'Time Bonus: Up to 20 points for solving quickly.'
+        'Mistake Penalty: -5 points for each incorrect guess.'
       ]
     },
     {

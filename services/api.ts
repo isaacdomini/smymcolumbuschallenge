@@ -1,4 +1,4 @@
-import { User, Challenge, Game, GameType, GameSubmission, WordleData, ConnectionsData, CrosswordData, SubmitGamePayload, GameProgress} from '../types';
+import { User, Challenge, Game, GameType, GameSubmission, WordleData, ConnectionsData, CrosswordData, SubmitGamePayload, GameProgress} from '@/types';
 
 // Check if we should use mock data (development mode only)
 const USE_MOCK_DATA = import.meta.env.MODE === 'development';
@@ -123,14 +123,15 @@ export const login = async (email: string, pass: string): Promise<User> => {
         });
         
         if (!response.ok) {
-            throw new Error('Invalid credentials');
+            const error = await response.json();
+            throw new Error(error.error || 'Invalid credentials');
         }
         
         return await response.json();
     }
 };
 
-export const signup = async (name: string, email: string, pass: string): Promise<User> => {
+export const signup = async (name: string, email: string, pass: string): Promise<{ message: string }> => {
     if (USE_MOCK_DATA) {
         await simulateDelay(500);
         if (MOCK_USERS.some(u => u.email === email)) {
@@ -138,7 +139,7 @@ export const signup = async (name: string, email: string, pass: string): Promise
         }
         const newUser: User = { id: `user-${Date.now()}`, name, email };
         MOCK_USERS.push(newUser);
-        return newUser;
+        return { message: "Signup successful. Please check your email to verify your account. (Mock)" };
     } else {
         const response = await fetch(`${API_BASE_URL}/signup`, {
             method: 'POST',
@@ -242,7 +243,10 @@ export const getSubmissionForToday = async (userId: string, gameId: string): Pro
     } else {
         const response = await fetch(`${API_BASE_URL}/submissions/user/${userId}/game/${gameId}`);
         if (!response.ok) {
-            throw new Error('Failed to fetch submission');
+            // It's okay if there's no submission, just return null if 404 or empty
+             if (response.status === 404) return null;
+             const data = await response.json();
+             return data || null;
         }
         return await response.json();
     }
@@ -294,23 +298,25 @@ const calculateScore = (payload: SubmitGamePayload, game: Game): number => {
 
     switch (game.type) {
         case GameType.WORDLE: {
-            // `mistakes` is the number of guesses - 1 (0 for 1st guess, 5 for 6th), or 6 for a loss.
-            if (mistakes === 6) { // Loss
+            // Wordle max guesses might vary now, but standard is 6.
+            // Assuming standard scoring based on 6 guesses for now.
+            const maxGuesses = 6; 
+            if (mistakes >= maxGuesses) { // Loss
                 return 0;
             }
-            const guessIndex = mistakes;
-            const guessScore = (6 - guessIndex) * 10; // 60 for 1st guess, 10 for 6th
-            const timeScore = Math.max(0, 40 - Math.floor(timeTaken / 5)); // Max 40, drops to 0 after 200s
-            return Math.max(0, guessScore + timeScore);
+            // mistakes is index of winning guess (0-5)
+            // Score is purely based on how few guesses it took.
+            // 1st guess (index 0): (6 - 0) * 10 = 60 points
+            // 6th guess (index 5): (6 - 5) * 10 = 10 points
+            return (maxGuesses - mistakes) * 10;
         }
 
         case GameType.CONNECTIONS: {
             const categoriesFound = submissionData?.categoriesFound ?? 0;
-            // Base score on categories, penalize mistakes, add time bonus
+            // Base score on categories, penalize mistakes. No time bonus.
             const categoryScore = categoriesFound * 20;
             const mistakePenalty = mistakes * 5;
-            const timeBonus = Math.max(0, 20 - Math.floor(timeTaken / 30)); // Max 20, drops to 0 after 10 mins
-            return Math.max(0, categoryScore - mistakePenalty + timeBonus);
+            return Math.max(0, categoryScore - mistakePenalty);
         }
 
         case GameType.CROSSWORD: {
@@ -351,26 +357,19 @@ export const submitGame = async (payload: SubmitGamePayload): Promise<GameSubmis
             score,
             submissionData: payload.submissionData,
         };
-        MOCK_SUBMISSIONS.push(newSubmission);
-        //
-        // Force re-calculation of previous scores for demonstration purposes
-        MOCK_SUBMISSIONS.forEach(sub => {
-            const game = MOCK_GAMES.find(g => g.id === sub.gameId);
-            if (game) {
-                const tempPayload: SubmitGamePayload = {
-                    userId: sub.userId,
-                    gameId: sub.gameId,
-                    mistakes: sub.mistakes,
-                    timeTaken: sub.timeTaken,
-                    submissionData: sub.submissionData
-                }
-                sub.score = calculateScore(tempPayload, game);
-            }
-        });
-        //
-        return newSubmission;
+        // Check if submission already exists and update it (mocking upsert)
+        const existingIndex = MOCK_SUBMISSIONS.findIndex(s => s.userId === payload.userId && s.gameId === payload.gameId);
+        if (existingIndex > -1) {
+             if (score > MOCK_SUBMISSIONS[existingIndex].score) {
+                 MOCK_SUBMISSIONS[existingIndex] = newSubmission;
+             }
+             return MOCK_SUBMISSIONS[existingIndex];
+        } else {
+            MOCK_SUBMISSIONS.push(newSubmission);
+            return newSubmission;
+        }
     } else {
-        // Calculate score before submitting
+        // Calculate score before submitting (or let backend do it, but we do it here for consistency with mock)
         const game = await getGameById(payload.gameId);
         if (!game) throw new Error('Game not found');
 
@@ -399,7 +398,10 @@ export const getGameState = async (userId: string, gameId: string): Promise<Game
     } else {
         const response = await fetch(`${API_BASE_URL}/game-state/user/${userId}/game/${gameId}`);
         if (!response.ok) {
-            throw new Error('Failed to fetch game state');
+             if (response.status === 404) return null;
+             // Sometimes API might return null for no state, handle it gracefully
+             const data = await response.json().catch(() => null);
+             return data;
         }
         return await response.json();
     }
@@ -422,7 +424,6 @@ export const saveGameState = async (userId: string, gameId: string, gameState: a
             };
             MOCK_GAME_PROGRESS.push(progress);
         }
-        console.log("Game state saved:", progress);
         return progress;
     } else {
         const response = await fetch(`${API_BASE_URL}/game-state/user/${userId}/game/${gameId}`, {
@@ -443,7 +444,6 @@ export const clearGameState = async (userId: string, gameId: string): Promise<vo
         const index = MOCK_GAME_PROGRESS.findIndex(p => p.userId === userId && p.gameId === gameId);
         if (index > -1) {
             MOCK_GAME_PROGRESS.splice(index, 1);
-            console.log("Game state cleared for", gameId);
         }
     } else {
         const response = await fetch(`${API_BASE_URL}/game-state/user/${userId}/game/${gameId}`, {
