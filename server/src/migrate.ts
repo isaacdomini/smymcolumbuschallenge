@@ -57,12 +57,24 @@ const migrations = [
     UNIQUE(user_id, game_id)
   )`,
 
-  // ADDED: push_subscriptions table
+  // push_subscriptions table
   `CREATE TABLE IF NOT EXISTS push_subscriptions (
     id SERIAL PRIMARY KEY,
     user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     endpoint TEXT NOT NULL UNIQUE,
     keys JSONB NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`,
+
+  // NEW: visit_logs table
+  `CREATE TABLE IF NOT EXISTS visit_logs (
+    id SERIAL PRIMARY KEY,
+    ip_address INET,
+    user_agent TEXT,
+    path TEXT NOT NULL,
+    method VARCHAR(10) NOT NULL,
+    user_id VARCHAR(255) REFERENCES users(id) ON DELETE SET NULL,
+    metadata JSONB,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )`,
   
@@ -73,6 +85,10 @@ const migrations = [
   `CREATE INDEX IF NOT EXISTS idx_submissions_game_id ON game_submissions(game_id)`,
   `CREATE INDEX IF NOT EXISTS idx_submissions_challenge_id ON game_submissions(challenge_id)`,
   `CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user_id ON push_subscriptions(user_id)`,
+  // New indexes for logs
+  `CREATE INDEX IF NOT EXISTS idx_visit_logs_created_at ON visit_logs(created_at)`,
+  `CREATE INDEX IF NOT EXISTS idx_visit_logs_ip_address ON visit_logs(ip_address)`,
+  `CREATE INDEX IF NOT EXISTS idx_visit_logs_path ON visit_logs(path)`
 ];
 
 async function runMigrations() {

@@ -6,6 +6,7 @@ import apiRoutes from './routes/api.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { initScheduler } from './scheduler.js';
+import { visitLogger } from './middleware/logger.js';
 
 dotenv.config();
 
@@ -14,6 +15,10 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Trust proxy is crucial when running behind a load balancer or reverse proxy (like in many Docker/cloud setups)
+// to correctly identify the client's IP address for logging and rate limiting.
+app.set('trust proxy', 1);
 
 // Rate limiting middleware
 const limiter = rateLimit({
@@ -27,6 +32,10 @@ const limiter = rateLimit({
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Register global visit logger BEFORE routes to catch everything
+app.use(visitLogger);
+
 app.use('/api', limiter); 
 
 // API routes
@@ -34,16 +43,12 @@ app.use('/api', apiRoutes);
 
 // Serve static files from the React app in production
 if (process.env.NODE_ENV !== 'development') {
-  // Assuming the server is compiled to /server/dist/server.js, 
-  // we need to go up two levels to reach the root, then into /dist
   const distPath = path.join(__dirname, '../../dist');
   console.log('Static files path set to:', distPath);
 
-  // Explicitly serve service-worker.js with correct Content-Type and error handling
+  // Explicitly serve service-worker.js with correct Content-Type
   app.get('/service-worker.js', (req, res) => {
     const swPath = path.join(distPath, 'service-worker.js');
-    console.log('Serving SW from:', swPath);
-    
     res.sendFile(swPath, {
       headers: { 
           'Content-Type': 'application/javascript',
@@ -52,18 +57,15 @@ if (process.env.NODE_ENV !== 'development') {
           'Expires': '0'
       }
     }, (err) => {
-      if (err) {
-        console.error("Error serving service-worker.js:", err);
-        // Explicitly send 404 so it doesn't fall through to index.html
-        if (!res.headersSent) {
-            res.status(404).send('Service Worker not found');
-        }
+      if (err && !res.headersSent) {
+          res.status(404).send('Service Worker not found');
       }
     });
   });
 
   app.use(express.static(distPath));
   
+  // Fallback for SPA
   app.get('*', (req, res) => {
     res.sendFile(path.join(distPath, 'index.html'));
   });
