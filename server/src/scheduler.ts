@@ -1,19 +1,21 @@
 import cron from 'node-cron';
 import pool from './db/pool.js';
 import { sendDailyReminder } from './services/email.js';
+import { sendPushNotification } from './services/push.js';
 
 export const initScheduler = () => {
     console.log('Initializing daily reminder scheduler...');
 
-    // Schedule task to run every day at 22:00 UTC (which is 5:00 PM EST / 6:00 PM EDT)
-    // This gives users most of the day to play before reminding them.
-    cron.schedule('0 22 * * *', async () => {
+    // Schedule task to run every day at 22:00 UTC
+    // cron.schedule('0 22 * * *', async () => {
+    // 7:55am EST is 11:55 UTC (EST is UTC-4 during daylight saving time)
+    // 7:55am EST/EDT is 11:55 UTC, 6:00pm EST/EDT is 22:00 UTC
+    cron.schedule('55 11,22 * * *', async () => {
         console.log('Running daily reminder job...');
         try {
             const now = new Date();
             const todayStr = now.toISOString().split('T')[0];
 
-            // 1. Get today's active challenge
             const challengeResult = await pool.query(
                 'SELECT id FROM challenges WHERE start_date <= $1 AND end_date >= $1 LIMIT 1',
                 [now]
@@ -25,7 +27,6 @@ export const initScheduler = () => {
             }
             const challengeId = challengeResult.rows[0].id;
 
-            // 2. Get today's game
             const gameResult = await pool.query(
                 'SELECT id, type FROM games WHERE challenge_id = $1 AND DATE(date) = $2',
                 [challengeId, todayStr]
@@ -36,26 +37,32 @@ export const initScheduler = () => {
                  return;
             }
             const game = gameResult.rows[0];
+            const gameType = game.type.charAt(0).toUpperCase() + game.type.slice(1);
 
-            // 3. Find verified users who have NOT submitted a score for today's game AND have enabled notifications
-            // We join users with submissions, filtering for where the submission IS NULL
             const usersToRemind = await pool.query(`
-                SELECT u.id, u.name, u.email 
+                SELECT u.id, u.name, u.email, u.email_notifications 
                 FROM users u
                 LEFT JOIN game_submissions gs ON u.id = gs.user_id AND gs.game_id = $1
-                WHERE u.is_verified = true 
-                AND u.email_notifications = true
-                AND gs.id IS NULL
+                WHERE u.is_verified = true AND gs.id IS NULL
             `, [game.id]);
 
-            console.log(`Found ${usersToRemind.rows.length} users to remind for ${game.type} on ${todayStr}.`);
+            console.log(`Found ${usersToRemind.rows.length} potential users to remind for ${game.type} on ${todayStr}.`);
 
-            // 4. Send emails (in parallel, but consider rate limits for large user bases)
-            // For now, simple Promise.all is fine for smaller groups.
-            await Promise.all(usersToRemind.rows.map(user => {
-                return sendDailyReminder(user.email, user.name, game.type.charAt(0).toUpperCase() + game.type.slice(1));
-            }));
+            const notificationPromises = usersToRemind.rows.map(async (user) => {
+                const promises = [];
+                // Send email if opted in
+                if (user.email_notifications) {
+                    promises.push(sendDailyReminder(user.email, user.name, gameType));
+                }
+                // ALWAYS try to send push notification if they have a subscription (handled by service)
+                promises.push(sendPushNotification(user.id, {
+                    title: "Daily Challenge Reminder",
+                    body: `Hi ${user.name}, time for today's ${gameType}!`
+                }));
+                return Promise.all(promises);
+            });
 
+            await Promise.all(notificationPromises);
             console.log('Daily reminder job completed.');
 
         } catch (error) {
