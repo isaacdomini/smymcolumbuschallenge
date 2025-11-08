@@ -34,7 +34,8 @@ const AddToHomeScreen: React.FC = () => {
                     <div>
                         <h3 className="font-bold text-yellow-400 text-lg">Install App</h3>
                         <p className="text-gray-300 text-sm mt-1">
-                            Add to your Home Screen for fast access and a full-screen experience.
+                            Add to your Home Screen for fast access.<br />
+                            <span className="text-blue-400">This also allows us to remind you to complete your daily challenges!</span>
                         </p>
                     </div>
                     <button onClick={handleDismiss} className="text-gray-400 hover:text-white p-1">
