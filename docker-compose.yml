@@ -34,6 +34,7 @@ services:
       VAPID_PUBLIC_KEY: "${VAPID_PUBLIC_KEY}"
       VAPID_PRIVATE_KEY: "${VAPID_PRIVATE_KEY}"
       VAPID_SUBJECT: "${VAPID_SUBJECT}"
+      APP_URL: "${APP_URL}"
     ports:
       - "${PORT:-3000}:${PORT:-3000}"
     depends_on:
