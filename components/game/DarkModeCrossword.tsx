@@ -224,7 +224,7 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
         handleClueClick(clueList[nextIndex]);
     }
 
-  }, [activeCell,ZZ grid, activeClueInfo, onCellChange, puzzleData, handleClueClick, rows, cols, fullGridData, isCompleted, isReviewMode, direction]);
+  }, [activeCell, grid, activeClueInfo, onCellChange, puzzleData, handleClueClick, rows, cols, fullGridData, isCompleted, isReviewMode, direction]);
 
   useEffect(() => {
     if (activeCell) {
