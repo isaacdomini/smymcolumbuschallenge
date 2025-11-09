@@ -1,7 +1,7 @@
 import cron from 'node-cron';
-import pool from './db/pool.js';
-import { sendDailyReminder } from './services/email.js';
-import { sendPushNotification } from './services/push.js';
+import pool from './db/pool';
+import { sendDailyReminder } from './services/email';
+import { sendPushNotification } from './services/push';
 
 export const initScheduler = () => {
     console.log('Initializing daily reminder scheduler...');

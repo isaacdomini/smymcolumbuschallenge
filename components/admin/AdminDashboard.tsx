@@ -4,10 +4,15 @@ import { getAdminStats } from '../../services/api';
 import { AdminStats } from '../../types';
 import GameBuilder from './GameBuilder';
 import ChallengeManager from './ChallengeManager';
+import UserManager from './UserManager';
+import LogViewer from './LogViewer';
+
+type Tab = 'challenges' | 'games' | 'users' | 'logs';
 
 const AdminDashboard: React.FC = () => {
     const { user } = useAuth();
     const [stats, setStats] = useState<AdminStats | null>(null);
+    const [activeTab, setActiveTab] = useState<Tab>('challenges');
 
     useEffect(() => {
         if (user?.id && user.isAdmin) {
@@ -18,6 +23,13 @@ const AdminDashboard: React.FC = () => {
     if (!user?.isAdmin) {
         return <div className="text-center p-10 text-red-500">Access Denied</div>;
     }
+
+    const tabs: { id: Tab; label: string }[] = [
+        { id: 'challenges', label: 'Challenges' },
+        { id: 'games', label: 'Game Builder' },
+        { id: 'users', label: 'Users' },
+        { id: 'logs', label: 'Logs' },
+    ];
 
     return (
         <div className="container mx-auto px-4 py-8 max-w-6xl">
@@ -31,9 +43,29 @@ const AdminDashboard: React.FC = () => {
                 <StatCard title="Upcoming Games" value={stats?.upcomingGames ?? '-'} color="text-blue-400" />
             </div>
 
-            <div className="grid grid-cols-1 gap-8">
-                <ChallengeManager />
-                <GameBuilder />
+            {/* Navigation Tabs */}
+            <div className="flex space-x-1 bg-gray-800/50 p-1 rounded-lg mb-6 overflow-x-auto">
+                {tabs.map(tab => (
+                    <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id)}
+                        className={`px-4 py-2 rounded-md font-medium transition-colors whitespace-nowrap ${
+                            activeTab === tab.id 
+                                ? 'bg-yellow-500 text-gray-900' 
+                                : 'text-gray-400 hover:text-white hover:bg-gray-700'
+                        }`}
+                    >
+                        {tab.label}
+                    </button>
+                ))}
+            </div>
+
+            {/* Tab Content */}
+            <div className="animate-fade-in">
+                {activeTab === 'challenges' && <ChallengeManager />}
+                {activeTab === 'games' && <GameBuilder />}
+                {activeTab === 'users' && <UserManager />}
+                {activeTab === 'logs' && <LogViewer />}
             </div>
         </div>
     );

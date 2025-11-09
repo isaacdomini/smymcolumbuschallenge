@@ -559,3 +559,29 @@ export const deleteChallenge = async (userId: string, challengeId: string): Prom
         throw new Error(err.error || 'Failed to delete challenge');
     }
 }
+
+
+export const getUsers = async (userId: string, limit = 50, offset = 0): Promise<User[]> => {
+    const response = await fetch(`${API_BASE_URL}/admin/users?limit=${limit}&offset=${offset}`, {
+        headers: getAuthHeaders(userId)
+    });
+    if (!response.ok) throw new Error('Failed to fetch users');
+    return await response.json();
+};
+
+export const updateUser = async (adminUserId: string, targetUserId: string, data: { isAdmin?: boolean, isVerified?: boolean }): Promise<void> => {
+     const response = await fetch(`${API_BASE_URL}/admin/users/${targetUserId}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(adminUserId),
+        body: JSON.stringify(data)
+    });
+    if (!response.ok) throw new Error('Failed to update user');
+};
+
+export const getLogs = async (userId: string, limit = 100, offset = 0): Promise<LogEntry[]> => {
+    const response = await fetch(`${API_BASE_URL}/admin/logs?limit=${limit}&offset=${offset}`, {
+        headers: getAuthHeaders(userId)
+    });
+    if (!response.ok) throw new Error('Failed to fetch logs');
+    return await response.json();
+};

@@ -1,5 +1,5 @@
 import webpush from 'web-push';
-import pool from '../db/pool.js';
+import pool from '../db/pool';
 import dotenv from 'dotenv';
 
 dotenv.config();

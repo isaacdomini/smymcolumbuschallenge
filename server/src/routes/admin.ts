@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
-import pool from '../db/pool.js';
-import { requireAdmin } from '../middleware/auth.js';
+import pool from '../db/pool';
+import { requireAdmin } from '../middleware/auth';
 
 const router = Router();
 
@@ -25,6 +25,95 @@ router.get('/stats', async (req: Request, res: Response) => {
         });
     } catch (error) {
         console.error('Error fetching admin stats:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// --- USERS ---
+
+router.get('/users', async (req: Request, res: Response) => {
+    try {
+        const limit = parseInt(req.query.limit as string) || 50;
+        const offset = parseInt(req.query.offset as string) || 0;
+
+        const result = await pool.query(
+            'SELECT id, name, email, is_verified, is_admin, created_at FROM users ORDER BY created_at DESC LIMIT $1 OFFSET $2',
+            [limit, offset]
+        );
+        
+        // Map snake_case DB to camelCase for frontend
+        const users = result.rows.map(row => ({
+            id: row.id,
+            name: row.name,
+            email: row.email,
+            isVerified: row.is_verified,
+            isAdmin: row.is_admin,
+            createdAt: row.created_at
+        }));
+
+        res.json(users);
+    } catch (error) {
+        console.error('Error fetching users:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Update user (e.g. promote to admin, verify)
+router.put('/users/:id', async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { isAdmin, isVerified } = req.body;
+
+        // Dynamic query building based on what's provided
+        const fields = [];
+        const values = [];
+        let idx = 1;
+
+        if (isAdmin !== undefined) {
+            fields.push(`is_admin = $${idx++}`);
+            values.push(isAdmin);
+        }
+        if (isVerified !== undefined) {
+             fields.push(`is_verified = $${idx++}`);
+             values.push(isVerified);
+        }
+
+        if (fields.length === 0) {
+            return res.status(400).json({ error: 'No fields to update' });
+        }
+
+        values.push(id);
+        const result = await pool.query(
+            `UPDATE users SET ${fields.join(', ')} WHERE id = $${idx}`,
+            values
+        );
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        res.json({ message: 'User updated successfully' });
+    } catch (error) {
+        console.error('Error updating user:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// --- LOGS ---
+
+router.get('/logs', async (req: Request, res: Response) => {
+    try {
+        const limit = parseInt(req.query.limit as string) || 100;
+        const offset = parseInt(req.query.offset as string) || 0;
+
+        const result = await pool.query(
+            'SELECT * FROM visit_logs ORDER BY created_at DESC LIMIT $1 OFFSET $2',
+            [limit, offset]
+        );
+
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching logs:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });

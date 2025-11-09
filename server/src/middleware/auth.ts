@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import pool from '../db/pool.js';
+import pool from '../db/pool';
 
 export const requireAdmin = async (req: Request, res: Response, next: NextFunction) => {
     const userId = req.headers['x-user-id'];

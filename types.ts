@@ -2,7 +2,9 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  isAdmin?: boolean; // Added isAdmin optional flag
+  isAdmin?: boolean;
+  isVerified?: boolean; // Added for user manager
+  createdAt?: string;   // Added for user manager
 }
 
 export enum GameType {
@@ -101,4 +103,15 @@ export interface AdminStats {
     playsToday: number;
     totalPlays: number;
     upcomingGames: number;
+}
+
+// ADDED: Log Entry Type
+export interface LogEntry {
+    id: number;
+    ip_address: string;
+    user_agent: string | null;
+    path: string;
+    method: string;
+    user_id: string | null;
+    created_at: string;
 }
