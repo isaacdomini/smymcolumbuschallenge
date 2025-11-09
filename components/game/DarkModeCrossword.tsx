@@ -149,7 +149,6 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
 
   useEffect(() => {
     if (activeCell && !isReviewMode && !isCompleted) {
-        // Small delay to ensure render is complete before focusing, helps on some devices
         setTimeout(() => {
              hiddenInputRef.current?.focus({ preventScroll: true });
         }, 10);
@@ -192,7 +191,6 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
     if (!activeCell || isCompleted || isReviewMode) return;
 
     const val = e.target.value;
-    // We only care about the last character typed if multiple were somehow pasted or typed quickly
     if (val.length > 0) {
          const lastChar = val.slice(-1).toUpperCase();
          if (lastChar.match(/[A-Z]/)) {
@@ -225,14 +223,11 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement | HTMLInputElement>) => {
     if (!activeCell || isCompleted || isReviewMode) return;
     
-    // Always prevent default for navigation keys to prevent page scrolling
     if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter', 'Backspace', ' '].includes(e.key)) {
         e.preventDefault();
     }
 
     if (e.key.length === 1 && e.key.match(/[a-z]/i) && !e.ctrlKey && !e.metaKey && !e.altKey) {
-      // Prevent default to stop the input event from firing twice (once here, once in onChange if we didn't prevent it)
-      // AND to potentially stop some browsers from doing weird scroll-to-cursor things.
       e.preventDefault();
       processInput(e.key.toUpperCase());
     } else if (e.key === 'Backspace' || e.key === ' ') {
@@ -275,13 +270,23 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
   }, [activeCell, grid, activeClueInfo, onCellChange, puzzleData, handleClueClick, rows, cols, fullGridData, isCompleted, isReviewMode, direction]);
 
   return (
-    <div className="relative flex flex-col items-center md:pb-0 pb-20"> {/* Added bottom padding for sticky clue */}
+    <div className="relative flex flex-col items-center">
+      {/* Sticky Top Clue for Mobile - when NOT in review mode */}
+      {!isReviewMode && activeClueInfo.number && (
+        <div className="fixed top-[56px] left-0 right-0 bg-zinc-900/95 backdrop-blur-sm border-b-2 border-yellow-500 p-3 md:hidden z-30 animate-slide-down shadow-lg">
+             <p className="text-base font-medium text-white text-center">
+                 <span className="font-bold text-yellow-400 mr-2">{activeClueInfo.number}{direction === 'across' ? 'A' : 'D'}.</span>
+                 {activeClueInfo.clueText}
+             </p>
+        </div>
+      )}
+
       <input 
           ref={hiddenInputRef}
           type="text" 
           inputMode="text"
-          className="fixed top-0 left-0 opacity-0 h-px w-px pointer-events-none" // Minimized and removed from pointer events
-          style={{ fontSize: '16px' }} // Prevents iOS zoom on focus
+          className="fixed top-0 left-0 opacity-0 h-px w-px pointer-events-none" 
+          style={{ fontSize: '16px' }}
           onChange={handleHiddenInputChange}
           onKeyDown={handleKeyDown}
           autoComplete="off"
@@ -299,7 +304,8 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
         </div>
       )}
 
-      <div className="flex flex-col md:flex-row gap-6 md:gap-8 justify-center items-start w-full">
+      {/* Added mt-16 on mobile to account for sticky banner space */}
+      <div className={`flex flex-col md:flex-row gap-6 md:gap-8 justify-center items-start w-full ${!isReviewMode ? 'mt-16 md:mt-0' : ''}`}>
         <div 
           ref={gridRef}
           className="grid outline-none self-center md:self-start shadow-2xl" 
@@ -341,7 +347,8 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
           })}
         </div>
 
-        <div className="flex flex-col gap-4 w-full md:w-64 lg:w-72 self-stretch max-h-[60vh] md:max-h-[550px] overflow-hidden">
+        {/* Hide clues list on mobile if NOT in review mode */}
+        <div className={`flex-col gap-4 w-full md:w-64 lg:w-72 self-stretch max-h-[60vh] md:max-h-[550px] overflow-hidden ${!isReviewMode ? 'hidden md:flex' : 'flex'}`}>
           <div className="flex-1 bg-zinc-800/80 rounded-xl p-4 border border-zinc-700/50 flex flex-col overflow-hidden">
             <h2 className="text-lg font-bold text-yellow-400 mb-2 uppercase tracking-wider border-b border-zinc-700 pb-2">Across</h2>
             <ul className="flex-1 overflow-y-auto pr-2 space-y-2 scrollbar-thin">
@@ -374,16 +381,15 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
           </div>
         </div>
       </div>
-
-       {/* Sticky Bottom Clue for Mobile */}
-       {!isReviewMode && activeClueInfo.number && (
-        <div className="fixed bottom-0 left-0 right-0 bg-zinc-900/95 backdrop-blur-sm border-t-2 border-yellow-500 p-3 md:hidden z-50 animate-slide-up shadow-[0_-5px_15px_rgba(0,0,0,0.5)]">
-             <p className="text-base font-medium text-white text-center">
-                 <span className="font-bold text-yellow-400 mr-2">{activeClueInfo.number}{direction === 'across' ? 'A' : 'D'}.</span>
-                 {activeClueInfo.clueText}
-             </p>
-        </div>
-      )}
+      <style>{`
+        @keyframes slide-down {
+            from { transform: translateY(-100%); }
+            to { transform: translateY(0); }
+        }
+        .animate-slide-down {
+            animation: slide-down 0.3s ease-out;
+        }
+      `}</style>
     </div>
   );
 };
