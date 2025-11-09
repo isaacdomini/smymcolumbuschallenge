@@ -3,6 +3,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { getAdminStats } from '../../services/api';
 import { AdminStats } from '../../types';
 import GameBuilder from './GameBuilder';
+import ChallengeManager from './ChallengeManager';
 
 const AdminDashboard: React.FC = () => {
     const { user } = useAuth();
@@ -30,18 +31,9 @@ const AdminDashboard: React.FC = () => {
                 <StatCard title="Upcoming Games" value={stats?.upcomingGames ?? '-'} color="text-blue-400" />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2">
-                    <GameBuilder />
-                </div>
-                <div className="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700 h-fit">
-                    <h3 className="text-xl font-bold text-gray-300 mb-4">Quick Actions</h3>
-                    <ul className="space-y-2 text-gray-400">
-                        <li>• Manage Challenges (Coming Soon)</li>
-                        <li>• Manage Users (Coming Soon)</li>
-                        <li>• View Full Logs (Coming Soon)</li>
-                    </ul>
-                </div>
+            <div className="grid grid-cols-1 gap-8">
+                <ChallengeManager />
+                <GameBuilder />
             </div>
         </div>
     );

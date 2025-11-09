@@ -29,6 +29,8 @@ router.get('/stats', async (req: Request, res: Response) => {
     }
 });
 
+// --- GAMES ---
+
 // Create a new game
 router.post('/games', async (req: Request, res: Response) => {
     try {
@@ -54,7 +56,9 @@ router.post('/games', async (req: Request, res: Response) => {
     }
 });
 
-// Get all challenges (for dropdowns)
+// --- CHALLENGES ---
+
+// Get all challenges
 router.get('/challenges', async (req: Request, res: Response) => {
     try {
         const result = await pool.query('SELECT * FROM challenges ORDER BY start_date DESC');
@@ -66,6 +70,74 @@ router.get('/challenges', async (req: Request, res: Response) => {
         })));
     } catch (error) {
         console.error('Error fetching challenges:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Create a challenge
+router.post('/challenges', async (req: Request, res: Response) => {
+    try {
+        const { id, name, startDate, endDate } = req.body;
+        if (!id || !name || !startDate || !endDate) {
+             return res.status(400).json({ error: 'Missing required challenge fields' });
+        }
+
+        await pool.query(
+            'INSERT INTO challenges (id, name, start_date, end_date) VALUES ($1, $2, $3, $4)',
+            [id, name, startDate, endDate]
+        );
+
+        res.status(201).json({ message: 'Challenge created successfully', id });
+    } catch (error: any) {
+        if (error.code === '23505') { // unique_violation
+             return res.status(409).json({ error: 'A challenge with this ID already exists.' });
+        }
+        console.error('Error creating challenge:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Update a challenge
+router.put('/challenges/:id', async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { name, startDate, endDate } = req.body;
+
+        const result = await pool.query(
+            'UPDATE challenges SET name = $1, start_date = $2, end_date = $3 WHERE id = $4 RETURNING *',
+            [name, startDate, endDate, id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Challenge not found' });
+        }
+
+        res.json({ message: 'Challenge updated successfully' });
+    } catch (error) {
+        console.error('Error updating challenge:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Delete a challenge
+router.delete('/challenges/:id', async (req: Request, res: Response) => {
+     try {
+        const { id } = req.params;
+        
+        // Check if games exist for this challenge first
+        const gamesResult = await pool.query('SELECT COUNT(*) FROM games WHERE challenge_id = $1', [id]);
+        if (parseInt(gamesResult.rows[0].count) > 0) {
+            return res.status(409).json({ error: 'Cannot delete challenge because it contains games. Delete the games first.' });
+        }
+
+        const result = await pool.query('DELETE FROM challenges WHERE id = $1 RETURNING *', [id]);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Challenge not found' });
+        }
+
+        res.json({ message: 'Challenge deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting challenge:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });

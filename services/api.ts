@@ -522,3 +522,40 @@ export const createGame = async (userId: string, gameData: any): Promise<void> =
         throw new Error(err.error || 'Failed to create game');
     }
 }
+
+
+
+export const createChallenge = async (userId: string, challengeData: Partial<Challenge>): Promise<void> => {
+    const response = await fetch(`${API_BASE_URL}/admin/challenges`, {
+        method: 'POST',
+        headers: getAuthHeaders(userId),
+        body: JSON.stringify(challengeData)
+    });
+    if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to create challenge');
+    }
+}
+
+export const updateChallenge = async (userId: string, challengeId: string, challengeData: Partial<Challenge>): Promise<void> => {
+    const response = await fetch(`${API_BASE_URL}/admin/challenges/${challengeId}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(userId),
+        body: JSON.stringify(challengeData)
+    });
+    if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to update challenge');
+    }
+}
+
+export const deleteChallenge = async (userId: string, challengeId: string): Promise<void> => {
+    const response = await fetch(`${API_BASE_URL}/admin/challenges/${challengeId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(userId)
+    });
+    if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to delete challenge');
+    }
+}
