@@ -3,8 +3,8 @@ export interface User {
   name: string;
   email: string;
   isAdmin?: boolean;
-  isVerified?: boolean; // Added for user manager
-  createdAt?: string;   // Added for user manager
+  isVerified?: boolean;
+  createdAt?: string;
 }
 
 export enum GameType {
@@ -37,7 +37,8 @@ export interface Clue {
 }
 
 export interface CrosswordData {
-  gridSize: number;
+  rows: number; // Changed from gridSize
+  cols: number; // Added cols
   acrossClues: Clue[];
   downClues: Clue[];
 }
@@ -105,7 +106,6 @@ export interface AdminStats {
     upcomingGames: number;
 }
 
-// ADDED: Log Entry Type
 export interface LogEntry {
     id: number;
     ip_address: string;

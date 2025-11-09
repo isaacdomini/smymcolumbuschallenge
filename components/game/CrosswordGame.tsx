@@ -15,21 +15,22 @@ interface CrosswordGameProps {
 const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submission, onComplete }) => {
   const { user } = useAuth();
   const isReadOnly = !!submission;
+  // Use rows and cols from gameData
   const [userGrid, setUserGrid] = useState<(string | null)[][]>(() => 
-    Array(gameData.gridSize).fill(null).map(() => Array(gameData.gridSize).fill(null))
+    Array(gameData.rows).fill(null).map(() => Array(gameData.cols).fill(null))
   );
   const [isSubmitted, setIsSubmitted] = useState(!!submission);
   const [startTime, setStartTime] = useState<number | null>(null);
   const [showInstructions, setShowInstructions] = useState(!isReadOnly);
   
   const solutionGrid = useMemo(() => {
-    const grid: (string | null)[][] = Array(gameData.gridSize).fill(null).map(() => Array(gameData.gridSize).fill(null));
+    const grid: (string | null)[][] = Array(gameData.rows).fill(null).map(() => Array(gameData.cols).fill(null));
     const allClues: Clue[] = [...gameData.acrossClues, ...gameData.downClues];
     allClues.forEach(clue => {
         for (let i = 0; i < clue.answer.length; i++) {
             const r = clue.direction === 'across' ? clue.row : clue.row + i;
             const c = clue.direction === 'across' ? clue.col + i : clue.col;
-            if (grid[r]) {
+            if (grid[r] && c < gameData.cols) {
                 grid[r][c] = clue.answer[i];
             }
         }
@@ -39,7 +40,7 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
 
   useEffect(() => {
     if (isReadOnly && submission) {
-      setUserGrid(submission.submissionData?.grid || Array(gameData.gridSize).fill(null).map(() => Array(gameData.gridSize).fill(null)));
+      setUserGrid(submission.submissionData?.grid || Array(gameData.rows).fill(null).map(() => Array(gameData.cols).fill(null)));
       setShowInstructions(false);
       return;
     }
@@ -50,7 +51,7 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
         if (savedProgress?.gameState) {
             try {
                 const savedState = savedProgress.gameState;
-                setUserGrid(savedState.grid || Array(gameData.gridSize).fill(null).map(() => Array(gameData.gridSize).fill(null)));
+                setUserGrid(savedState.grid || Array(gameData.rows).fill(null).map(() => Array(gameData.cols).fill(null)));
                 if (savedState.startTime) {
                     setStartTime(savedState.startTime);
                     setShowInstructions(false);
@@ -61,7 +62,7 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
         }
     };
     loadState();
-  }, [gameId, isReadOnly, submission, gameData.gridSize, user]);
+  }, [gameId, isReadOnly, submission, gameData.rows, gameData.cols, user]);
 
   useEffect(() => {
     if (isReadOnly || isSubmitted || !user || startTime === null) return;
@@ -86,8 +87,8 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
     let correctCells = 0;
     let totalFillableCells = 0;
 
-    for(let r = 0; r < gameData.gridSize; r++) {
-        for (let c = 0; c < gameData.gridSize; c++) {
+    for(let r = 0; r < gameData.rows; r++) {
+        for (let c = 0; c < gameData.cols; c++) {
             if (solutionGrid[r][c] !== null) { // This is a fillable cell
                 totalFillableCells++;
                 if (userGrid[r][c] === solutionGrid[r][c]) {
@@ -115,7 +116,7 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
     setIsSubmitted(true);
     await clearGameState(user.id, gameId);
     setTimeout(onComplete, 3000);
-  }, [user, isReadOnly, isSubmitted, startTime, gameData.gridSize, userGrid, solutionGrid, gameId, onComplete]);
+  }, [user, isReadOnly, isSubmitted, startTime, gameData.rows, gameData.cols, userGrid, solutionGrid, gameId, onComplete]);
   
   const handleCellChange = useCallback((row: number, col: number, char: string | null) => {
     if (isSubmitted) return;
@@ -141,7 +142,6 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
   return (
     <div className="w-full max-w-5xl mx-auto flex flex-col items-center">
         <div className="flex items-center justify-between w-full max-w-md mb-2 md:mb-0">
-             {/* Spacer to center the title on small screens where layout might shift */}
              <div className="w-6 md:hidden"></div> 
              <h2 className="text-2xl font-bold md:hidden">Crossword</h2>
              <button onClick={() => setShowInstructions(true)} className="text-gray-400 hover:text-white md:hidden" title="Show Instructions">

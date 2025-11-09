@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 
-// Types are now self-contained within the component file
 export type Direction = 'across' | 'down';
 
 export interface Clue {
@@ -13,7 +12,8 @@ export interface Clue {
 }
 
 export interface PuzzleData {
-  gridSize: number;
+  rows: number;
+  cols: number;
   acrossClues: Clue[];
   downClues: Clue[];
 }
@@ -47,25 +47,25 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
   initialGrid,
   isReviewMode = false,
 }) => {
-  const { gridSize } = puzzleData;
+  const { rows, cols } = puzzleData;
   const gridRef = useRef<HTMLDivElement>(null);
 
   const [grid, setGrid] = useState<(string | null)[][]>(() =>
-    initialGrid || Array(gridSize).fill(null).map(() => Array(gridSize).fill(null))
+    initialGrid || Array(rows).fill(null).map(() => Array(cols).fill(null))
   );
   const [activeCell, setActiveCell] = useState<ActiveCell | null>(null);
   const [direction, setDirection] = useState<Direction>('across');
   const [isCompleted, setIsCompleted] = useState(false);
 
   const { fullGridData, clueData, solutionGrid } = useMemo(() => {
-    const newGridData: CellData[][] = Array(gridSize).fill(null).map((_, r) =>
-      Array(gridSize).fill(null).map((_, c) => ({
+    const newGridData: CellData[][] = Array(rows).fill(null).map((_, r) =>
+      Array(cols).fill(null).map((_, c) => ({
         row: r,
         col: c,
         isBlack: true,
       }))
     );
-    const newSolutionGrid: (string | null)[][] = Array(gridSize).fill(null).map(() => Array(gridSize).fill(null));
+    const newSolutionGrid: (string | null)[][] = Array(rows).fill(null).map(() => Array(cols).fill(null));
     
     const acrossMap = new Map<number, Clue>();
     const downMap = new Map<number, Clue>();
@@ -73,28 +73,36 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
     puzzleData.acrossClues.forEach(clue => {
       acrossMap.set(clue.number, clue);
       for (let i = 0; i < clue.answer.length; i++) {
-        const cell = newGridData[clue.row][clue.col + i];
-        cell.isBlack = false;
-        cell.acrossClueNumber = clue.number;
-        newSolutionGrid[clue.row][clue.col + i] = clue.answer[i];
+        if (clue.col + i < cols) {
+             const cell = newGridData[clue.row][clue.col + i];
+             cell.isBlack = false;
+             cell.acrossClueNumber = clue.number;
+             newSolutionGrid[clue.row][clue.col + i] = clue.answer[i];
+        }
       }
-      newGridData[clue.row][clue.col].number = clue.number;
+      if (clue.col < cols && clue.row < rows) {
+         newGridData[clue.row][clue.col].number = clue.number;
+      }
     });
 
     puzzleData.downClues.forEach(clue => {
       downMap.set(clue.number, clue);
       for (let i = 0; i < clue.answer.length; i++) {
-        const cell = newGridData[clue.row + i][clue.col];
-        cell.isBlack = false;
-        cell.downClueNumber = clue.number;
-        newSolutionGrid[clue.row + i][clue.col] = clue.answer[i];
+        if (clue.row + i < rows) {
+             constHZ cell = newGridData[clue.row + i][clue.col];
+             cell.isBlack = false;
+             cell.downClueNumber = clue.number;
+             newSolutionGrid[clue.row + i][clue.col] = clue.answer[i];
+        }
       }
-      const existingCell = newGridData[clue.row][clue.col];
-      existingCell.number = existingCell.number || clue.number;
+      if (clue.row < rows && clue.col < cols) {
+         const existingCell = newGridData[clue.row][clue.col];
+         existingCell.number = existingCell.number || clue.number;
+      }
     });
     
     return { fullGridData: newGridData, clueData: { across: acrossMap, down: downMap }, solutionGrid: newSolutionGrid };
-  }, [puzzleData, gridSize]);
+  }, [puzzleData, rows, cols]);
 
   const activeClueInfo = useMemo(() => {
     if (!activeCell) return { number: undefined, cells: [] };
@@ -117,8 +125,8 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
 
   const checkCompletion = useCallback(() => {
     if (isCompleted || isReviewMode) return;
-    for (let r = 0; r < gridSize; r++) {
-      for (let c = 0; c < gridSize; c++) {
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
         if (!fullGridData[r][c].isBlack && grid[r][c] !== solutionGrid[r][c]) {
           return;
         }
@@ -126,7 +134,7 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
     }
     setIsCompleted(true);
     onPuzzleComplete?.();
-  }, [grid, onPuzzleComplete, isCompleted, isReviewMode, gridSize, fullGridData, solutionGrid]);
+  }, [grid, onPuzzleComplete, isCompleted, isReviewMode, rows, cols, fullGridData, solutionGrid]);
 
   useEffect(() => {
     checkCompletion();
@@ -201,7 +209,7 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
         if(e.key === 'ArrowLeft') newCol--;
         if(e.key === 'ArrowRight') newCol++;
 
-        if (newRow >= 0 && newRow < gridSize && newCol >= 0 && newCol < gridSize && !fullGridData[newRow][newCol].isBlack) {
+        if (newRow >= 0 && newRow < rows && newCol >= 0 && newCol < cols && !fullGridData[newRow][newCol].isBlack) {
             return {row: newRow, col: newCol};
         }
         return {row, col};
@@ -216,11 +224,16 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
         handleClueClick(clueList[nextIndex]);
     }
 
-  }, [activeCell, grid, activeClueInfo, onCellChange, puzzleData, handleClueClick, gridSize, fullGridData, isCompleted, isReviewMode, direction]);
+  }, [activeCell,ZZ grid, activeClueInfo, onCellChange, puzzleData, handleClueClick, rows, cols, fullGridData, isCompleted, isReviewMode, direction]);
 
   useEffect(() => {
     if (activeCell) {
         const { row, col } = activeCell;
+        // Guard against out of bounds if grid resized (unlikely but good practice)
+        if (row >= rows || col >= cols) {
+             setActiveCell(null);
+             return;
+        }
         const cellInfo = fullGridData[row][col];
         const canBeAcross = !!cellInfo.acrossClueNumber;
         const canBeDown = !!cellInfo.downClueNumber;
@@ -230,7 +243,7 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
             setDirection('across');
         }
     }
-  }, [activeCell, direction, fullGridData]);
+  }, [activeCell, direction, fullGridData, rows, cols]);
 
 
   return (
@@ -248,9 +261,10 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
           ref={gridRef}
           className="grid outline-none" 
           style={{ 
-            gridTemplateColumns: `repeat(${gridSize}, minmax(0, 1fr))`,
+            gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+            // Calculate aspect ratio based on rows/cols
+            aspectRatio: `${cols} / ${rows}`,
             width: 'clamp(300px, 90vw, 500px)',
-            aspectRatio: '1 / 1',
           }}
           onKeyDown={handleKeyDown}
           tabIndex={0}
