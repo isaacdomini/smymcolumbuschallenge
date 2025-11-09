@@ -286,9 +286,12 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
                 style={{ 
                     gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
                     aspectRatio: `${cols} / ${rows}`,
-                    // UPDATED: On mobile, prioritize width to make it readable.
-                    width: isMobile ? '98%' : 'clamp(300px, 95vw, 550px)',
-                    height: 'auto',
+                    // STRICT CONTAINMENT FOR MOBILE to avoid scrolling initially:
+                    width: isMobile ? 'auto' : 'clamp(300px, 95vw, 550px)',
+                    height: isMobile ? 'auto' : undefined,
+                    maxWidth: isMobile ? '100%' : undefined,
+                    maxHeight: isMobile ? '100%' : undefined,
+                    
                     transform: `scale(${zoom})`,
                     // Use center origin when not zoomed, top-left when zoomed to allow scrolling all edges
                     transformOrigin: zoom > 1 ? 'top left' : 'center center',
@@ -299,7 +302,8 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
                 const isSelected = activeCell?.row === row && activeCell?.col === col;
                 const isHighlighted = activeClueInfo.cells.some(c => c.row === row && c.col === col);
                 
-                let cellClasses = 'relative flex items-center justify-center uppercase font-bold text-sm sm:text-base md:text-2xl border-zinc-700 border select-none';
+                // Use smaller base font for mobile to ensure it fits if grid shrinks a lot
+                let cellClasses = 'relative flex items-center justify-center uppercase font-bold text-sm md:text-2xl border-zinc-700 border select-none';
                 
                 if (isBlack) {
                 cellClasses += ' bg-zinc-950';
