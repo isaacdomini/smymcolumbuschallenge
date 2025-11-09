@@ -7,8 +7,8 @@ interface AuthContextType {
   login: (email: string, pass: string) => Promise<void>;
   signup: (name: string, email: string, pass: string, emailNotifications: boolean) => Promise<{ message: string }>;
   logout: () => void;
-  forgotPassword: (email: string) => Promise<{ message: string }>; // ADDED
-  resetPassword: (token: string, pass: string) => Promise<{ message: string }>; // ADDED
+  forgotPassword: (email: string) => Promise<{ message: string }>;
+  resetPassword: (token: string, pass: string) => Promise<{ message: string }>;
   isLoading: boolean;
 }
 
@@ -32,19 +32,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, []);
 
   const login = async (email: string, pass: string) => {
-    const loggedInUser = await api.login(email, pass);
-    // Remove sensitive info just in case
-    delete (loggedInUser as any).password;
-    delete (loggedInUser as any).verification_token;
-    delete (loggedInUser as any).reset_password_token;
-    delete (loggedInUser as any).reset_password_expires;
+    // The API returns the raw DB row, which has snake_case 'is_admin'
+    const rawUser: any = await api.login(email, pass);
     
-    setUser(loggedInUser);
-    localStorage.setItem('smym-user', JSON.stringify(loggedInUser));
+    // Map to our frontend User type (camelCase)
+    const userToSave: User = {
+        id: rawUser.id,
+        name: rawUser.name,
+        email: rawUser.email,
+        // IMPORTANT: Map is_admin from DB to isAdmin for frontend
+        isAdmin: rawUser.is_admin || false 
+    };
+    
+    setUser(userToSave);
+    localStorage.setItem('smym-user', JSON.stringify(userToSave));
   };
 
   const signup = async (name: string, email: string, pass: string, emailNotifications: boolean): Promise<{ message: string }> => {
-    // Signup API now returns a message, not a user object
     const response = await api.signup(name, email, pass, emailNotifications);
     return response;
   };
@@ -55,7 +59,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     localStorage.removeItem('smym-user');
   }, []);
 
-  // ADDED: Wrap API calls
   const forgotPassword = async (email: string) => {
       return await api.forgotPassword(email);
   }
