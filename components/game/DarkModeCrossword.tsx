@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import CrosswordKeyboard from './CrosswordKeyboard';
+// Use the @ alias for more reliable path resolution
 import { useIsMobile } from '@/hooks/useIsMobile';
 
 export type Direction = 'across' | 'down';
@@ -278,14 +279,18 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
       <div className={`flex-1 w-full flex flex-col md:flex-row gap-6 md:gap-8 justify-center items-center md:items-start overflow-hidden ${!isMobile ? 'mt-4' : ''}`}>
         
         {/* Grid Container - scrollable and zoomable */}
-        <div className="flex-1 w-full h-full overflow-auto flex relative p-4">
+        <div className={`flex-1 w-full h-full overflow-auto flex relative ${isMobile ? 'p-1' : 'p-4'}`}>
              <div 
                 ref={gridRef}
                 className="grid outline-none shadow-2xl transition-transform duration-200 ease-out origin-top-left m-auto" 
                 style={{ 
                     gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
                     aspectRatio: `${cols} / ${rows}`,
-                    width: isMobile ? '100%' : 'clamp(300px, 95vw, 550px)',
+                    // Mobile: 'contain' behavior using auto w/h and max 100% to initially fit precisely
+                    width: isMobile ? 'auto' : 'clamp(300px, 95vw, 550px)',
+                    height: isMobile ? 'auto' : undefined,
+                    maxWidth: isMobile ? '100%' : undefined,
+                    maxHeight: isMobile ? '100%' : undefined,
                     transform: `scale(${zoom})`
                 }}
             >
@@ -299,7 +304,14 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
                 cellClasses += ' bg-zinc-950';
                 } else {
                 if (isReviewMode) {
-                    cellClasses += ' bg-green-900/30 text-green-100';
+                    const userChar = grid[row][col];
+                    const solutionChar = solutionGrid[row][col];
+                    const isIncorrect = userChar && userChar !== solutionChar;
+                    if (isIncorrect) {
+                        cellClasses += ' bg-red-900/30 text-red-200'; // Show it was wrong
+                    } else {
+                        cellClasses += ' bg-green-900/30 text-green-100';
+                    }
                 } else if (isSelected) {
                     cellClasses += ' bg-yellow-500 text-gray-900 z-10 ring-2 ring-yellow-400';
                 } else if (isHighlighted) {
@@ -309,10 +321,17 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
                 }
                 }
 
+                // Determine what character to show
+                let charToShow = grid[row][col];
+                if (isReviewMode && !isBlack) {
+                     // Always show solution in review mode
+                     charToShow = solutionGrid[row][col];
+                }
+
                 return (
                 <div key={`${row}-${col}`} className={cellClasses} onClick={(e) => { e.stopPropagation(); handleCellClick(row, col); }}>
                     {number && <span className="absolute top-0.5 left-0.5 text-[8px] md:text-xs leading-none text-zinc-400 font-normal pointer-events-none">{number}</span>}
-                    {!isBlack && <span className="pointer-events-none">{grid[row][col]}</span>}
+                    {!isBlack && <span className="pointer-events-none">{charToShow}</span>}
                 </div>
                 );
             })}
@@ -320,9 +339,9 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
 
             {/* Zoom Controls for Mobile */}
             {isMobile && !isReviewMode && (
-                <div className="absolute right-4 top-4 flex flex-col gap-2 z-20 opacity-70">
-                    <button onClick={() => setZoom(z => Math.min(z + 0.1, 2.5))} className="w-8 h-8 bg-zinc-700 rounded-full text-white flex items-center justify-center shadow-lg">+</button>
-                    <button onClick={() => setZoom(z => Math.max(z - 0.1, 0.5))} className="w-8 h-8 bg-zinc-700 rounded-full text-white flex items-center justify-center shadow-lg">-</button>
+                <div className="absolute right-2 top-2 flex flex-col gap-2 z-20 opacity-60">
+                    <button onClick={(e) => { e.stopPropagation(); setZoom(z => Math.min(z + 0.1, 2.0)); }} className="w-8 h-8 bg-zinc-800 border border-zinc-600 rounded-full text-white flex items-center justify-center shadow-lg">+</button>
+                    <button onClick={(e) => { e.stopPropagation(); setZoom(z => Math.max(z - 0.1, 0.8)); }} className="w-8 h-8 bg-zinc-800 border border-zinc-600 rounded-full text-white flex items-center justify-center shadow-lg">-</button>
                 </div>
             )}
         </div>
@@ -368,7 +387,7 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
             {/* Active Clue Banner with Navigation Arrows */}
             {activeClueInfo.number && (
                 <div className="w-full bg-zinc-800 border-t-2 border-yellow-500 p-2 animate-slide-up flex justify-between items-center">
-                    <button onClick={() => moveToNextClue(-1)} className="p-2 text-zinc-400 hover:text-white">
+                    <button onClick={() => moveToNextClue(-1)} className="p-3 text-zinc-400 hover:text-white active:bg-zinc-700 rounded">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
                     </button>
                     <p className="text-sm font-medium text-white text-center truncate px-2 flex-1">
@@ -377,7 +396,7 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
                         </span>
                         {activeClueInfo.clueText}
                     </p>
-                    <button onClick={() => moveToNextClue(1)} className="p-2 text-zinc-400 hover:text-white">
+                    <button onClick={() => moveToNextClue(1)} className="p-3 text-zinc-400 hover:text-white active:bg-zinc-700 rounded">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
                     </button>
                 </div>
