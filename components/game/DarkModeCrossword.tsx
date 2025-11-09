@@ -49,6 +49,7 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
 }) => {
   const { rows, cols } = puzzleData;
   const gridRef = useRef<HTMLDivElement>(null);
+  const hiddenInputRef = useRef<HTMLInputElement>(null);
 
   const [grid, setGrid] = useState<(string | null)[][]>(() =>
     initialGrid || Array(rows).fill(null).map(() => Array(cols).fill(null))
@@ -57,14 +58,20 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
   const [direction, setDirection] = useState<Direction>('across');
   const [isCompleted, setIsCompleted] = useState(false);
 
+  useEffect(() => {
+      if (initialGrid) {
+          setGrid(initialGrid);
+      }
+  }, [initialGrid]);
+
   const { fullGridData, clueData, solutionGrid } = useMemo(() => {
-    const newGridData: CellData[][] = Array(rows).fill(null).map((_, r) =>
-      Array(cols).fill(null).map((_, c) => ({
-        row: r,
-        col: c,
-        isBlack: true,
-      }))
-    );
+    const newGridData: CellData[][] = Array(rows).fill(null).map(() => Array(cols).fill(null).map(() => ({ row: 0, col: 0, isBlack: true })));
+    for(let r=0; r<rows; r++) {
+        for(let c=0; c<cols; c++) {
+            newGridData[r][c] = { row: r, col: c, isBlack: true };
+        }
+    }
+
     const newSolutionGrid: (string | null)[][] = Array(rows).fill(null).map(() => Array(cols).fill(null));
     
     const acrossMap = new Map<number, Clue>();
@@ -105,13 +112,13 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
   }, [puzzleData, rows, cols]);
 
   const activeClueInfo = useMemo(() => {
-    if (!activeCell) return { number: undefined, cells: [] };
+    if (!activeCell) return { number: undefined, clueText: '', cells: [] };
     const cellData = fullGridData[activeCell.row][activeCell.col];
     const clueNumber = direction === 'across' ? cellData.acrossClueNumber : cellData.downClueNumber;
-    if (!clueNumber) return { number: undefined, cells: [] };
+    if (!clueNumber) return { number: undefined, clueText: '', cells: [] };
     
     const clue = clueData[direction].get(clueNumber);
-    if (!clue) return { number: clueNumber, cells: [] };
+    if (!clue) return { number: clueNumber, clueText: '', cells: [] };
     
     const cells: ActiveCell[] = [];
     for (let i = 0; i < clue.answer.length; i++) {
@@ -120,7 +127,7 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
         col: direction === 'across' ? clue.col + i : clue.col,
       });
     }
-    return { number: clueNumber, cells };
+    return { number: clueNumber, clueText: clue.clue, cells };
   }, [activeCell, direction, fullGridData, clueData]);
 
   const checkCompletion = useCallback(() => {
@@ -139,6 +146,12 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
   useEffect(() => {
     checkCompletion();
   }, [grid, checkCompletion]);
+
+  useEffect(() => {
+    if (activeCell && !isReviewMode && !isCompleted) {
+        hiddenInputRef.current?.focus();
+    }
+  }, [activeCell, isReviewMode, isCompleted]);
 
   const handleCellClick = useCallback((row: number, col: number) => {
     if (isReviewMode || fullGridData[row][col].isBlack) return;
@@ -170,37 +183,66 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
     if(isReviewMode) return;
     setActiveCell({ row: clue.row, col: clue.col });
     setDirection(clue.direction);
-    gridRef.current?.focus();
   }, [isReviewMode]);
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
+  const handleHiddenInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!activeCell || isCompleted || isReviewMode) return;
+
+    const val = e.target.value;
+    if (!val) return;
+
+    const lastChar = val.slice(-1).toUpperCase();
+    if (lastChar.match(/[A-Z]/)) {
+        processInput(lastChar);
+    }
+    
+    e.target.value = '';
+  };
+
+  const processInput = (char: string | null) => {
+      if (!activeCell) return;
+      const newGrid = grid.map(r => [...r]);
+      newGrid[activeCell.row][activeCell.col] = char;
+      setGrid(newGrid);
+      onCellChange?.(activeCell.row, activeCell.col, char);
+
+      if (char) {
+          const currentIndex = activeClueInfo.cells.findIndex(c => c.row === activeCell.row && c.col === activeCell.col);
+          if(currentIndex < activeClueInfo.cells.length - 1) {
+              setActiveCell(activeClueInfo.cells[currentIndex + 1]);
+          }
+      } else {
+           const currentIndex = activeClueInfo.cells.findIndex(c => c.row === activeCell.row && c.col === activeCell.col);
+           if(currentIndex > 0) {
+               setActiveCell(activeClueInfo.cells[currentIndex - 1]);
+           }
+      }
+  }
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement | HTMLInputElement>) => {
     if (!activeCell || isCompleted || isReviewMode) return;
     
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter', 'Backspace', ' '].includes(e.key)) {
+        e.preventDefault();
+    }
+
     if (e.key.length === 1 && e.key.match(/[a-z]/i)) {
-      e.preventDefault();
-      const newGrid = grid.map(r => [...r]);
-      newGrid[activeCell.row][activeCell.col] = e.key.toUpperCase();
-      setGrid(newGrid);
-      onCellChange?.(activeCell.row, activeCell.col, e.key.toUpperCase());
-
-      const currentIndex = activeClueInfo.cells.findIndex(c => c.row === activeCell.row && c.col === activeCell.col);
-      if(currentIndex < activeClueInfo.cells.length - 1) {
-        setActiveCell(activeClueInfo.cells[currentIndex + 1]);
-      }
-    } else if (e.key === 'Backspace') {
-      e.preventDefault();
-      const newGrid = grid.map(r => [...r]);
-      const currentVal = newGrid[activeCell.row][activeCell.col];
-      newGrid[activeCell.row][activeCell.col] = null;
-      setGrid(newGrid);
-      onCellChange?.(activeCell.row, activeCell.col, null);
-
-      if (!currentVal) {
-         const currentIndex = activeClueInfo.cells.findIndex(c => c.row === activeCell.row && c.col === activeCell.col);
-         if(currentIndex > 0) setActiveCell(activeClueInfo.cells[currentIndex - 1]);
-      }
+      processInput(e.key.toUpperCase());
+    } else if (e.key === 'Backspace' || e.key === ' ') {
+        if (!grid[activeCell.row][activeCell.col] && e.key === 'Backspace') {
+             const currentIndex = activeClueInfo.cells.findIndex(c => c.row === activeCell.row && c.col === activeCell.col);
+             if (currentIndex > 0) {
+                 const prevCell = activeClueInfo.cells[currentIndex - 1];
+                 setActiveCell(prevCell);
+                 const newGrid = grid.map(r => [...r]);
+                 newGrid[prevCell.row][prevCell.col] = null;
+                 setGrid(newGrid);
+                 onCellChange?.(prevCell.row, prevCell.col, null);
+                 return;
+             }
+        }
+        processInput(null);
     } else if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
-      e.preventDefault();
       let { row, col } = activeCell;
       const move = (r: number, c: number): {row: number, col: number} => {
         let newRow = r, newCol = c;
@@ -216,7 +258,6 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
       }
       setActiveCell(move(row, col));
     } else if (e.key === 'Tab' || e.key === 'Enter') {
-        e.preventDefault();
         const clueList = direction === 'across' ? puzzleData.acrossClues : puzzleData.downClues;
         const currentClueNumber = activeClueInfo.number;
         const currentIndex = clueList.findIndex(c => c.number === currentClueNumber);
@@ -226,119 +267,111 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
 
   }, [activeCell, grid, activeClueInfo, onCellChange, puzzleData, handleClueClick, rows, cols, fullGridData, isCompleted, isReviewMode, direction]);
 
-  useEffect(() => {
-    if (activeCell) {
-        const { row, col } = activeCell;
-        // Guard against out of bounds if grid resized (unlikely but good practice)
-        if (row >= rows || col >= cols) {
-             setActiveCell(null);
-             return;
-        }
-        const cellInfo = fullGridData[row][col];
-        const canBeAcross = !!cellInfo.acrossClueNumber;
-        const canBeDown = !!cellInfo.downClueNumber;
-        if (direction === 'across' && !canBeAcross && canBeDown) {
-            setDirection('down');
-        } else if (direction === 'down' && !canBeDown && canBeAcross) {
-            setDirection('across');
-        }
-    }
-  }, [activeCell, direction, fullGridData, rows, cols]);
-
-
   return (
-    <div className="relative">
+    <div className="relative flex flex-col items-center">
+      <input 
+          ref={hiddenInputRef}
+          type="text" 
+          className="fixed top-0 left-0 opacity-0 h-0 w-0" 
+          onChange={handleHiddenInputChange}
+          onKeyDown={handleKeyDown}
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="characters"
+      />
+
       {isCompleted && !isReviewMode && (
-        <div className="absolute inset-0 bg-black bg-opacity-75 flex items-center justify-center rounded-lg z-10 p-4">
-          <div className="text-center p-6 md:p-8 bg-zinc-800 rounded-xl shadow-2xl border-2 border-yellow-400">
+        <div className="absolute inset-0 bg-black bg-opacity-75 flex items-center justify-center rounded-lg z-20 p-4">
+          <div className="text-center p-6 md:p-8 bg-zinc-800 rounded-xl shadow-2xl border-2 border-yellow-400 animate-bounce-in">
             <h2 className="text-2xl md:text-3xl font-bold text-yellow-400 mb-4 animate-pulse">Congratulations!</h2>
             <p className="text-zinc-200 text-base md:text-lg">You've solved the puzzle!</p>
           </div>
         </div>
       )}
-      <div className="flex flex-col md:flex-row gap-4 md:gap-8 justify-center items-start">
+
+      {!isReviewMode && (
+        <div className="w-full md:hidden bg-blue-900/50 p-3 mb-4 rounded-lg border-l-4 border-yellow-400 min-h-[3.5rem] flex items-center">
+            {activeClueInfo.number ? (
+               <p className="text-sm sm:text-base font-medium text-white">
+                   <span className="font-bold text-yellow-400 mr-1">{activeClueInfo.number}{direction === 'across' ? 'A' : 'D'}.</span>
+                   {activeClueInfo.clueText}
+               </p>
+            ) : (
+                <p className="text-sm text-blue-200 italic">Tap a cell to begin</p>
+            )}
+        </div>
+      )}
+
+      <div className="flex flex-col md:flex-row gap-6 md:gap-8 justify-center items-start w-full">
         <div 
           ref={gridRef}
-          className="grid outline-none" 
+          className="grid outline-none self-center md:self-start shadow-2xl" 
           style={{ 
             gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
-            // Calculate aspect ratio based on rows/cols
             aspectRatio: `${cols} / ${rows}`,
-            width: 'clamp(300px, 90vw, 500px)',
+            width: 'clamp(300px, 95vw, 550px)',
           }}
           onKeyDown={handleKeyDown}
           tabIndex={0}
+          onClick={() => !isReviewMode && hiddenInputRef.current?.focus()}
         >
           {fullGridData.flat().map(({ row, col, isBlack, number }) => {
             const isSelected = activeCell?.row === row && activeCell?.col === col;
             const isHighlighted = activeClueInfo.cells.some(c => c.row === row && c.col === col);
             
-            let cellClasses = 'relative flex items-center justify-center uppercase font-bold text-lg md:text-xl aspect-square border-zinc-900 border';
-            let isIncorrect = false;
-            let correctChar = '';
-
-            if (isReviewMode && !isBlack) {
-                const userChar = grid[row][col];
-                const solutionChar = solutionGrid[row][col];
-                if (userChar && userChar !== solutionChar) {
-                    isIncorrect = true;
-                    correctChar = solutionChar || '';
-                }
-            }
+            let cellClasses = 'relative flex items-center justify-center uppercase font-bold text-lg md:text-2xl border-zinc-700 border select-none';
             
             if (isBlack) {
-              cellClasses += ' bg-zinc-900';
+              cellClasses += ' bg-zinc-950';
             } else {
-              if (isIncorrect) {
-                cellClasses += ' bg-red-800/80 text-red-200';
+              if (isReviewMode) {
+                  // In review mode, just show the correct answer in a nice completed state
+                  cellClasses += ' bg-green-900/30 text-green-100';
               } else if (isSelected) {
-                cellClasses += ' bg-yellow-400 text-black';
+                cellClasses += ' bg-yellow-500 text-gray-900 z-10 ring-2 ring-yellow-400';
               } else if (isHighlighted) {
-                cellClasses += ' bg-zinc-700';
+                cellClasses += ' bg-yellow-500/30 text-white';
               } else {
-                cellClasses += ' bg-zinc-800 text-white';
+                cellClasses += ' bg-zinc-800 text-zinc-100 hover:bg-zinc-700 cursor-pointer transition-colors';
               }
             }
 
             return (
-              <div key={`${row}-${col}`} className={cellClasses} onClick={() => handleCellClick(row, col)}>
-                {number && <span className="absolute top-0.5 left-1 text-xs text-zinc-400">{number}</span>}
-                {!isBlack && (
-                    <>
-                        <span>{grid[row][col]}</span>
-                        {isIncorrect && <span className="absolute bottom-0 right-1 text-xs text-green-300 font-mono">{correctChar}</span>}
-                    </>
-                )}
+              <div key={`${row}-${col}`} className={cellClasses} onClick={(e) => { e.stopPropagation(); handleCellClick(row, col); }}>
+                {number && <span className="absolute top-0.5 left-0.5 text-[10px] md:text-xs leading-none text-zinc-400 font-normal pointer-events-none">{number}</span>}
+                {!isBlack && <span className="pointer-events-none">{grid[row][col]}</span>}
               </div>
             );
           })}
         </div>
 
-        <div className="flex md:flex-col gap-4 w-full md:w-auto md:max-w-xs self-stretch">
-          <div className="flex-1 bg-zinc-800/50 rounded-lg p-3">
-            <h2 className="text-xl font-bold text-yellow-400 mb-2">Across</h2>
-            <ul className="space-y-1 overflow-y-auto max-h-60 md:max-h-[450px] pr-2">
+        <div className="flex flex-col gap-4 w-full md:w-64 lg:w-72 self-stretch max-h-[60vh] md:max-h-[550px] overflow-hidden">
+          <div className="flex-1 bg-zinc-800/80 rounded-xl p-4 border border-zinc-700/50 flex flex-col overflow-hidden">
+            <h2 className="text-lg font-bold text-yellow-400 mb-2 uppercase tracking-wider border-b border-zinc-700 pb-2">Across</h2>
+            <ul className="flex-1 overflow-y-auto pr-2 space-y-2 scrollbar-thin">
               {puzzleData.acrossClues.map(clue => (
                 <li 
                   key={`across-${clue.number}`} 
-                  className={`cursor-pointer p-1 rounded transition-colors text-sm ${activeClueInfo.number === clue.number && direction === 'across' ? 'text-yellow-400 font-semibold' : 'text-zinc-300 hover:bg-zinc-700'}`}
+                  ref={(el) => { if (activeClueInfo.number === clue.number && direction === 'across' && el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }}
+                  className={`cursor-pointer p-2 rounded text-sm transition-all ${activeClueInfo.number === clue.number && direction === 'across' && !isReviewMode ? 'bg-yellow-500/20 text-yellow-300 border-l-2 border-yellow-500 pl-1.5' : 'text-zinc-300 hover:bg-zinc-700/50'}`}
                   onClick={() => handleClueClick(clue)}
                 >
-                  <span className="font-bold w-6 inline-block">{clue.number}.</span> {clue.clue}
+                  <span className="font-bold mr-1">{clue.number}.</span>{clue.clue}
                 </li>
               ))}
             </ul>
           </div>
-          <div className="flex-1 bg-zinc-800/50 rounded-lg p-3">
-            <h2 className="text-xl font-bold text-yellow-400 mb-2">Down</h2>
-            <ul className="space-y-1 overflow-y-auto max-h-60 md:max-h-[450px] pr-2">
+          <div className="flex-1 bg-zinc-800/80 rounded-xl p-4 border border-zinc-700/50 flex flex-col overflow-hidden">
+            <h2 className="text-lg font-bold text-yellow-400 mb-2 uppercase tracking-wider border-b border-zinc-700 pb-2">Down</h2>
+             <ul className="flex-1 overflow-y-auto pr-2 space-y-2 scrollbar-thin">
               {puzzleData.downClues.map(clue => (
                 <li 
                   key={`down-${clue.number}`} 
-                  className={`cursor-pointer p-1 rounded transition-colors text-sm ${activeClueInfo.number === clue.number && direction === 'down' ? 'text-yellow-400 font-semibold' : 'text-zinc-300 hover:bg-zinc-700'}`}
+                  ref={(el) => { if (activeClueInfo.number === clue.number && direction === 'down' && el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }}
+                  className={`cursor-pointer p-2 rounded text-sm transition-all ${activeClueInfo.number === clue.number && direction === 'down' && !isReviewMode ? 'bg-yellow-500/20 text-yellow-300 border-l-2 border-yellow-500 pl-1.5' : 'text-zinc-300 hover:bg-zinc-700/50'}`}
                   onClick={() => handleClueClick(clue)}
                 >
-                  <span className="font-bold w-6 inline-block">{clue.number}.</span> {clue.clue}
+                  <span className="font-bold mr-1">{clue.number}.</span>{clue.clue}
                 </li>
               ))}
             </ul>

@@ -15,7 +15,6 @@ interface CrosswordGameProps {
 const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submission, onComplete }) => {
   const { user } = useAuth();
   const isReadOnly = !!submission;
-  // Use rows and cols from gameData
   const [userGrid, setUserGrid] = useState<(string | null)[][]>(() => 
     Array(gameData.rows).fill(null).map(() => Array(gameData.cols).fill(null))
   );
@@ -40,7 +39,9 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
 
   useEffect(() => {
     if (isReadOnly && submission) {
-      setUserGrid(submission.submissionData?.grid || Array(gameData.rows).fill(null).map(() => Array(gameData.cols).fill(null)));
+      // When reviewing, show the perfect SOLUTION grid, not just what they submitted
+      setUserGrid(solutionGrid);
+      setIsSubmitted(true);
       setShowInstructions(false);
       return;
     }
@@ -51,7 +52,9 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
         if (savedProgress?.gameState) {
             try {
                 const savedState = savedProgress.gameState;
-                setUserGrid(savedState.grid || Array(gameData.rows).fill(null).map(() => Array(gameData.cols).fill(null)));
+                if (savedState.grid) {
+                    setUserGrid(savedState.grid);
+                }
                 if (savedState.startTime) {
                     setStartTime(savedState.startTime);
                     setShowInstructions(false);
@@ -62,7 +65,7 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
         }
     };
     loadState();
-  }, [gameId, isReadOnly, submission, gameData.rows, gameData.cols, user]);
+  }, [gameId, isReadOnly, submission, gameData.rows, gameData.cols, user, solutionGrid]);
 
   useEffect(() => {
     if (isReadOnly || isSubmitted || !user || startTime === null) return;
@@ -80,6 +83,11 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
 
   const handleSubmit = useCallback(async () => {
     if (!user || isReadOnly || isSubmitted || startTime === null) return;
+
+    const isGridEmpty = userGrid.every(row => row.every(cell => !cell));
+    if (isGridEmpty && !window.confirm("Your crossword is empty. Are you sure you want to submit?")) {
+        return;
+    }
 
     const timeTaken = Math.round((Date.now() - startTime) / 1000);
     
@@ -128,7 +136,6 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
   }, [isSubmitted]);
 
   const handleInstructionsClose = () => {
-    // Only set start time if it hasn't been set yet AND it's not read-only mode
     if (startTime === null && !isReadOnly) {
         setStartTime(Date.now());
     }
@@ -140,14 +147,24 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
   }
 
   return (
-    <div className="w-full max-w-5xl mx-auto flex flex-col items-center">
-        <div className="flex items-center justify-between w-full max-w-md mb-2 md:mb-0">
-             <div className="w-6 md:hidden"></div> 
-             <h2 className="text-2xl font-bold md:hidden">Crossword</h2>
-             <button onClick={() => setShowInstructions(true)} className="text-gray-400 hover:text-white md:hidden" title="Show Instructions">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-            </button>
+    <div className="w-full max-w-5xl mx-auto flex flex-col items-center pb-8">
+        <div className="flex items-center justify-between w-full max-w-md mb-4">
+             <h2 className="text-2xl font-bold text-yellow-400">Crossword</h2>
+             <div className="flex space-x-2">
+                 {!isReadOnly && !isSubmitted && (
+                     <button 
+                        onClick={handleSubmit} 
+                        className="md:hidden bg-blue-600 hover:bg-blue-700 text-white font-bold py-1.5 px-4 rounded-lg text-sm transition-colors"
+                     >
+                         Submit
+                     </button>
+                 )}
+                <button onClick={() => setShowInstructions(true)} className="text-gray-400 hover:text-white p-1" title="Show Instructions">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                </button>
+             </div>
         </div>
+
         <DarkModeCrossword
             puzzleData={gameData}
             onCellChange={isReadOnly || isSubmitted ? undefined : handleCellChange}
@@ -155,31 +172,25 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
             initialGrid={userGrid}
             isReviewMode={isReadOnly}
         />
+        
         <div className="mt-6 w-full max-w-md flex flex-col items-center">
-             <button 
-                 onClick={() => setShowInstructions(true)} 
-                 className="hidden md:flex items-center text-gray-400 hover:text-white mb-4" 
-                 title="Show Instructions"
-            >
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                How to Play
-            </button>
             {!isReadOnly ? (
                 <button 
                     onClick={handleSubmit} 
                     disabled={isSubmitted}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg text-lg disabled:bg-gray-600 disabled:cursor-not-allowed"
+                    className="hidden md:block w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg text-lg disabled:bg-gray-600 disabled:cursor-not-allowed transition-transform hover:scale-105"
                 >
                     {isSubmitted ? "Submitted!" : "Submit Puzzle"}
                 </button>
             ) : (
-                <div className="text-center p-4 rounded-lg bg-gray-800 w-full">
+                <div className="text-center p-4 rounded-lg bg-gray-800 w-full animate-fade-in border border-gray-700">
                     {submission && (
-                        <div className="text-lg text-gray-300">
-                            <p>Time Taken: {submission.timeTaken}s | Mistakes: {submission.mistakes} | Score: {submission.score}</p>
+                        <div className="text-lg text-gray-300 space-y-1">
+                            <p><span className="text-gray-500">Score:</span> <span className="font-bold text-yellow-400">{submission.score}</span></p>
+                            <p className="text-sm"><span className="text-gray-500">Time:</span> {submission.timeTaken}s <span className="mx-2">|</span> <span className="text-gray-500">Mistakes:</span> {submission.mistakes}</p>
                         </div>
                     )}
-                    <button onClick={onComplete} className="mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                    <button onClick={onComplete} className="mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-full transition-transform hover:scale-105">
                         Back to Dashboard
                     </button>
                 </div>
