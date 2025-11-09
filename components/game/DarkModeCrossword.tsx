@@ -279,26 +279,33 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
       <div className={`flex-1 w-full flex flex-col md:flex-row gap-6 md:gap-8 justify-center items-center md:items-start overflow-hidden ${!isMobile ? 'mt-4' : ''}`}>
         
         {/* Grid Container - scrollable and zoomable */}
-        <div className={`flex-1 w-full h-full overflow-auto flex relative ${isMobile ? 'p-1' : 'p-4'}`}>
+        {/* UPDATED: Added items-center justify-center to parent to center grid if smaller than view */}
+        <div className={`flex-1 w-full h-full overflow-auto flex items-center justify-center relative ${isMobile ? 'p-1' : 'p-4'}`}>
              <div 
                 ref={gridRef}
-                className="grid outline-none shadow-2xl transition-transform duration-200 ease-out origin-top-left m-auto" 
+                className="grid outline-none shadow-2xl transition-transform duration-200 ease-out origin-top-left" 
                 style={{ 
                     gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
                     aspectRatio: `${cols} / ${rows}`,
-                    // Mobile: 'contain' behavior using auto w/h and max 100% to initially fit precisely
+                    // UPDATED: Mobile 'contain' behavior: fit within 100% of width AND height
                     width: isMobile ? 'auto' : 'clamp(300px, 95vw, 550px)',
                     height: isMobile ? 'auto' : undefined,
                     maxWidth: isMobile ? '100%' : undefined,
                     maxHeight: isMobile ? '100%' : undefined,
-                    transform: `scale(${zoom})`
+                    // Ensure it doesn't collapse
+                    minWidth: 'min-content', 
+                    minHeight: 'min-content',
+                    transform: `scale(${zoom})`,
+                    // Auto margins when zoomed out to keep it centered in the flex container
+                    margin: zoom <= 1 ? 'auto' : '0'
                 }}
             >
             {fullGridData.flat().map(({ row, col, isBlack, number }) => {
                 const isSelected = activeCell?.row === row && activeCell?.col === col;
                 const isHighlighted = activeClueInfo.cells.some(c => c.row === row && c.col === col);
                 
-                let cellClasses = 'relative flex items-center justify-center uppercase font-bold text-base sm:text-lg md:text-2xl border-zinc-700 border select-none';
+                // UPDATED: Smaller base text size for mobile to prevent blowout before zoom
+                let cellClasses = 'relative flex items-center justify-center uppercase font-bold text-sm sm:text-base md:text-2xl border-zinc-700 border select-none';
                 
                 if (isBlack) {
                 cellClasses += ' bg-zinc-950';
@@ -340,8 +347,8 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
             {/* Zoom Controls for Mobile */}
             {isMobile && !isReviewMode && (
                 <div className="absolute right-2 top-2 flex flex-col gap-2 z-20 opacity-60">
-                    <button onClick={(e) => { e.stopPropagation(); setZoom(z => Math.min(z + 0.1, 2.0)); }} className="w-8 h-8 bg-zinc-800 border border-zinc-600 rounded-full text-white flex items-center justify-center shadow-lg">+</button>
-                    <button onClick={(e) => { e.stopPropagation(); setZoom(z => Math.max(z - 0.1, 0.8)); }} className="w-8 h-8 bg-zinc-800 border border-zinc-600 rounded-full text-white flex items-center justify-center shadow-lg">-</button>
+                    <button onClick={(e) => { e.stopPropagation(); setZoom(z => Math.min(z + 0.1, 2.5)); }} className="w-10 h-10 bg-zinc-800 border border-zinc-600 rounded-full text-white flex items-center justify-center shadow-lg active:bg-zinc-700">+</button>
+                    <button onClick={(e) => { e.stopPropagation(); setZoom(z => Math.max(z - 0.1, 1.0)); }} className="w-10 h-10 bg-zinc-800 border border-zinc-600 rounded-full text-white flex items-center justify-center shadow-lg active:bg-zinc-700">-</button>
                 </div>
             )}
         </div>
@@ -402,7 +409,7 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
                 </div>
             )}
             {/* Keyboard */}
-            <div className="w-full bg-gray-900 p-1 border-t border-zinc-800">
+            <div className="w-full bg-gray-900 p-1 border-t border-zinc-800 safe-area-bottom">
                 <CrosswordKeyboard onKeyPress={handleKeyPress} />
             </div>
           </div>
@@ -415,6 +422,12 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
         }
         .animate-slide-up {
             animation: slide-up 0.2s ease-out;
+        }
+        /* Ensure keyboard doesn't get cut off by home indicator on newer iPhones */
+        @supports (padding-bottom: env(safe-area-inset-bottom)) {
+            .safe-area-bottom {
+                padding-bottom: env(safe-area-inset-bottom);
+            }
         }
       `}</style>
     </div>
