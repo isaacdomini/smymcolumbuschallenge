@@ -16,6 +16,9 @@ const migrations = [
   // ADDED: Columns for password reset
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_password_token VARCHAR(255)`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_password_expires BIGINT`,
+
+  // ADDED: Admin flag
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT false`,
   
   // Challenges table
   `CREATE TABLE IF NOT EXISTS challenges (

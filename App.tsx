@@ -8,7 +8,8 @@ import ConnectionsGame from '@/components/game/ConnectionsGame';
 import CrosswordGame from '@/components/game/CrosswordGame';
 import ChallengeHistory from '@/components/dashboard/ChallengeHistory';
 import ChallengeIntro from '@/components/dashboard/ChallengeIntro';
-import ResetPassword from '@/components/auth/ResetPassword'; // ADDED
+import ResetPassword from '@/components/auth/ResetPassword';
+import AdminDashboard from '@/components/admin/AdminDashboard'; // ADDED
 import { Game, GameType, Challenge, GameSubmission, User } from '@/types';
 import { getChallenge, getDailyGame, getLeaderboard, getSubmissionForToday, getGamesForChallenge, getSubmissionsForUser } from '@/services/api';
 import ScoringCriteria from '@/components/dashboard/ScoringCriteria';
@@ -23,7 +24,6 @@ const App: React.FC = () => {
 };
 
 const MainContent: React.FC = () => {
-  // ... existing state and hooks ...
   const { user } = useAuth();
   const [challenge, setChallenge] = useState<Challenge | null>(null);
   const [todaysGame, setTodaysGame] = useState<Game | null>(null);
@@ -46,7 +46,6 @@ const MainContent: React.FC = () => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('verified') === 'true') {
       setGlobalMessage('Your email has been verified! You can now log in.');
-      // Clean up URL
       window.history.replaceState({}, '', '/');
       const timer = setTimeout(() => setGlobalMessage(null), 5000);
       return () => clearTimeout(timer);
@@ -54,9 +53,10 @@ const MainContent: React.FC = () => {
   }, []);
 
   const fetchInitialData = useCallback(async () => {
-    // Don't fetch if we are on the reset password page
-    if (window.location.pathname.startsWith('/reset-password')) {
+    // Don't fetch if we are on special routes
+    if (window.location.pathname.startsWith('/reset-password') || window.location.pathname.startsWith('/admin')) {
         setIsLoading(false);
+        // If on admin but not admin user, redirect home handled in render
         return;
     }
 
@@ -69,19 +69,23 @@ const MainContent: React.FC = () => {
         const now = new Date();
         const challengeStartDate = new Date(currentChallenge.startDate);
 
+        // Always fetch games for history, even if challenge hasn't started
+        const games = await getGamesForChallenge(currentChallenge.id);
+        setAllChallengeGames(games);
+
+        if (user) {
+             const userSubmissions = await getSubmissionsForUser(user.id, currentChallenge.id);
+             setAllUserSubmissions(userSubmissions);
+        }
+
         if (now >= challengeStartDate) {
             const game = await getDailyGame(currentChallenge.id);
             setTodaysGame(game);
-
-            const [games, userSubmissions] = await Promise.all([
-              getGamesForChallenge(currentChallenge.id),
-              user ? getSubmissionsForUser(user.id, currentChallenge.id) : Promise.resolve([])
-            ]);
-            setAllChallengeGames(games);
-            setAllUserSubmissions(userSubmissions);
             
             if (user && game) {
-                const todaySub = userSubmissions.find(s => s.gameId === game.id) ?? null;
+                // We might have already fetched submissions above
+                const submissions = allUserSubmissions.length > 0 ? allUserSubmissions : (user ? await getSubmissionsForUser(user.id, currentChallenge.id) : []);
+                const todaySub = submissions.find(s => s.gameId === game.id) ?? null;
                 setTodaysSubmission(todaySub);
             } else {
                 setTodaysSubmission(null);
@@ -89,7 +93,6 @@ const MainContent: React.FC = () => {
         }
       }
     } catch (err) {
-      // Only show error if we aren't on a special route that doesn't need challenge data
       if (window.location.pathname === '/') {
           setError('Failed to load challenge data.');
       }
@@ -97,7 +100,7 @@ const MainContent: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [user]);
+  }, [user]); // depend on user to refresh submissions on login
 
   useEffect(() => {
     fetchInitialData();
@@ -121,6 +124,15 @@ const MainContent: React.FC = () => {
         return <ResetPassword />;
     }
 
+    // ADDED: Admin Route
+    if (locationPath.startsWith('/admin')) {
+        if (!user || !user.isAdmin) {
+             navigate('/'); 
+             return null; 
+        }
+        return <AdminDashboard />;
+    }
+
     if (isLoading) return <div className="text-center p-10">Loading Challenge...</div>;
     if (error) return <div className="text-center p-10 text-red-400">{error}</div>;
     if (!challenge) return <div className="text-center p-10">No active challenge found.</div>;
@@ -142,11 +154,11 @@ const MainContent: React.FC = () => {
         
         switch (gameToPlay.type) {
             case GameType.WORDLE:
-                return <WordleGame gameData={gameToPlay.data} onComplete={onComplete} submission={activeSubmission} gameId={gameToPlay.id} />;
+                return <WordleGame gameData={gameToPlay.data as any} onComplete={onComplete} submission={activeSubmission} gameId={gameToPlay.id} />;
             case GameType.CONNECTIONS:
-                return <ConnectionsGame gameData={gameToPlay.data} onComplete={onComplete} submission={activeSubmission} gameId={gameToPlay.id} />;
+                return <ConnectionsGame gameData={gameToPlay.data as any} onComplete={onComplete} submission={activeSubmission} gameId={gameToPlay.id} />;
             case GameType.CROSSWORD:
-                return <CrosswordGame gameData={gameToPlay.data} onComplete={onComplete} submission={activeSubmission} gameId={gameToPlay.id} />;
+                return <CrosswordGame gameData={gameToPlay.data as any} onComplete={onComplete} submission={activeSubmission} gameId={gameToPlay.id} />;
             default: return <p>Unknown game type.</p>;
         }
     }
@@ -185,6 +197,16 @@ const MainContent: React.FC = () => {
                     )}
                 </div>
             )}
+            
+            {/* Admin Link on Home if applicable */}
+            {user?.isAdmin && (
+                 <div className="mt-8 text-center">
+                    <button onClick={() => navigate('/admin')} className="text-gray-400 hover:text-yellow-400 underline">
+                        Go to Admin Dashboard
+                    </button>
+                 </div>
+            )}
+
             <ScoringCriteria />
         </div>
     );

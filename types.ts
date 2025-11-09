@@ -2,6 +2,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  isAdmin?: boolean; // Added isAdmin optional flag
 }
 
 export enum GameType {
@@ -70,18 +71,18 @@ export interface GameSubmission {
   userId: string;
   gameId: string;
   challengeId: string;
-  startedAt: string; // ISO string - ADDED
-  completedAt: string; // ISO string
-  timeTaken: number; // in seconds
+  startedAt: string; 
+  completedAt: string; 
+  timeTaken: number; 
   mistakes: number;
   score: number;
-  submissionData?: any; // e.g., wordle guesses, crossword grid
+  submissionData?: any; 
 }
 
 export interface SubmitGamePayload {
     userId: string;
     gameId: string;
-    startedAt: string; // ISO string - ADDED
+    startedAt: string; 
     timeTaken: number;
     mistakes: number;
     submissionData?: any;
@@ -93,4 +94,11 @@ export interface GameProgress {
   gameId: string;
   gameState: any;
   updatedAt: string;
+}
+
+export interface AdminStats {
+    totalUsers: number;
+    playsToday: number;
+    totalPlays: number;
+    upcomingGames: number;
 }
