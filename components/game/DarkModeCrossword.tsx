@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import CrosswordKeyboard from './CrosswordKeyboard';
-// Use the @ alias for more reliable path resolution
 import { useIsMobile } from '@/hooks/useIsMobile';
 
 export type Direction = 'across' | 'down';
@@ -183,6 +182,16 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
     setDirection(clue.direction);
   }, [isReviewMode]);
 
+  // Centralized helper to move to next/prev clue
+  const moveToNextClue = useCallback((offset: number) => {
+      const clueList = direction === 'across' ? puzzleData.acrossClues : puzzleData.downClues;
+      const currentClueNumber = activeClueInfo.number;
+      const currentIndex = clueList.findIndex(c => c.number === currentClueNumber);
+      // Use modulo to wrap around correctly
+      const nextIndex = (currentIndex + offset + clueList.length) % clueList.length;
+      handleClueClick(clueList[nextIndex]);
+  }, [direction, puzzleData, activeClueInfo, handleClueClick]);
+
   const handleKeyPress = useCallback((key: string) => {
       if (!activeCell || isCompleted || isReviewMode) return;
 
@@ -204,11 +213,7 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
           setGrid(newGrid);
           onCellChange?.(activeCell.row, activeCell.col, null);
       } else if (key === 'Enter' || key === 'Next') {
-          const clueList = direction === 'across' ? puzzleData.acrossClues : puzzleData.downClues;
-          const currentClueNumber = activeClueInfo.number;
-          const currentIndex = clueList.findIndex(c => c.number === currentClueNumber);
-          const nextIndex = (currentIndex + 1) % clueList.length;
-          handleClueClick(clueList[nextIndex]);
+          moveToNextClue(1);
       } else {
           const newGrid = grid.map(r => [...r]);
           newGrid[activeCell.row][activeCell.col] = key;
@@ -219,7 +224,7 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
               setActiveCell(activeClueInfo.cells[currentIndex + 1]);
           }
       }
-  }, [activeCell, grid, activeClueInfo, onCellChange, puzzleData, handleClueClick, isCompleted, isReviewMode, direction]);
+  }, [activeCell, grid, activeClueInfo, onCellChange, moveToNextClue, isCompleted, isReviewMode]);
 
   // Handle physical keyboard events
   useEffect(() => {
@@ -246,15 +251,14 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
               handleKeyPress('Backspace');
           } else if (e.key === 'Enter' || e.key === 'Tab') {
               e.preventDefault();
-              handleKeyPress('Enter');
+              moveToNextClue(e.shiftKey ? -1 : 1);
           }
       };
       window.addEventListener('keydown', handler);
       return () => window.removeEventListener('keydown', handler);
-  }, [handleKeyPress, activeCell, rows, cols, fullGridData, isReviewMode, isCompleted]);
+  }, [handleKeyPress, activeCell, rows, cols, fullGridData, isReviewMode, isCompleted, moveToNextClue]);
 
   // Mobile-specific container classes for full-screen, sticky layout
-  // Removed top-[120px] to allow more space, relying on flex to handle height
   const mobileContainerClasses = isMobile && !isReviewMode
       ? 'fixed inset-0 top-[70px] z-20 bg-gray-900' 
       : 'relative w-full';
@@ -274,15 +278,14 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
       <div className={`flex-1 w-full flex flex-col md:flex-row gap-6 md:gap-8 justify-center items-center md:items-start overflow-hidden ${!isMobile ? 'mt-4' : ''}`}>
         
         {/* Grid Container - scrollable and zoomable */}
-        <div className="flex-1 w-full h-full overflow-auto flex items-center justify-center relative p-4">
+        <div className="flex-1 w-full h-full overflow-auto flex relative p-4">
              <div 
                 ref={gridRef}
-                className="grid outline-none shadow-2xl transition-transform duration-200 ease-out origin-center" 
+                className="grid outline-none shadow-2xl transition-transform duration-200 ease-out origin-top-left m-auto" 
                 style={{ 
                     gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
                     aspectRatio: `${cols} / ${rows}`,
                     width: isMobile ? '100%' : 'clamp(300px, 95vw, 550px)',
-                    maxWidth: isMobile ? '90vw' : undefined, // Ensure it doesn't overflow width initially on mobile
                     transform: `scale(${zoom})`
                 }}
             >
@@ -318,7 +321,7 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
             {/* Zoom Controls for Mobile */}
             {isMobile && !isReviewMode && (
                 <div className="absolute right-4 top-4 flex flex-col gap-2 z-20 opacity-70">
-                    <button onClick={() => setZoom(z => Math.min(z + 0.1, 2))} className="w-8 h-8 bg-zinc-700 rounded-full text-white flex items-center justify-center shadow-lg">+</button>
+                    <button onClick={() => setZoom(z => Math.min(z + 0.1, 2.5))} className="w-8 h-8 bg-zinc-700 rounded-full text-white flex items-center justify-center shadow-lg">+</button>
                     <button onClick={() => setZoom(z => Math.max(z - 0.1, 0.5))} className="w-8 h-8 bg-zinc-700 rounded-full text-white flex items-center justify-center shadow-lg">-</button>
                 </div>
             )}
@@ -362,13 +365,21 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
       {/* Sticky Bottom Section for Mobile (Clue + Keyboard) */}
       {!isReviewMode && !isCompleted && isMobile && (
           <div className="shrink-0 w-full flex flex-col z-30 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
-            {/* Active Clue Banner */}
+            {/* Active Clue Banner with Navigation Arrows */}
             {activeClueInfo.number && (
-                <div className="w-full bg-zinc-800 border-t-2 border-yellow-500 p-2 animate-slide-up">
-                    <p className="text-sm font-medium text-white text-center truncate px-4">
-                        <span className="font-bold text-yellow-400 mr-2">{activeClueInfo.number}{direction === 'across' ? 'A' : 'D'}.</span>
+                <div className="w-full bg-zinc-800 border-t-2 border-yellow-500 p-2 animate-slide-up flex justify-between items-center">
+                    <button onClick={() => moveToNextClue(-1)} className="p-2 text-zinc-400 hover:text-white">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                    </button>
+                    <p className="text-sm font-medium text-white text-center truncate px-2 flex-1">
+                        <span className="font-bold text-yellow-400 mr-2">
+                            {activeClueInfo.number} {direction === 'across' ? 'across' : 'down'}
+                        </span>
                         {activeClueInfo.clueText}
                     </p>
+                    <button onClick={() => moveToNextClue(1)} className="p-2 text-zinc-400 hover:text-white">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                    </button>
                 </div>
             )}
             {/* Keyboard */}
