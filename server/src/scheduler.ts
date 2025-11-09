@@ -6,15 +6,13 @@ import { sendPushNotification } from './services/push.js';
 export const initScheduler = () => {
     console.log('Initializing daily reminder scheduler...');
 
-    // Schedule task to run every day at 22:00 UTC
-    // cron.schedule('0 22 * * *', async () => {
-    // 7:55am EST is 11:55 UTC (EST is UTC-4 during daylight saving time)
-    // 7:55am EST/EDT is 11:55 UTC, 6:00pm EST/EDT is 22:00 UTC
-    cron.schedule('55 11,22 * * *', async () => {
+    // Schedule task to run every day at 10:00 AM Eastern Time
+    cron.schedule('0 10 * * *', async () => {
         console.log('Running daily reminder job...');
         try {
             const now = new Date();
-            const todayStr = now.toISOString().split('T')[0];
+            // Use Eastern time for the date check
+            const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
 
             const challengeResult = await pool.query(
                 'SELECT id FROM challenges WHERE start_date <= $1 AND end_date >= $1 LIMIT 1',
@@ -68,5 +66,8 @@ export const initScheduler = () => {
         } catch (error) {
             console.error('Error running daily reminder job:', error);
         }
+    }, {
+        scheduled: true,
+        timezone: "America/New_York"
     });
 };
