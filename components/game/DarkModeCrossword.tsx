@@ -68,7 +68,7 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
       }
   }, [initialGrid]);
 
-  const { fullGridData, clueData, solutionGrid } = useMemo(() => {
+  const { fullGridData, clueData, solutionGrid, allClues } = useMemo(() => {
     const newGridData: CellData[][] = Array(rows).fill(null).map(() => Array(cols).fill(null).map(() => ({ row: 0, col: 0, isBlack: true })));
     for(let r=0; r<rows; r++) {
         for(let c=0; c<cols; c++) {
@@ -112,7 +112,15 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
       }
     });
     
-    return { fullGridData: newGridData, clueData: { across: acrossMap, down: downMap }, solutionGrid: newSolutionGrid };
+    // Combine all clues for global navigation
+    const allCluesList = [...puzzleData.acrossClues, ...puzzleData.downClues];
+
+    return { 
+        fullGridData: newGridData, 
+        clueData: { across: acrossMap, down: downMap }, 
+        solutionGrid: newSolutionGrid,
+        allClues: allCluesList 
+    };
   }, [puzzleData, rows, cols]);
 
   const activeClueInfo = useMemo(() => {
@@ -183,15 +191,19 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
     setDirection(clue.direction);
   }, [isReviewMode]);
 
-  // Centralized helper to move to next/prev clue
+  // Centralized helper to move to next/prev clue in the FULL LIST
   const moveToNextClue = useCallback((offset: number) => {
-      const clueList = direction === 'across' ? puzzleData.acrossClues : puzzleData.downClues;
-      const currentClueNumber = activeClueInfo.number;
-      const currentIndex = clueList.findIndex(c => c.number === currentClueNumber);
-      // Use modulo to wrap around correctly
-      const nextIndex = (currentIndex + offset + clueList.length) % clueList.length;
-      handleClueClick(clueList[nextIndex]);
-  }, [direction, puzzleData, activeClueInfo, handleClueClick]);
+      if (!activeClueInfo.number) return;
+
+      // Find current clue index in the COMBINED list
+      const currentIndex = allClues.findIndex(c => c.number === activeClueInfo.number && c.direction === direction);
+      
+      if (currentIndex === -1) return;
+
+      // Use modulo to wrap around correctly through the entire list
+      const nextIndex = (currentIndex + offset + allClues.length) % allClues.length;
+      handleClueClick(allClues[nextIndex]);
+  }, [allClues, activeClueInfo.number, direction, handleClueClick]);
 
   const handleKeyPress = useCallback((key: string) => {
       if (!activeCell || isCompleted || isReviewMode) return;
@@ -302,8 +314,8 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
                 const isSelected = activeCell?.row === row && activeCell?.col === col;
                 const isHighlighted = activeClueInfo.cells.some(c => c.row === row && c.col === col);
                 
-                // Use smaller base font for mobile to ensure it fits if grid shrinks a lot
-                let cellClasses = 'relative flex items-center justify-center uppercase font-bold text-sm md:text-2xl border-zinc-700 border select-none';
+                // Increased base font size for mobile for better legibility without zooming
+                let cellClasses = 'relative flex items-center justify-center uppercase font-bold text-base sm:text-lg md:text-2xl border-zinc-700 border select-none';
                 
                 if (isBlack) {
                 cellClasses += ' bg-zinc-950';
