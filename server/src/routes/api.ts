@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import pool from '../db/pool';
+import pool from '../db/pool.js';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import { sendVerificationEmail, sendPasswordResetEmail } from '../services/email';
