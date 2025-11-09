@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import pool from '../db/pool.js';
+import pool from '../db/pool';
 
 // List of file extensions to ignore in logs to reduce noise
 const IGNORED_EXTENSIONS = [
