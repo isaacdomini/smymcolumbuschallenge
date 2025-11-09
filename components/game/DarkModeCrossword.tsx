@@ -261,7 +261,7 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
 
   // Mobile-specific container classes for full-screen, sticky layout
   const mobileContainerClasses = isMobile && !isReviewMode
-      ? 'fixed inset-0 top-[60px] z-20 bg-gray-900' // Adjusted top offset to match header better
+      ? 'fixed inset-0 top-[60px] z-20 bg-gray-900' 
       : 'relative w-full';
 
   return (
@@ -286,11 +286,9 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
                 style={{ 
                     gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
                     aspectRatio: `${cols} / ${rows}`,
-                    // UPDATED: Strict contain behavior for mobile
-                    width: isMobile ? 'auto' : 'clamp(300px, 95vw, 550px)',
-                    height: isMobile ? 'auto' : undefined,
-                    maxWidth: isMobile ? '100%' : undefined,
-                    maxHeight: isMobile ? '100%' : undefined,
+                    // UPDATED: On mobile, prioritize width to make it readable.
+                    width: isMobile ? '98%' : 'clamp(300px, 95vw, 550px)',
+                    height: 'auto',
                     transform: `scale(${zoom})`,
                     // Use center origin when not zoomed, top-left when zoomed to allow scrolling all edges
                     transformOrigin: zoom > 1 ? 'top left' : 'center center',
