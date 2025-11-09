@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import pool from '../db/pool.js';
-import { requireAdmin } from '../middleware/auth';
+import { requireAdmin } from '../middleware/auth.js';
 
 const router = Router();
 

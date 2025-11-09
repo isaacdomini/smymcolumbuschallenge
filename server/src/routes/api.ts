@@ -2,8 +2,8 @@ import { Router, Request, Response } from 'express';
 import pool from '../db/pool.js';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
-import { sendVerificationEmail, sendPasswordResetEmail } from '../services/email';
-import { getVapidPublicKey, saveSubscription } from '../services/push';
+import { sendVerificationEmail, sendPasswordResetEmail } from '../services/email.js';
+import { getVapidPublicKey, saveSubscription } from '../services/push.js';
 
 const router = Router();
 

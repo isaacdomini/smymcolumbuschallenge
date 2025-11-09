@@ -2,12 +2,12 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
-import apiRoutes from './routes/api';
-import adminRoutes from './routes/admin';
+import apiRoutes from './routes/api.js';
+import adminRoutes from './routes/admin.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { initScheduler } from './scheduler';
-import { visitLogger } from './middleware/logger';
+import { initScheduler } from './scheduler.js';
+import { visitLogger } from './middleware/logger.js';
 
 dotenv.config();
 
