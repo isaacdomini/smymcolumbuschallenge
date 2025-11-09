@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import CrosswordKeyboard from './CrosswordKeyboard';
-import { useIsMobile } from '../../hooks/useIsMobile';
+// Use the @ alias for more reliable path resolution
+import { useIsMobile } from '@/hooks/useIsMobile';
 
 export type Direction = 'across' | 'down';
 
@@ -52,6 +53,7 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
   const { rows, cols } = puzzleData;
   const gridRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
+  const [zoom, setZoom] = useState(1);
 
   const [grid, setGrid] = useState<(string | null)[][]>(() =>
     initialGrid || Array(rows).fill(null).map(() => Array(cols).fill(null))
@@ -219,11 +221,10 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
       }
   }, [activeCell, grid, activeClueInfo, onCellChange, puzzleData, handleClueClick, isCompleted, isReviewMode, direction]);
 
-  // Handle physical keyboard events (always active)
+  // Handle physical keyboard events
   useEffect(() => {
       if (isReviewMode || isCompleted) return;
       const handler = (e: KeyboardEvent) => {
-          // Don't handle if a modifier key is pressed (e.g. Ctrl+R for refresh)
           if (e.ctrlKey || e.metaKey || e.altKey) return;
 
           if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
@@ -238,25 +239,30 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
                    setActiveCell({row, col});
                }
           } else if (e.key.length === 1 && e.key.match(/[a-z]/i)) {
-              e.preventDefault(); // Prevent potential scrolling or browser shortcuts
+              e.preventDefault();
               handleKeyPress(e.key.toUpperCase());
           } else if (e.key === 'Backspace') {
-              e.preventDefault(); // Prevent browser back navigation
+              e.preventDefault();
               handleKeyPress('Backspace');
           } else if (e.key === 'Enter' || e.key === 'Tab') {
               e.preventDefault();
               handleKeyPress('Enter');
           }
       };
-      // Use 'keydown' instead of 'keyup' for more responsive feeling and to catch and prevent defaults early
       window.addEventListener('keydown', handler);
       return () => window.removeEventListener('keydown', handler);
   }, [handleKeyPress, activeCell, rows, cols, fullGridData, isReviewMode, isCompleted]);
 
+  // Mobile-specific container classes for full-screen, sticky layout
+  // Removed top-[120px] to allow more space, relying on flex to handle height
+  const mobileContainerClasses = isMobile && !isReviewMode
+      ? 'fixed inset-0 top-[70px] z-20 bg-gray-900' 
+      : 'relative w-full';
+
   return (
-    <div className="relative flex flex-col items-center w-full">
+    <div className={`flex flex-col items-center ${mobileContainerClasses}`}>
       {isCompleted && !isReviewMode && (
-        <div className="absolute inset-0 bg-black bg-opacity-75 flex items-center justify-center rounded-lg z-30 p-4">
+        <div className="absolute inset-0 bg-black bg-opacity-75 flex items-center justify-center rounded-lg z-40 p-4">
           <div className="text-center p-6 md:p-8 bg-zinc-800 rounded-xl shadow-2xl border-2 border-yellow-400 animate-bounce-in">
             <h2 className="text-2xl md:text-3xl font-bold text-yellow-400 mb-4 animate-pulse">Congratulations!</h2>
             <p className="text-zinc-200 text-base md:text-lg">You've solved the puzzle!</p>
@@ -264,57 +270,62 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
         </div>
       )}
 
-      {/* Sticky Top Clue for Mobile - when NOT in review mode */}
-      {!isReviewMode && activeClueInfo.number && isMobile && (
-        <div className="fixed top-[56px] left-0 right-0 bg-zinc-900/95 backdrop-blur-sm border-b-2 border-yellow-500 p-3 md:hidden z-20 animate-slide-down shadow-lg">
-             <p className="text-base font-medium text-white text-center">
-                 <span className="font-bold text-yellow-400 mr-2">{activeClueInfo.number}{direction === 'across' ? 'A' : 'D'}.</span>
-                 {activeClueInfo.clueText}
-             </p>
+      {/* Main Content Area - Flex 1 to take available space */}
+      <div className={`flex-1 w-full flex flex-col md:flex-row gap-6 md:gap-8 justify-center items-center md:items-start overflow-hidden ${!isMobile ? 'mt-4' : ''}`}>
+        
+        {/* Grid Container - scrollable and zoomable */}
+        <div className="flex-1 w-full h-full overflow-auto flex items-center justify-center relative p-4">
+             <div 
+                ref={gridRef}
+                className="grid outline-none shadow-2xl transition-transform duration-200 ease-out origin-center" 
+                style={{ 
+                    gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+                    aspectRatio: `${cols} / ${rows}`,
+                    width: isMobile ? '100%' : 'clamp(300px, 95vw, 550px)',
+                    maxWidth: isMobile ? '90vw' : undefined, // Ensure it doesn't overflow width initially on mobile
+                    transform: `scale(${zoom})`
+                }}
+            >
+            {fullGridData.flat().map(({ row, col, isBlack, number }) => {
+                const isSelected = activeCell?.row === row && activeCell?.col === col;
+                const isHighlighted = activeClueInfo.cells.some(c => c.row === row && c.col === col);
+                
+                let cellClasses = 'relative flex items-center justify-center uppercase font-bold text-base sm:text-lg md:text-2xl border-zinc-700 border select-none';
+                
+                if (isBlack) {
+                cellClasses += ' bg-zinc-950';
+                } else {
+                if (isReviewMode) {
+                    cellClasses += ' bg-green-900/30 text-green-100';
+                } else if (isSelected) {
+                    cellClasses += ' bg-yellow-500 text-gray-900 z-10 ring-2 ring-yellow-400';
+                } else if (isHighlighted) {
+                    cellClasses += ' bg-yellow-500/30 text-white';
+                } else {
+                    cellClasses += ' bg-zinc-800 text-zinc-100 hover:bg-zinc-700 cursor-pointer transition-colors';
+                }
+                }
+
+                return (
+                <div key={`${row}-${col}`} className={cellClasses} onClick={(e) => { e.stopPropagation(); handleCellClick(row, col); }}>
+                    {number && <span className="absolute top-0.5 left-0.5 text-[8px] md:text-xs leading-none text-zinc-400 font-normal pointer-events-none">{number}</span>}
+                    {!isBlack && <span className="pointer-events-none">{grid[row][col]}</span>}
+                </div>
+                );
+            })}
+            </div>
+
+            {/* Zoom Controls for Mobile */}
+            {isMobile && !isReviewMode && (
+                <div className="absolute right-4 top-4 flex flex-col gap-2 z-20 opacity-70">
+                    <button onClick={() => setZoom(z => Math.min(z + 0.1, 2))} className="w-8 h-8 bg-zinc-700 rounded-full text-white flex items-center justify-center shadow-lg">+</button>
+                    <button onClick={() => setZoom(z => Math.max(z - 0.1, 0.5))} className="w-8 h-8 bg-zinc-700 rounded-full text-white flex items-center justify-center shadow-lg">-</button>
+                </div>
+            )}
         </div>
-      )}
 
-      <div className={`flex flex-col md:flex-row gap-6 md:gap-8 justify-center items-start w-full ${!isReviewMode && isMobile ? 'mt-16' : ''}`}>
-        <div 
-          ref={gridRef}
-          className="grid outline-none self-center md:self-start shadow-2xl" 
-          style={{ 
-            gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
-            aspectRatio: `${cols} / ${rows}`,
-            width: 'clamp(300px, 95vw, 550px)',
-          }}
-        >
-          {fullGridData.flat().map(({ row, col, isBlack, number }) => {
-            const isSelected = activeCell?.row === row && activeCell?.col === col;
-            const isHighlighted = activeClueInfo.cells.some(c => c.row === row && c.col === col);
-            
-            let cellClasses = 'relative flex items-center justify-center uppercase font-bold text-lg md:text-2xl border-zinc-700 border select-none';
-            
-            if (isBlack) {
-              cellClasses += ' bg-zinc-950';
-            } else {
-              if (isReviewMode) {
-                  cellClasses += ' bg-green-900/30 text-green-100';
-              } else if (isSelected) {
-                cellClasses += ' bg-yellow-500 text-gray-900 z-10 ring-2 ring-yellow-400';
-              } else if (isHighlighted) {
-                cellClasses += ' bg-yellow-500/30 text-white';
-              } else {
-                cellClasses += ' bg-zinc-800 text-zinc-100 hover:bg-zinc-700 cursor-pointer transition-colors';
-              }
-            }
-
-            return (
-              <div key={`${row}-${col}`} className={cellClasses} onClick={(e) => { e.stopPropagation(); handleCellClick(row, col); }}>
-                {number && <span className="absolute top-0.5 left-0.5 text-[10px] md:text-xs leading-none text-zinc-400 font-normal pointer-events-none">{number}</span>}
-                {!isBlack && <span className="pointer-events-none">{grid[row][col]}</span>}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Clue lists: Hidden on mobile unless in review mode */}
-        <div className={`flex-col gap-4 w-full md:w-64 lg:w-72 self-stretch max-h-[60vh] md:max-h-[550px] overflow-hidden ${!isReviewMode && isMobile ? 'hidden' : 'flex'}`}>
+        {/* Desktop Clue Lists */}
+        <div className={`flex-col gap-4 w-full md:w-64 lg:w-72 self-stretch max-h-[60vh] md:max-h-[550px] overflow-hidden ${isMobile && !isReviewMode ? 'hidden' : 'flex'}`}>
           <div className="flex-1 bg-zinc-800/80 rounded-xl p-4 border border-zinc-700/50 flex flex-col overflow-hidden">
             <h2 className="text-lg font-bold text-yellow-400 mb-2 uppercase tracking-wider border-b border-zinc-700 pb-2">Across</h2>
             <ul className="flex-1 overflow-y-auto pr-2 space-y-2 scrollbar-thin">
@@ -348,18 +359,32 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
         </div>
       </div>
       
-      {/* On-screen Keyboard - ONLY ON MOBILE */}
+      {/* Sticky Bottom Section for Mobile (Clue + Keyboard) */}
       {!isReviewMode && !isCompleted && isMobile && (
-          <CrosswordKeyboard onKeyPress={handleKeyPress} />
+          <div className="shrink-0 w-full flex flex-col z-30 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
+            {/* Active Clue Banner */}
+            {activeClueInfo.number && (
+                <div className="w-full bg-zinc-800 border-t-2 border-yellow-500 p-2 animate-slide-up">
+                    <p className="text-sm font-medium text-white text-center truncate px-4">
+                        <span className="font-bold text-yellow-400 mr-2">{activeClueInfo.number}{direction === 'across' ? 'A' : 'D'}.</span>
+                        {activeClueInfo.clueText}
+                    </p>
+                </div>
+            )}
+            {/* Keyboard */}
+            <div className="w-full bg-gray-900 p-1 border-t border-zinc-800">
+                <CrosswordKeyboard onKeyPress={handleKeyPress} />
+            </div>
+          </div>
       )}
 
       <style>{`
-        @keyframes slide-down {
-            from { transform: translateY(-100%); }
+        @keyframes slide-up {
+            from { transform: translateY(100%); }
             to { transform: translateY(0); }
         }
-        .animate-slide-down {
-            animation: slide-down 0.3s ease-out;
+        .animate-slide-up {
+            animation: slide-up 0.2s ease-out;
         }
       `}</style>
     </div>
