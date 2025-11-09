@@ -149,7 +149,10 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
 
   useEffect(() => {
     if (activeCell && !isReviewMode && !isCompleted) {
-        hiddenInputRef.current?.focus();
+        // Small delay to ensure render is complete before focusing, helps on some devices
+        setTimeout(() => {
+             hiddenInputRef.current?.focus({ preventScroll: true });
+        }, 10);
     }
   }, [activeCell, isReviewMode, isCompleted]);
 
@@ -189,13 +192,13 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
     if (!activeCell || isCompleted || isReviewMode) return;
 
     const val = e.target.value;
-    if (!val) return;
-
-    const lastChar = val.slice(-1).toUpperCase();
-    if (lastChar.match(/[A-Z]/)) {
-        processInput(lastChar);
+    // We only care about the last character typed if multiple were somehow pasted or typed quickly
+    if (val.length > 0) {
+         const lastChar = val.slice(-1).toUpperCase();
+         if (lastChar.match(/[A-Z]/)) {
+             processInput(lastChar);
+         }
     }
-    
     e.target.value = '';
   };
 
@@ -222,11 +225,15 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement | HTMLInputElement>) => {
     if (!activeCell || isCompleted || isReviewMode) return;
     
+    // Always prevent default for navigation keys to prevent page scrolling
     if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter', 'Backspace', ' '].includes(e.key)) {
         e.preventDefault();
     }
 
-    if (e.key.length === 1 && e.key.match(/[a-z]/i)) {
+    if (e.key.length === 1 && e.key.match(/[a-z]/i) && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      // Prevent default to stop the input event from firing twice (once here, once in onChange if we didn't prevent it)
+      // AND to potentially stop some browsers from doing weird scroll-to-cursor things.
+      e.preventDefault();
       processInput(e.key.toUpperCase());
     } else if (e.key === 'Backspace' || e.key === ' ') {
         if (!grid[activeCell.row][activeCell.col] && e.key === 'Backspace') {
@@ -268,16 +275,19 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
   }, [activeCell, grid, activeClueInfo, onCellChange, puzzleData, handleClueClick, rows, cols, fullGridData, isCompleted, isReviewMode, direction]);
 
   return (
-    <div className="relative flex flex-col items-center">
+    <div className="relative flex flex-col items-center md:pb-0 pb-20"> {/* Added bottom padding for sticky clue */}
       <input 
           ref={hiddenInputRef}
           type="text" 
-          className="fixed top-0 left-0 opacity-0 h-0 w-0" 
+          inputMode="text"
+          className="fixed top-0 left-0 opacity-0 h-px w-px pointer-events-none" // Minimized and removed from pointer events
+          style={{ fontSize: '16px' }} // Prevents iOS zoom on focus
           onChange={handleHiddenInputChange}
           onKeyDown={handleKeyDown}
           autoComplete="off"
           autoCorrect="off"
           autoCapitalize="characters"
+          spellCheck="false"
       />
 
       {isCompleted && !isReviewMode && (
@@ -286,19 +296,6 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
             <h2 className="text-2xl md:text-3xl font-bold text-yellow-400 mb-4 animate-pulse">Congratulations!</h2>
             <p className="text-zinc-200 text-base md:text-lg">You've solved the puzzle!</p>
           </div>
-        </div>
-      )}
-
-      {!isReviewMode && (
-        <div className="w-full md:hidden bg-blue-900/50 p-3 mb-4 rounded-lg border-l-4 border-yellow-400 min-h-[3.5rem] flex items-center">
-            {activeClueInfo.number ? (
-               <p className="text-sm sm:text-base font-medium text-white">
-                   <span className="font-bold text-yellow-400 mr-1">{activeClueInfo.number}{direction === 'across' ? 'A' : 'D'}.</span>
-                   {activeClueInfo.clueText}
-               </p>
-            ) : (
-                <p className="text-sm text-blue-200 italic">Tap a cell to begin</p>
-            )}
         </div>
       )}
 
@@ -313,7 +310,7 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
           }}
           onKeyDown={handleKeyDown}
           tabIndex={0}
-          onClick={() => !isReviewMode && hiddenInputRef.current?.focus()}
+          onClick={() => !isReviewMode && hiddenInputRef.current?.focus({ preventScroll: true })}
         >
           {fullGridData.flat().map(({ row, col, isBlack, number }) => {
             const isSelected = activeCell?.row === row && activeCell?.col === col;
@@ -325,7 +322,6 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
               cellClasses += ' bg-zinc-950';
             } else {
               if (isReviewMode) {
-                  // In review mode, just show the correct answer in a nice completed state
                   cellClasses += ' bg-green-900/30 text-green-100';
               } else if (isSelected) {
                 cellClasses += ' bg-yellow-500 text-gray-900 z-10 ring-2 ring-yellow-400';
@@ -378,6 +374,16 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
           </div>
         </div>
       </div>
+
+       {/* Sticky Bottom Clue for Mobile */}
+       {!isReviewMode && activeClueInfo.number && (
+        <div className="fixed bottom-0 left-0 right-0 bg-zinc-900/95 backdrop-blur-sm border-t-2 border-yellow-500 p-3 md:hidden z-50 animate-slide-up shadow-[0_-5px_15px_rgba(0,0,0,0.5)]">
+             <p className="text-base font-medium text-white text-center">
+                 <span className="font-bold text-yellow-400 mr-2">{activeClueInfo.number}{direction === 'across' ? 'A' : 'D'}.</span>
+                 {activeClueInfo.clueText}
+             </p>
+        </div>
+      )}
     </div>
   );
 };
