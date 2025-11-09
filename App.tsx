@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { AuthProvider, useAuth } from '@/hooks/useAuth';
+import { useLogger } from '@/hooks/useLogger'; // IMPORT NEW HOOK
 import Header from '@/components/Header';
 import Countdown from '@/components/dashboard/Countdown';
 import Leaderboard from '@/components/dashboard/Leaderboard';
@@ -9,7 +10,7 @@ import CrosswordGame from '@/components/game/CrosswordGame';
 import ChallengeHistory from '@/components/dashboard/ChallengeHistory';
 import ChallengeIntro from '@/components/dashboard/ChallengeIntro';
 import ResetPassword from '@/components/auth/ResetPassword';
-import AdminDashboard from '@/components/admin/AdminDashboard'; // ADDED
+import AdminDashboard from '@/components/admin/AdminDashboard';
 import { Game, GameType, Challenge, GameSubmission, User } from '@/types';
 import { getChallenge, getDailyGame, getLeaderboard, getSubmissionForToday, getGamesForChallenge, getSubmissionsForUser } from '@/services/api';
 import ScoringCriteria from '@/components/dashboard/ScoringCriteria';
@@ -24,7 +25,9 @@ const App: React.FC = () => {
 };
 
 const MainContent: React.FC = () => {
+  useLogger(); // ACTIVATE LOGGER HERE
   const { user } = useAuth();
+  // ... rest of the file remains exactly the same
   const [challenge, setChallenge] = useState<Challenge | null>(null);
   const [todaysGame, setTodaysGame] = useState<Game | null>(null);
   const [todaysSubmission, setTodaysSubmission] = useState<GameSubmission | null>(null);

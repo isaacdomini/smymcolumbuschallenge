@@ -4,8 +4,22 @@ import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import { sendVerificationEmail, sendPasswordResetEmail } from '../services/email.js';
 import { getVapidPublicKey, saveSubscription } from '../services/push.js';
+import { manualLog } from '../middleware/logger.js'; // Import the new helper
 
 const router = Router();
+
+// --- LOGGING ENDPOINT ---
+router.post('/log', async (req: Request, res: Response) => {
+    try {
+        const { path, userId, metadata } = req.body;
+        // Use 'VIEW' as a custom method to distinguish frontend navigation from HTTP methods
+        await manualLog(req, path || 'unknown', 'VIEW', userId, metadata);
+        res.status(200).send();
+    } catch (error) {
+        // Silent fail for logging
+        res.status(200).send();
+    }
+});
 
 // --- Push Notification Endpoints ---
 
