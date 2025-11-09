@@ -1,4 +1,4 @@
-import pool from './db/pool';
+import pool from './db/pool.js';
 
 const migrations = [
   // Users table - Initial creation

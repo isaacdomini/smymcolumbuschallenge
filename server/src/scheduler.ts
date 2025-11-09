@@ -1,5 +1,5 @@
 import cron from 'node-cron';
-import pool from './db/pool';
+import pool from './db/pool.js';
 import { sendDailyReminder } from './services/email';
 import { sendPushNotification } from './services/push';
 
