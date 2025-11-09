@@ -34,15 +34,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const login = async (email: string, pass: string) => {
     // The API returns the raw DB row, which has snake_case 'is_admin'
     const rawUser: any = await api.login(email, pass);
-    
+    console.log("RAW USER FROM API:", rawUser); // DEBUG LOG
+
     // Map to our frontend User type (camelCase)
     const userToSave: User = {
         id: rawUser.id,
         name: rawUser.name,
         email: rawUser.email,
         // IMPORTANT: Map is_admin from DB to isAdmin for frontend
-        isAdmin: rawUser.is_admin || false 
+        isAdmin: rawUser.is_admin === true 
     };
+    console.log("MAPPED USER TO SAVE:", userToSave); // DEBUG LOG
     
     setUser(userToSave);
     localStorage.setItem('smym-user', JSON.stringify(userToSave));
