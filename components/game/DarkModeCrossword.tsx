@@ -89,7 +89,7 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
       downMap.set(clue.number, clue);
       for (let i = 0; i < clue.answer.length; i++) {
         if (clue.row + i < rows) {
-             constHZ cell = newGridData[clue.row + i][clue.col];
+             const cell = newGridData[clue.row + i][clue.col];
              cell.isBlack = false;
              cell.downClueNumber = clue.number;
              newSolutionGrid[clue.row + i][clue.col] = clue.answer[i];
