@@ -1,12 +1,26 @@
-import { User, Challenge, Game, GameType, GameSubmission, WordleData, ConnectionsData, CrosswordData, SubmitGamePayload, GameProgress} from '@/types';
+import { User, Challenge, Game, GameType, GameSubmission, WordleData, ConnectionsData, CrosswordData, SubmitGamePayload, GameProgress, AdminStats} from '@/types';
 
-// Check if we should use mock data (development mode only)
 const USE_MOCK_DATA = import.meta.env.MODE === 'development';
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
-// Mock API service to simulate a backend.
-// In a real application, these functions would make network requests.
-
+// --- HELPER for Auth Headers ---
+const getAuthHeaders = (userId?: string) => {
+    const headers: HeadersInit = { 'Content-Type': 'application/json' };
+    if (userId) {
+        headers['X-User-ID'] = userId;
+    }
+    // If user is logged in but ID not passed explicitly, try local storage for convenience
+    else {
+         try {
+            const stored = localStorage.getItem('smym-user');
+            if (stored) {
+                const user = JSON.parse(stored);
+                if (user.id) headers['X-User-ID'] = user.id;
+            }
+        } catch (e) {}
+    }
+    return headers;
+};
 // --- MOCK DATABASE ---
 
 const MOCK_USERS: User[] = [
@@ -477,3 +491,34 @@ export const clearGameState = async (userId: string, gameId: string): Promise<vo
         }
     }
 };
+
+
+// --- ADMIN API ---
+
+export const getAdminStats = async (userId: string): Promise<AdminStats> => {
+    const response = await fetch(`${API_BASE_URL}/admin/stats`, {
+        headers: getAuthHeaders(userId)
+    });
+    if (!response.ok) throw new Error('Failed to fetch admin stats');
+    return await response.json();
+}
+
+export const getChallenges = async (userId: string): Promise<Challenge[]> => {
+     const response = await fetch(`${API_BASE_URL}/admin/challenges`, {
+        headers: getAuthHeaders(userId)
+    });
+    if (!response.ok) throw new Error('Failed to fetch challenges');
+    return await response.json();
+}
+
+export const createGame = async (userId: string, gameData: any): Promise<void> => {
+     const response = await fetch(`${API_BASE_URL}/admin/games`, {
+        method: 'POST',
+        headers: getAuthHeaders(userId),
+        body: JSON.stringify(gameData)
+    });
+    if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to create game');
+    }
+}
