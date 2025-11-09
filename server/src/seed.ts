@@ -57,28 +57,7 @@ async function seedDatabase() {
         {
              date: '2025-11-09',
              type: 'crossword',
-             data: {
-                 rows: 5,
-                 cols: 5,
-                 // Grid Layout:
-                 // H O P E .
-                 // O P E N .
-                 // S E N T .
-                 // T E N T .
-                 // . . . . .
-                 acrossClues: [
-                     { number: 1, clue: 'And now these three remain: faith, ___, and love', answer: 'HOPE', row: 0, col: 0, direction: 'across' },
-                     { number: 5, clue: '"Knock and the door will be ___ to you"', answer: 'OPEN', row: 1, col: 0, direction: 'across' },
-                     { number: 6, clue: '"Here I am, ___ me!" (Isaiah 6:8)', answer: 'SENT', row: 2, col: 0, direction: 'across' },
-                     { number: 7, clue: 'Dwelling for Abraham or Paul\'s trade', answer: 'TENT', row: 3, col: 0, direction: 'across' }
-                 ],
-                 downClues: [
-                     { number: 1, clue: 'Heavenly army', answer: 'HOST', row: 0, col: 0, direction: 'down' },
-                     { number: 2, clue: 'Not closed (reused word)', answer: 'OPEN', row: 0, col: 1, direction: 'down' },
-                     { number: 3, clue: 'Fifty days after Passover (Acts 2)', answer: 'PENT', row: 0, col: 2, direction: 'down' },
-                     { number: 4, clue: 'Garden of first sin (var. sp.)', answer: 'ENT', row: 0, col: 3, direction: 'down' } 
-                 ]
-             }
+             data: {cols: 4, rows: 7, downClues: [{col: 0, row: 0, clue: "It is patient, it is kind.", answer: "LOVE", number: 1, direction: "down"}, {col: 2, row: 2, clue: "Apostle who denied Jesus three times.", answer: "PETER", number: 2, direction: "down"}], acrossClues: [{col: 0, row: 0, clue: "Ash-Wednesday to Easter", answer: "LENT", number: 1, direction: "across"}, {col: 0, row: 3, clue: "Garden", answer: "EDEN", number: 3, direction: "across"}, {col: 0, row: 6, clue: "Mother of Jesus", answer: "MARY", number: 4, direction: "across"}]}
         },
         // Nov 10, 2025 - Monday - Wordle
         { date: '2025-11-10', type: 'wordle', data: { solution: 'FAITH' } },
