@@ -23,7 +23,7 @@ const GameBuilder: React.FC = () => {
         { name: '', words: ['', '', '', ''] },
     ]);
 
-    // Crossword State (Simple JSON paste for now as it's complex)
+    // Crossword State
     const [crosswordJson, setCrosswordJson] = useState('');
 
     useEffect(() => {
@@ -53,8 +53,11 @@ const GameBuilder: React.FC = () => {
             } else if (gameType === GameType.CROSSWORD) {
                 try {
                     gameData = JSON.parse(crosswordJson);
-                } catch (err) {
-                    throw new Error("Invalid Crossword JSON");
+                    if (!gameData.rows || !gameData.cols) {
+                         throw new Error("Crossword JSON must include 'rows' and 'cols'.");
+                    }
+                } catch (err: any) {
+                    throw new Error("Invalid Crossword JSON: " + err.message);
                 }
             }
 
@@ -66,7 +69,6 @@ const GameBuilder: React.FC = () => {
             });
 
             setMessage({ text: 'Game created successfully!', type: 'success' });
-            // Reset form partially
             if (gameType === GameType.WORDLE) setWordleSolution('');
         } catch (error: any) {
             setMessage({ text: error.message || 'Failed to create game', type: 'error' });
@@ -191,9 +193,9 @@ const GameBuilder: React.FC = () => {
                                 required
                                 rows={10}
                                 className="w-full p-2 bg-gray-900 border border-gray-700 rounded focus:ring-yellow-500 focus:border-yellow-500 text-white font-mono text-sm"
-                                placeholder='{"gridSize": 5, "acrossClues": [...], "downClues": [...] }'
+                                placeholder='{"rows": 6, "cols": 5, "acrossClues": [...], "downClues": [...] }'
                             />
-                            <p className="text-xs text-gray-500 mt-1">Paste the full JSON object for the crossword structure here.</p>
+                            <p className="text-xs text-gray-500 mt-1">Paste the full JSON object for the crossword structure here. Must include 'rows' and 'cols'.</p>
                         </div>
                     )}
                 </div>

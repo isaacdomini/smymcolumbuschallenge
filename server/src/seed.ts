@@ -6,25 +6,20 @@ async function seedDatabase() {
   try {
     console.log('Seeding database...');
 
-    // Hash a password for seed users
-    // const salt = await bcrypt.genSalt(10);
-    // const hashedPassword = await bcrypt.hash('password123', salt);
+    // Seed Admin User
+    const adminEmail = 'admin@smym.org';
+    const salt = await bcrypt.genSalt(10);
+    const hashedAdminPassword = await bcrypt.hash('admin123', salt);
 
-    // // Seed users
-    // const users = [
-    //   { id: 'user-1', name: 'John Doe', email: 'john@example.com', password: hashedPassword, is_verified: true },
-    //   { id: 'user-2', name: 'Jane Smith', email: 'jane@example.com', password: hashedPassword, is_verified: true },
-    //   { id: 'user-3', name: 'Peter Jones', email: 'peter@example.com', password: hashedPassword, is_verified: true },
-    // ];
+    await client.query(
+        `INSERT INTO users (id, name, email, password, is_verified, is_admin) 
+         VALUES ($1, $2, $3, $4, $5, $6) 
+         ON CONFLICT (email) DO UPDATE SET is_admin = true, is_verified = true`,
+        ['user-admin', 'SMYM Admin', adminEmail, hashedAdminPassword, true, true]
+    );
+    console.log('Admin user seeded (admin@smym.org / admin123)');
 
-    // for (const user of users) {
-    //   await client.query(
-    //     'INSERT INTO users (id, name, email, password, is_verified) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (email) DO UPDATE SET name = $2, password = $4, is_verified = $5',
-    //     [user.id, user.name, user.email, user.password, user.is_verified]
-    //   );
-    // }
-    // console.log('Users seeded');
-// Seed challenge
+    // Seed challenge
     const challengeId = 'challenge-advent-2025';
     const challengeName = 'November 2025 Christian Challenge';
     // Set dates to cover the requested range (Nov 8 - Nov 15, 2025)
@@ -63,7 +58,8 @@ async function seedDatabase() {
              date: '2025-11-09',
              type: 'crossword',
              data: {
-                 gridSize: 5,
+                 rows: 5,
+                 cols: 5,
                  // Grid Layout:
                  // H O P E .
                  // O P E N .
@@ -118,57 +114,12 @@ async function seedDatabase() {
     // Insert the specific games
     for (const gameData of gamesToSeed) {
         const gameId = `game-${gameData.type}-${gameData.date}`;
-        // Ensure date is a Date object for the query if needed, or keep as string if DB handles it.
-        // Assuming DB column is DATE or TIMESTAMPTZ, passing ISO string usually works in pg.
         await client.query(
             'INSERT INTO games (id, challenge_id, date, type, data) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data, type = EXCLUDED.type',
             [gameId, challengeId, gameData.date, gameData.type, JSON.stringify(gameData.data)]
         );
         console.log(`Seeded ${gameData.type} for ${gameData.date}`);
     }
-    // Seed submissions
-    // const submissions = [
-    //   {
-    //     id: 'sub-1',
-    //     userId: 'user-1',
-    //     gameId: games[0].id,
-    //     challengeId,
-    //     completedAt: new Date(),
-    //     timeTaken: 60,
-    //     mistakes: 2,
-    //     score: 76,
-    //     submissionData: { guesses: ['WRONG', 'GUESS', 'GRACE'] }
-    //   },
-    //   {
-    //     id: 'sub-2',
-    //     userId: 'user-2',
-    //     gameId: games[0].id,
-    //     challengeId,
-    //     completedAt: new Date(),
-    //     timeTaken: 45,
-    //     mistakes: 1,
-    //     score: 87,
-    //     submissionData: { guesses: ['OTHER', 'GRACE'] }
-    //   },
-    //   {
-    //     id: 'sub-3',
-    //     userId: 'user-2',
-    //     gameId: games[1].id,
-    //     challengeId,
-    //     completedAt: new Date(),
-    //     timeTaken: 90,
-    //     mistakes: 0,
-    //     score: 94
-    //   },
-    // ];
-
-    // for (const sub of submissions) {
-    //   await client.query(
-    //     'INSERT INTO game_submissions (id, user_id, game_id, challenge_id, completed_at, time_taken, mistakes, score, submission_data) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) ON CONFLICT (id) DO NOTHING',
-    //     [sub.id, sub.userId, sub.gameId, sub.challengeId, sub.completedAt, sub.timeTaken, sub.mistakes, sub.score, JSON.stringify(sub.submissionData)]
-    //   );
-    // }
-    // console.log('Submissions seeded');
 
     console.log('Database seeded successfully!');
   } catch (error) {
@@ -180,11 +131,8 @@ async function seedDatabase() {
   }
 }
 
-// Check if this script is run directly
 if (process.argv[1] && process.argv[1].includes('seed.js')) {
   seedDatabase();
 } else {
-  // If imported, just export the function
-  // This seems to be the pattern from package.json
   seedDatabase();
 }

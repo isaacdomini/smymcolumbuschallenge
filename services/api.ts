@@ -1,30 +1,12 @@
-import { User, Challenge, Game, GameType, GameSubmission, WordleData, ConnectionsData, CrosswordData, SubmitGamePayload, GameProgress, AdminStats} from '@/types';
+import { User, Challenge, Game, GameType, GameSubmission, WordleData, ConnectionsData, CrosswordData, SubmitGamePayload, GameProgress, AdminStats, LogEntry} from '@/types';
 
 const USE_MOCK_DATA = import.meta.env.MODE === 'development';
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
-// --- HELPER for Auth Headers ---
-const getAuthHeaders = (userId?: string) => {
-    const headers: HeadersInit = { 'Content-Type': 'application/json' };
-    if (userId) {
-        headers['X-User-ID'] = userId;
-    }
-    // If user is logged in but ID not passed explicitly, try local storage for convenience
-    else {
-         try {
-            const stored = localStorage.getItem('smym-user');
-            if (stored) {
-                const user = JSON.parse(stored);
-                if (user.id) headers['X-User-ID'] = user.id;
-            }
-        } catch (e) {}
-    }
-    return headers;
-};
 // --- MOCK DATABASE ---
 
 const MOCK_USERS: User[] = [
-    { id: 'user-1', name: 'John Doe', email: 'john@example.com' },
+    { id: 'user-1', name: 'John Doe', email: 'john@example.com', isAdmin: true },
     { id: 'user-2', name: 'Jane Smith', email: 'jane@example.com' },
     { id: 'user-3', name: 'Peter Jones', email: 'peter@example.com' },
 ];
@@ -77,7 +59,8 @@ for (let i = 0; i < 40; i++) {
         };
     } else {
          const crosswordData: CrosswordData = {
-            gridSize: 5,
+            rows: 5,
+            cols: 5,
             acrossClues: [
                 { number: 1, clue: 'On the ___ (using Tinder or Bumble)', answer: 'APPS', row: 0, col: 0, direction: 'across' },
                 { number: 5, clue: 'Color of the second-hardest Connections category', answer: 'BLUE', row: 1, col: 0, direction: 'across' },
@@ -116,6 +99,24 @@ const MOCK_SUBMISSIONS: GameSubmission[] = [
 
 const MOCK_GAME_PROGRESS: GameProgress[] = [];
 
+// --- HELPER for Auth Headers ---
+const getAuthHeaders = (userId?: string) => {
+    const headers: HeadersInit = { 'Content-Type': 'application/json' };
+    if (userId) {
+        headers['X-User-ID'] = userId;
+    }
+    else {
+         try {
+            const stored = localStorage.getItem('smym-user');
+            if (stored) {
+                const user = JSON.parse(stored);
+                if (user.id) headers['X-User-ID'] = user.id;
+            }
+        } catch (e) {}
+    }
+    return headers;
+};
+
 const simulateDelay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
 // --- API FUNCTIONS ---
@@ -125,6 +126,8 @@ export const login = async (email: string, pass: string): Promise<User> => {
         await simulateDelay(500);
         const user = MOCK_USERS.find(u => u.email === email);
         if (user) {
+            // MOCK ONLY: Map is_admin to isAdmin if it existed in a different format in legacy mock data, 
+            // but here we defined it correctly above.
             return user;
         }
         throw new Error("Invalid credentials");
@@ -144,12 +147,13 @@ export const login = async (email: string, pass: string): Promise<User> => {
     }
 };
 
-export const signup = async (name: string, email: string, pass: string): Promise<{ message: string }> => {
+export const signup = async (name: string, email: string, pass: string, emailNotifications: boolean): Promise<{ message: string }> => {
     if (USE_MOCK_DATA) {
         await simulateDelay(500);
         if (MOCK_USERS.some(u => u.email === email)) {
             throw new Error("User already exists");
         }
+        // New mock users are not admins by default
         const newUser: User = { id: `user-${Date.now()}`, name, email };
         MOCK_USERS.push(newUser);
         return { message: "Signup successful. Please check your email to verify your account. (Mock)" };
@@ -157,7 +161,7 @@ export const signup = async (name: string, email: string, pass: string): Promise
         const response = await fetch(`${API_BASE_URL}/signup`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, email, password: pass }),
+            body: JSON.stringify({ name, email, password: pass, emailNotifications }),
         });
         
         if (!response.ok) {
@@ -173,7 +177,6 @@ export const logout = (): void => {
     // No-op in mock, session is managed client-side
 };
 
-// ADDED: Forgot Password
 export const forgotPassword = async (email: string): Promise<{ message: string }> => {
     if (USE_MOCK_DATA) {
         await simulateDelay(500);
@@ -193,7 +196,6 @@ export const forgotPassword = async (email: string): Promise<{ message: string }
     }
 }
 
-// ADDED: Reset Password
 export const resetPassword = async (token: string, password: string): Promise<{ message: string }> => {
     if (USE_MOCK_DATA) {
         await simulateDelay(500);
@@ -409,16 +411,11 @@ export const submitGame = async (payload: SubmitGamePayload): Promise<GameSubmis
             return newSubmission;
         }
     } else {
-        const game = await getGameById(payload.gameId);
-        if (!game) throw new Error('Game not found');
-
-        const score = calculateScore(payload, game);
-        const payloadWithScore = { ...payload, score };
-
+        // Backend now calculates score, so we just send the raw data
         const response = await fetch(`${API_BASE_URL}/submit`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payloadWithScore),
+            body: JSON.stringify(payload),
         });
         
         if (!response.ok) {
@@ -492,10 +489,18 @@ export const clearGameState = async (userId: string, gameId: string): Promise<vo
     }
 };
 
-
 // --- ADMIN API ---
 
 export const getAdminStats = async (userId: string): Promise<AdminStats> => {
+    if (USE_MOCK_DATA) {
+        // Mock admin stats
+        return {
+            totalUsers: MOCK_USERS.length,
+            playsToday: 5,
+            totalPlays: MOCK_SUBMISSIONS.length,
+            upcomingGames: MOCK_GAMES.filter(g => new Date(g.date) > new Date()).length
+        };
+    }
     const response = await fetch(`${API_BASE_URL}/admin/stats`, {
         headers: getAuthHeaders(userId)
     });
@@ -504,6 +509,9 @@ export const getAdminStats = async (userId: string): Promise<AdminStats> => {
 }
 
 export const getChallenges = async (userId: string): Promise<Challenge[]> => {
+    if (USE_MOCK_DATA) {
+        return [MOCK_CHALLENGE];
+    }
      const response = await fetch(`${API_BASE_URL}/admin/challenges`, {
         headers: getAuthHeaders(userId)
     });
@@ -512,6 +520,17 @@ export const getChallenges = async (userId: string): Promise<Challenge[]> => {
 }
 
 export const createGame = async (userId: string, gameData: any): Promise<void> => {
+    if (USE_MOCK_DATA) {
+        console.log("Mock create game:", gameData);
+        MOCK_GAMES.push({
+            id: `game-${gameData.type}-${gameData.date}`,
+            challengeId: gameData.challengeId,
+            date: new Date(gameData.date).toISOString(),
+            type: gameData.type,
+            data: gameData.data
+        } as Game);
+        return;
+    }
      const response = await fetch(`${API_BASE_URL}/admin/games`, {
         method: 'POST',
         headers: getAuthHeaders(userId),
@@ -523,9 +542,8 @@ export const createGame = async (userId: string, gameData: any): Promise<void> =
     }
 }
 
-
-
 export const createChallenge = async (userId: string, challengeData: Partial<Challenge>): Promise<void> => {
+    if (USE_MOCK_DATA) return; // Not implemented for mock
     const response = await fetch(`${API_BASE_URL}/admin/challenges`, {
         method: 'POST',
         headers: getAuthHeaders(userId),
@@ -538,6 +556,7 @@ export const createChallenge = async (userId: string, challengeData: Partial<Cha
 }
 
 export const updateChallenge = async (userId: string, challengeId: string, challengeData: Partial<Challenge>): Promise<void> => {
+    if (USE_MOCK_DATA) return; // Not implemented for mock
     const response = await fetch(`${API_BASE_URL}/admin/challenges/${challengeId}`, {
         method: 'PUT',
         headers: getAuthHeaders(userId),
@@ -550,6 +569,7 @@ export const updateChallenge = async (userId: string, challengeId: string, chall
 }
 
 export const deleteChallenge = async (userId: string, challengeId: string): Promise<void> => {
+    if (USE_MOCK_DATA) return; // Not implemented for mock
     const response = await fetch(`${API_BASE_URL}/admin/challenges/${challengeId}`, {
         method: 'DELETE',
         headers: getAuthHeaders(userId)
@@ -560,8 +580,8 @@ export const deleteChallenge = async (userId: string, challengeId: string): Prom
     }
 }
 
-
 export const getUsers = async (userId: string, limit = 50, offset = 0): Promise<User[]> => {
+    if (USE_MOCK_DATA) return MOCK_USERS;
     const response = await fetch(`${API_BASE_URL}/admin/users?limit=${limit}&offset=${offset}`, {
         headers: getAuthHeaders(userId)
     });
@@ -570,6 +590,7 @@ export const getUsers = async (userId: string, limit = 50, offset = 0): Promise<
 };
 
 export const updateUser = async (adminUserId: string, targetUserId: string, data: { isAdmin?: boolean, isVerified?: boolean }): Promise<void> => {
+    if (USE_MOCK_DATA) return;
      const response = await fetch(`${API_BASE_URL}/admin/users/${targetUserId}`, {
         method: 'PUT',
         headers: getAuthHeaders(adminUserId),
@@ -579,6 +600,7 @@ export const updateUser = async (adminUserId: string, targetUserId: string, data
 };
 
 export const getLogs = async (userId: string, limit = 100, offset = 0): Promise<LogEntry[]> => {
+    if (USE_MOCK_DATA) return [];
     const response = await fetch(`${API_BASE_URL}/admin/logs?limit=${limit}&offset=${offset}`, {
         headers: getAuthHeaders(userId)
     });

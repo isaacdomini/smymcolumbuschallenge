@@ -4,9 +4,14 @@ import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import { sendVerificationEmail, sendPasswordResetEmail } from '../services/email.js';
 import { getVapidPublicKey, saveSubscription } from '../services/push.js';
-import { manualLog } from '../middleware/logger.js'; // Import the new helper
+import { manualLog } from '../middleware/logger.js';
 
 const router = Router();
+
+// Helper to get 'YYYY-MM-DD' in Eastern Time
+const getTodayEST = () => {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+};
 
 // --- LOGGING ENDPOINT ---
 router.post('/log', async (req: Request, res: Response) => {
@@ -274,7 +279,8 @@ router.get('/challenge', async (req: Request, res: Response) => {
 router.get('/challenge/:challengeId/daily', async (req: Request, res: Response) => {
   try {
     const { challengeId } = req.params;
-    const today = new Date().toISOString().split('T')[0];
+    // FIX: Use Eastern Time instead of UTC for determining "today"
+    const today = getTodayEST();
     
     const result = await pool.query(
       'SELECT * FROM games WHERE challenge_id = $1 AND DATE(date) = $2',
