@@ -216,9 +216,11 @@ const MainContent: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-gray-100 font-sans pb-20">
+    // Updated to h-full and overflow-y-auto for full-screen mobile experience
+    <div className="h-full overflow-y-auto bg-gray-900 text-gray-100 font-sans pb-20">
       <Header challengeName={challenge?.name} onLogoClick={() => navigate('/')} />
-      <main className="container mx-auto p-4 md:p-6">
+      {/* Added safe-area padding for iOS notches/home bar when in full-screen */}
+      <main className="container mx-auto p-4 md:p-6 pt-safe-top pb-safe-bottom">
         {globalMessage && (
           <div className="mb-4 p-4 text-center bg-green-700 text-white rounded-lg shadow-lg animate-fade-in">
             {globalMessage}
