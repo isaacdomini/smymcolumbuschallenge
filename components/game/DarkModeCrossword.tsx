@@ -298,11 +298,11 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
                 style={{ 
                     gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
                     aspectRatio: `${cols} / ${rows}`,
-                    // STRICT CONTAINMENT FOR MOBILE to avoid scrolling initially:
-                    width: isMobile ? 'auto' : 'clamp(300px, 95vw, 550px)',
+                    // UPDATED: Force 100% width on mobile, remove maxHeight constraint
+                    width: isMobile ? '100%' : 'clamp(300px, 95vw, 550px)',
                     height: isMobile ? 'auto' : undefined,
                     maxWidth: isMobile ? '100%' : undefined,
-                    maxHeight: isMobile ? '100%' : undefined,
+                    maxHeight: isMobile ? undefined : undefined, // Removed maxHeight constraint
                     
                     transform: `scale(${zoom})`,
                     // Use center origin when not zoomed, top-left when zoomed to allow scrolling all edges
