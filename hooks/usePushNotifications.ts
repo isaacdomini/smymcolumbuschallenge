@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from './useAuth';
+import { Capacitor } from '@capacitor/core';
+import { PushNotifications, Token, PushNotificationSchema, ActionPerformed } from '@capacitor/push-notifications';
 
 const VITE_API_URL = import.meta.env.VITE_API_URL || '/api';
 
@@ -22,44 +24,149 @@ export const usePushNotifications = () => {
     const { user } = useAuth();
     const [isSupported, setIsSupported] = useState(false);
     const [isSubscribed, setIsSubscribed] = useState(false);
-    // SAFARI FIX: Check if Notification exists before accessing .permission
-    const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>(() => {
-        if (typeof Notification !== 'undefined') {
-            return Notification.permission;
-        }
-        return 'denied'; // Default to 'denied' if API is missing
-    });
+    const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | 'granted' | 'denied' | 'prompt'>('denied');
 
-    useEffect(() => {
-        // SAFARI FIX: Added explicit check for 'Notification' in window
-        if ('serviceWorker' in navigator && 'PushManager' in window && typeof Notification !== 'undefined') {
-            setIsSupported(true);
-            navigator.serviceWorker.register('/service-worker.js')
-                .then(registration => {
-                    console.log('Service Worker registered for push notifications');
-                    registration.pushManager.getSubscription().then(subscription => {
-                        if (subscription) {
-                             console.log('User is already subscribed to push notifications');
-                        }
-                        setIsSubscribed(!!subscription);
-                    });
+    // --- Native Push Registration ---
+    const registerNativePush = useCallback(async (userId: string) => {
+        try {
+            let permStatus = await PushNotifications.checkPermissions();
+
+            if (permStatus.receive === 'prompt') {
+                permStatus = await PushNotifications.requestPermissions();
+            }
+
+            if (permStatus.receive !== 'granted') {
+                console.warn('Native push permission not granted.');
+                setNotificationPermission('denied');
+                return;
+            }
+
+            setNotificationPermission('granted');
+
+            // Add listeners
+            await PushNotifications.addListener('registration', (token: Token) => {
+                console.log('Native push registration success, token:', token.value);
+                // Send token to backend
+                fetch(`${VITE_API_URL}/subscribe`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        userId: userId, 
+                        token: token.value,
+                        platform: Capacitor.getPlatform() // 'ios' or 'android'
+                    })
                 })
-                .catch(error => console.error('Service Worker registration failed:', error));
-        } else {
-             console.warn('Push notifications are not supported in this browser.');
-             setIsSupported(false);
+                .then(res => res.json())
+                .then(data => {
+                    if (data.message === 'Subscription already exists' || data.message === 'Native subscription saved successfully') {
+                        setIsSubscribed(true);
+                    }
+                })
+                .catch(err => console.error('Failed to save native token:', err));
+            });
+
+            await PushNotifications.addListener('registrationError', (err: any) => {
+                console.error('Native push registration error:', err);
+            });
+
+            await PushNotifications.addListener('pushNotificationReceived', (notification: PushNotificationSchema) => {
+                console.log('Native push received:', notification);
+                // You could show an in-app toast here
+            });
+
+            await PushNotifications.addListener('pushNotificationActionPerformed', (notification: ActionPerformed) => {
+                console.log('Native push action performed:', notification);
+                // Handle notification tap (e.g., navigate to a specific page)
+                const url = notification.notification.data?.url || '/';
+                window.location.href = url;
+            });
+
+            // Register with APNs/FCM
+            await PushNotifications.register();
+            
+            // On iOS, check for existing token (may not fire 'registration' event if already registered)
+            if (Capacitor.getPlatform() === 'ios') {
+                const result = await PushNotifications.getDeliveredNotifications();
+                console.log('Delivered notifications:', result);
+            }
+            
+        } catch (error) {
+            console.error('Error setting up native push:', error);
         }
     }, []);
 
+    // --- Web Push Registration (Existing Logic) ---
+    const registerWebPush = useCallback(async (userId: string) => {
+        try {
+            if ('serviceWorker' in navigator && 'PushManager' in window && typeof Notification !== 'undefined') {
+                setIsSupported(true);
+                const swRegistration = await navigator.serviceWorker.register('/service-worker.js');
+                console.log('Service Worker registered for web push.');
+
+                const existingSubscription = await swRegistration.pushManager.getSubscription();
+                if (existingSubscription) {
+                    console.log('User is already subscribed to web push.');
+                    setIsSubscribed(true);
+                    setNotificationPermission(Notification.permission);
+                    return;
+                }
+                
+                // If not subscribed, permission must be 'default' or 'granted' to proceed
+                setNotificationPermission(Notification.permission);
+                if (Notification.permission === 'denied') {
+                    console.warn('Web push permission denied.');
+                    return;
+                }
+
+            } else {
+                 console.warn('Web push notifications are not supported in this browser.');
+                 setIsSupported(false);
+            }
+        } catch (error) {
+            console.error('Service Worker registration failed:', error);
+        }
+    }, []);
+    
+    // --- Main Effect to Choose Registration Type ---
+    useEffect(() => {
+        if (!user) return;
+
+        if (Capacitor.isNativePlatform()) {
+            console.log('Native platform detected, registering for native push...');
+            setIsSupported(true); // Native push is supported
+            registerNativePush(user.id);
+        } else {
+            console.log('Web platform detected, registering for web push...');
+            registerWebPush(user.id);
+        }
+
+        // Cleanup listeners when user logs out (component unmounts)
+        return () => {
+            if (Capacitor.isNativePlatform()) {
+                PushNotifications.removeAllListeners().catch(err => console.error("Failed to remove push listeners", err));
+            }
+        }
+
+    }, [user, registerNativePush, registerWebPush]);
+
+
     const subscribeToPush = useCallback(async () => {
-        // SAFARI FIX: Added check for Notification existence here too
-        if (!user || !isSupported || typeof Notification === 'undefined') {
+        if (!user || !isSupported) {
              console.warn('Cannot subscribe: User not logged in or push not supported.');
              return;
         }
 
+        // Native subscription is handled by the `registerNativePush` flow on load.
+        // This function will now only handle the *web* subscription flow.
+        if (Capacitor.isNativePlatform()) {
+            console.log("Native push registration is initiated on app load.");
+            // Optionally, you could re-run permission check if they denied it
+            // await registerNativePush(user.id);
+            return;
+        }
+
+        // --- Web Push Subscription Logic (from button click) ---
         try {
-            console.log('Requesting notification permission...');
             const permission = await Notification.requestPermission();
             setNotificationPermission(permission);
             if (permission !== 'granted') {
@@ -69,41 +176,27 @@ export const usePushNotifications = () => {
             console.log('Notification permission granted.');
 
             const swRegistration = await navigator.serviceWorker.ready;
-            console.log('Service Worker ready for subscription.');
             
-            // 1. Get public key from backend
-            console.log('Fetching VAPID public key...');
             const response = await fetch(`${VITE_API_URL}/vapid-public-key`);
-            if (!response.ok) {
-                 throw new Error(`Failed to fetch VAPID key: ${response.statusText}`);
-            }
+            if (!response.ok) throw new Error('Failed to fetch VAPID key');
             const { publicKey } = await response.json();
-            console.log('VAPID public key received.');
 
-            // 2. Subscribe to push service
-            console.log('Subscribing to Push Manager...');
             const subscription = await swRegistration.pushManager.subscribe({
                 userVisibleOnly: true,
                 applicationServerKey: urlBase64ToUint8Array(publicKey)
             });
-            console.log('Push subscription successful:', subscription);
 
-            // 3. Send subscription to backend
-            console.log('Sending subscription to backend...');
             const saveResponse = await fetch(`${VITE_API_URL}/subscribe`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId: user.id, subscription })
+                body: JSON.stringify({ userId: user.id, subscription, platform: 'web' })
             });
 
-            if (!saveResponse.ok) {
-                 throw new Error(`Failed to save subscription on backend: ${saveResponse.statusText}`);
-            }
-            console.log('Subscription saved on backend.');
-
+            if (!saveResponse.ok) throw new Error('Failed to save subscription');
+            
             setIsSubscribed(true);
         } catch (error) {
-            console.error('Failed to subscribe to push notifications:', error);
+            console.error('Failed to subscribe to web push:', error);
         }
     }, [user, isSupported]);
 

@@ -60,13 +60,33 @@ router.get('/vapid-public-key', (req, res) => {
 
 router.post('/subscribe', async (req, res) => {
     try {
-        const { userId, subscription } = req.body;
-        if (!userId || !subscription) {
-            return res.status(400).json({ error: 'Missing userId or subscription data' });
+        const { userId, subscription, token, platform } = req.body;
+
+        if (!userId) {
+            return res.status(400).json({ error: 'Missing userId' });
         }
-        await saveSubscription(userId, subscription);
-        res.status(201).json({ message: 'Subscribed successfully' });
-    } catch (error) {
+
+        if (subscription) {
+            // This is a Web Push subscription
+            await saveSubscription(userId, subscription, 'web');
+            res.status(201).json({ message: 'Web subscription saved successfully' });
+        
+        } else if (token && platform) {
+            // This is a Native Push subscription
+            await saveSubscription(userId, token, platform);
+            res.status(201).json({ message: 'Native subscription saved successfully' });
+        
+        } else {
+            return res.status(400).json({ error: 'Missing subscription or token/platform data' });
+        }
+
+    } catch (error: any) {
+        // Handle duplicate token errors gracefully
+        if (error.code === '23505') { // unique_violation
+            if (error.constraint === 'push_subscriptions_endpoint_key' || error.constraint === 'unique_device_token') {
+                return res.status(200).json({ message: 'Subscription already exists' });
+            }
+        }
         console.error('Subscription error:', error);
         res.status(500).json({ error: 'Internal server error' });
     }

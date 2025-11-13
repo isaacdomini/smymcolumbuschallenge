@@ -30,3 +30,8 @@ server/dist
 *.njsproj
 *.sln
 *.sw?
+
+
+# Push notification keys
+/server/firebase-service-account.json
+/server/*.p8
