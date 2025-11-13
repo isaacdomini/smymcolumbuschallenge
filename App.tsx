@@ -15,6 +15,8 @@ import { Game, GameType, Challenge, GameSubmission, User } from '@/types';
 import { getChallenge, getDailyGame, getLeaderboard, getSubmissionForToday, getGamesForChallenge, getSubmissionsForUser } from '@/services/api';
 import ScoringCriteria from '@/components/dashboard/ScoringCriteria';
 import AddToHomeScreen from '@/components/ui/AddToHomeScreen';
+import { Capacitor } from '@capacitor/core';
+import { StatusBar } from '@capacitor/status-bar';
 
 const App: React.FC = () => {
   return (
@@ -39,6 +41,54 @@ const MainContent: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [globalMessage, setGlobalMessage] = useState<string | null>(null);
+  useEffect(() => {
+    // This effect runs once on app load
+    const setStatusBarPadding = async () => {
+      if (Capacitor.isNativePlatform()) {
+        try {
+          let height = 0;
+
+          if (Capacitor.getPlatform() === 'android') {
+            // Try to get Android status bar height from the plugin
+            try {
+              const info = await StatusBar.getInfo();
+              // Use 'as any' to bypass TS error if types are old/mismatched
+              // This checks if the property exists at runtime.
+              const androidHeight = (info as any).statusBarHeight; 
+              
+              if (androidHeight > 0) {
+                height = androidHeight;
+              } else {
+                // Fallback if property doesn't exist or is 0
+                console.warn('Could not read statusBarHeight from plugin, using 24px default for Android.');
+                height = 24; // A common default pixel height for Android status bars
+              }
+            } catch (e) {
+              console.error("Failed to get status bar info, using 24px default.", e);
+              height = 24; // A common default
+            }
+          }
+          
+          // Set the CSS variable.
+          // For iOS, height remains 0, so the CSS fallback 'env(safe-area-inset-top)' will be used.
+          // For Android, this will be 24px (or the actual height), overriding the fallback.
+          document.documentElement.style.setProperty(
+            '--safe-area-inset-top-js', 
+            `${height}px`
+          );
+
+          // Ensure the status bar icons (time, battery) are light-colored
+          await StatusBar.setStyle({ style: 'light' }); 
+        
+        } catch (e) {
+          console.error("Failed to set status bar style", e);
+        }
+      }
+    };
+
+    setStatusBarPadding();
+  }, []); // Empty dependency array, runs once
+
 
   const navigate = useCallback((path: string) => {
     window.history.pushState({}, '', path);
