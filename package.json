@@ -12,6 +12,7 @@
     "server": "node server/dist/server.js",
     "migrate": "node server/dist/migrate.js",
     "seed": "node server/dist/seed.js",
+    "test:push": "node server/dist/test-push.js",
     "generate-vapid": "node -e \"console.log(require('web-push').generateVAPIDKeys())\""
   },
   "dependencies": {
