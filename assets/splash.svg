@@ -1,0 +1,64 @@
+      <svg
+        width="200"
+        height="200"
+        viewBox="0 0 200 200"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        className="drop-shadow-lg"
+      >
+        {/* Background Circle */}
+        <circle
+          cx="100"
+          cy="100"
+          r="90"
+          fill="#facc15"
+        />
+        
+        {/* Book with Grid Tiles Emerging */}
+        
+        {/* Open Book - Simplified */}
+        <path
+          d="M 55 85 Q 55 75 65 75 L 95 75 L 95 125 L 65 125 Q 55 125 55 115 Z"
+          fill="#37415180"
+          stroke="#374151"
+          strokeWidth="2.5"
+        />
+        <path
+          d="M 105 75 L 135 75 Q 145 75 145 85 L 145 115 Q 145 125 135 125 L 105 125 Z"
+          fill="#37415180"
+          stroke="#374151"
+          strokeWidth="2.5"
+        />
+        
+        {/* Center Binding */}
+        <line x1="100" y1="75" x2="100" y2="125" stroke="#374151" strokeWidth="3" />
+        
+        {/* Cross on book */}
+        <path
+          d="M 100 90 L 100 110 M 90 100 L 110 100"
+          stroke="#374151"
+          strokeWidth="4"
+          strokeLinecap="round"
+        />
+        
+        {/* Letter Tiles floating around like wordle */}
+        {/* Top row */}
+        <rect x="70" y="45" width="20" height="20" rx="2" fill="#374151" />
+        <rect x="95" y="45" width="20" height="20" rx="2" fill="#374151" opacity="0.7" />
+        <rect x="85" y="50" width="20" height="20" rx="2" fill="#374151" opacity="0.85" />
+        
+        {/* Bottom row */}
+        <rect x="85" y="130" width="20" height="20" rx="2" fill="#374151" />
+        <rect x="110" y="135" width="20" height="20" rx="2" fill="#374151" opacity="0.8" />
+        <rect x="60" y="135" width="20" height="20" rx="2" fill="#374151" opacity="0.75" />
+        
+        {/* Side tiles */}
+        <rect x="40" y="95" width="20" height="20" rx="2" fill="#374151" opacity="0.7" />
+        <rect x="140" y="95" width="20" height="20" rx="2" fill="#374151" opacity="0.7" />
+        <rect x="150" y="85" width="20" height="20" rx="2" fill="#374151" opacity="0.6" />
+        
+        {/* Connection lines - subtle */}
+        <line x1="80" y1="55" x2="95" y2="55" stroke="#374151" strokeWidth="1.5" opacity="0.3" />
+        <line x1="95" y1="140" x2="110" y2="145" stroke="#374151" strokeWidth="1.5" opacity="0.3" />
+      </svg>
+      
