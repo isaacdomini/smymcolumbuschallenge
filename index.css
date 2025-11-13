@@ -43,4 +43,19 @@ body {
         60% { opacity: 1; transform: scale(1.05) translateY(-5px); }
         100% { transform: scale(1) translateY(0); }
     }
+
+
+    /* Add safe area padding utilities */
+    .pt-safe-top {
+        padding-top: env(safe-area-inset-top);
+    }
+    .pb-safe-bottom {
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+    .pl-safe-left {
+        padding-left: env(safe-area-inset-left);
+    }
+    .pr-safe-right {
+        padding-right: env(safe-area-inset-right);
+    }
 }

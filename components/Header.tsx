@@ -46,7 +46,7 @@ const Header: React.FC<HeaderProps> = ({ challengeName, onLogoClick }) => {
 
     return (
         <>
-            <header className="bg-gray-800 shadow-md relative z-20">
+            <header className="bg-gray-800 shadow-md relative z-20 pt-safe-top">
                 <div className="container mx-auto px-4 py-3 flex justify-between items-center">
                     <div onClick={onLogoClick} className="flex items-center space-x-3 cursor-pointer">
                         {ICONS.smymLogo}

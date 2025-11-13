@@ -1,0 +1,31 @@
+# Environment (development or production)
+NODE_ENV=development
+
+# Server Port
+PORT=3000
+
+# Application URL (used for email links)
+APP_URL=http://localhost:5173
+
+# Database Configuration
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=smym_bible_games
+DB_USER=postgres
+DB_PASSWORD=postgres
+
+# API URL (for frontend)
+VITE_API_URL=http://localhost:3000/api
+
+# Email (Nodemailer) Configuration
+EMAIL_HOST=smtp.mailtrap.io
+EMAIL_PORT=2525
+EMAIL_USER=your-mailtrap-user
+EMAIL_PASS=your-mailtrap-password
+EMAIL_FROM="SMYM Bible Games <no-reply@smym.org>"
+
+# VAPID Keys for Web Push (Generate these once and keep them secret!)
+# You can generate them by running: npx web-push generate-vapid-keys
+VAPID_PUBLIC_KEY=
+VAPID_PRIVATE_KEY=
+VAPID_SUBJECT=mailto:admin@smym.org
