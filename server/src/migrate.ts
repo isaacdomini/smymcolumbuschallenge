@@ -98,6 +98,7 @@ const migrations = [
   `ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS platform VARCHAR(10)`,
   `ALTER TABLE push_subscriptions ALTER COLUMN endpoint DROP NOT NULL`,
   `ALTER TABLE push_subscriptions ALTER COLUMN keys DROP NOT NULL`,
+  `ALTER TABLE push_subscriptions DROP CONSTRAINT IF EXISTS unique_device_token`,
   `ALTER TABLE push_subscriptions ADD CONSTRAINT unique_device_token UNIQUE (device_token)`,
 
   
