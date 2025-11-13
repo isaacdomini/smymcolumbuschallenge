@@ -84,6 +84,22 @@ const migrations = [
     metadata JSONB,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )`,
+
+  `CREATE TABLE IF NOT EXISTS push_subscriptions (
+    id SERIAL PRIMARY KEY,
+    user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    endpoint TEXT UNIQUE,
+    keys JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`,
+
+  // MODIFIED: Add columns for native push tokens
+  `ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS device_token TEXT`,
+  `ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS platform VARCHAR(10)`,
+  `ALTER TABLE push_subscriptions ALTER COLUMN endpoint DROP NOT NULL`,
+  `ALTER TABLE push_subscriptions ALTER COLUMN keys DROP NOT NULL`,
+  `ALTER TABLE push_subscriptions ADD CONSTRAINT unique_device_token UNIQUE (device_token)`,
+
   
   // Indexes
   `CREATE INDEX IF NOT EXISTS idx_games_challenge_id ON games(challenge_id)`,

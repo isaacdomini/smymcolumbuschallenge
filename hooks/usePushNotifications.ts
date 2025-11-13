@@ -25,8 +25,6 @@ export const usePushNotifications = () => {
     const [isSupported, setIsSupported] = useState(false);
     const [isSubscribed, setIsSubscribed] = useState(false);
     const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | 'granted' | 'denied' | 'prompt'>('denied');
-
-    // --- Native Push Registration ---
     const registerNativePush = useCallback(async (userId: string) => {
         try {
             let permStatus = await PushNotifications.checkPermissions();
