@@ -14,7 +14,7 @@ import AdminDashboard from './components/admin/AdminDashboard';
 import PrivacyPolicy from './components/PrivacyPolicy'; // Import the new component
 import DeleteAccount from './components/auth/DeleteAccount'; // Import the new component
 import { Game, GameType, Challenge, GameSubmission, User } from './types';
-import { getChallenge, getDailyGame, getLeaderboard, getSubmissionForToday, getGamesForChallenge, getSubmissionsForUser } from './services/api';
+import { getChallenge, getDailyGame, getLeaderboard, getSubmissionForToday, getGamesForChallenge, getSubmissionsForUser, getGameState } from './services/api';
 import ScoringCriteria from './components/dashboard/ScoringCriteria';
 import AddToHomeScreen from './components/ui/AddToHomeScreen';
 import { Capacitor } from '@capacitor/core';
@@ -40,6 +40,7 @@ const MainContent: React.FC = () => {
   const [challenge, setChallenge] = useState<Challenge | null>(null);
   const [todaysGame, setTodaysGame] = useState<Game | null>(null);
   const [todaysSubmission, setTodaysSubmission] = useState<GameSubmission | null>(null);
+  const [todaysProgress, setTodaysProgress] = useState<any | null>(null); // GameProgress type if defined
   
   const [allChallengeGames, setAllChallengeGames] = useState<Game[]>([]);
   const [allUserSubmissions, setAllUserSubmissions] = useState<GameSubmission[]>([]);
@@ -204,8 +205,20 @@ const MainContent: React.FC = () => {
                 const submissions = allUserSubmissions.length > 0 ? allUserSubmissions : (user ? await getSubmissionsForUser(user.id, currentChallenge.id) : []);
                 const todaySub = submissions.find(s => s.gameId === game.id) ?? null;
                 setTodaysSubmission(todaySub);
+                // If user has started but not submitted, fetch progress
+                if (!todaySub) {
+                  try {
+                    const progress = await getGameState(user.id, game.id);
+                    setTodaysProgress(progress);
+                  } catch (e) {
+                    setTodaysProgress(null);
+                  }
+                } else {
+                  setTodaysProgress(null);
+                }
             } else {
                 setTodaysSubmission(null);
+                setTodaysProgress(null);
             }
         }
       }
@@ -314,7 +327,11 @@ const MainContent: React.FC = () => {
                                 disabled={!todaysGame}
                                 className="bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold py-3 px-8 rounded-lg text-xl shadow-lg transition-transform transform hover:scale-105 disabled:bg-gray-600 disabled:cursor-not-allowed"
                             >
-                                {todaysGame ? (todaysSubmission ? "Revisit Today's Game" : "Play Today's Game") : "No Game Today"}
+                                {todaysGame 
+                                  ? (todaysSubmission 
+                                       ? "Revisit Today's Game" 
+                                       : (todaysProgress ? "Continue Today's Game" : "Play Today's Game")) 
+                                  : "No Game Today"}
                             </button>
                             <button onClick={() => navigate('/history')} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg text-xl shadow-lg transition-transform transform hover:scale-105">
                                 View Challenge History
