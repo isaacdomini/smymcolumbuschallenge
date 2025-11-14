@@ -64,7 +64,7 @@ function initializeAPN() {
         // --- FIX ---
         // Force development mode for testing with Xcode.
         // Set to `process.env.NODE_ENV === 'production'` for real release builds.
-        production: false,
+        production: process.env.NODE_ENV === 'production',
     };
 
     if (options.token.key && options.token.keyId && options.token.teamId) {
