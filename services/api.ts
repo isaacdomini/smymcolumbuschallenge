@@ -215,6 +215,28 @@ export const resetPassword = async (token: string, password: string): Promise<{ 
     }
 }
 
+// --- NEW Account Deletion Request ---
+export const requestAccountDeletion = async (email: string, password: string): Promise<{ message: string }> => {
+    if (USE_MOCK_DATA) {
+        await simulateDelay(500);
+        const user = MOCK_USERS.find(u => u.email === email);
+        if (!user) throw new Error("Invalid credentials");
+        return { message: 'Your account deletion request has been submitted. (Mock)' };
+    } else {
+        const response = await fetch(`${API_BASE_URL}/request-deletion`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password }),
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to submit deletion request');
+        }
+        return await response.json();
+    }
+};
+
 export const getChallenge = async (): Promise<Challenge | null> => {
     if (USE_MOCK_DATA) {
         await simulateDelay(300);
@@ -298,7 +320,7 @@ export const getSubmissionForToday = async (userId: string, gameId: string): Pro
         const response = await fetch(`${API_BASE_URL}/submissions/user/${userId}/game/${gameId}`);
         if (!response.ok) {
              if (response.status === 404) return null;
-             const data = await response.json();
+             const data = await response.json().catch(() => null);
              return data || null;
         }
         return await response.json();
