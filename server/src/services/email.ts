@@ -110,4 +110,35 @@ export const sendPasswordResetEmail = async (email: string, token: string, host?
     } catch (error) {
       console.error(`Failed to send password reset email to ${email}:`, error);
     }
-  };
+};
+
+// NEW: Account deletion request email to admin
+export const sendAccountDeletionRequestEmail = async (userEmail: string, userId: string, userName: string) => {
+    const adminEmail = 'me@isaacdomini.com'; // Admin's email address
+  
+    try {
+      await transporter.sendMail({
+        from: process.env.EMAIL_FROM,
+        to: adminEmail,
+        subject: '[ACTION REQUIRED] Account Deletion Request for SMYM Bible Games',
+        html: `
+          <div style="font-family: sans-serif; color: #333;">
+            <h2>Account Deletion Request</h2>
+            <p>A user has requested their account to be deleted. Please process this request within 48 hours.</p>
+            <hr>
+            <p><strong>User Details:</strong></p>
+            <ul>
+              <li><strong>Name:</strong> ${userName}</li>
+              <li><strong>Email:</strong> ${userEmail}</li>
+              <li><strong>User ID:</strong> ${userId}</li>
+            </ul>
+            <hr>
+            <p><strong>Action:</strong> Please log in to the admin dashboard or database to delete this user's data (User ID: ${userId}).</p>
+          </div>
+        `,
+      });
+      console.log(`Account deletion request sent to admin for user ${userEmail}`);
+    } catch (error) {
+      console.error(`Failed to send account deletion email to admin for user ${userEmail}:`, error);
+    }
+};
