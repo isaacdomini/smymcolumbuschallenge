@@ -1,22 +1,24 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { AuthProvider, useAuth } from '@/hooks/useAuth';
-import { useLogger } from '@/hooks/useLogger'; // IMPORT NEW HOOK
-import Header from '@/components/Header';
-import Countdown from '@/components/dashboard/Countdown';
-import Leaderboard from '@/components/dashboard/Leaderboard';
-import WordleGame from '@/components/game/WordleGame';
-import ConnectionsGame from '@/components/game/ConnectionsGame';
-import CrosswordGame from '@/components/game/CrosswordGame';
-import ChallengeHistory from '@/components/dashboard/ChallengeHistory';
-import ChallengeIntro from '@/components/dashboard/ChallengeIntro';
-import ResetPassword from '@/components/auth/ResetPassword';
-import AdminDashboard from '@/components/admin/AdminDashboard';
-import { Game, GameType, Challenge, GameSubmission, User } from '@/types';
-import { getChallenge, getDailyGame, getLeaderboard, getSubmissionForToday, getGamesForChallenge, getSubmissionsForUser } from '@/services/api';
-import ScoringCriteria from '@/components/dashboard/ScoringCriteria';
-import AddToHomeScreen from '@/components/ui/AddToHomeScreen';
+import { AuthProvider, useAuth } from './hooks/useAuth';
+import { useLogger } from './hooks/useLogger'; // IMPORT NEW HOOK
+import Header from './components/Header';
+import Countdown from './components/dashboard/Countdown';
+import Leaderboard from './components/dashboard/Leaderboard';
+import WordleGame from './components/game/WordleGame';
+import ConnectionsGame from './components/game/ConnectionsGame';
+import CrosswordGame from './components/game/CrosswordGame';
+import ChallengeHistory from './components/dashboard/ChallengeHistory';
+import ChallengeIntro from './components/dashboard/ChallengeIntro';
+import ResetPassword from './components/auth/ResetPassword';
+import AdminDashboard from './components/admin/AdminDashboard';
+import { Game, GameType, Challenge, GameSubmission, User } from './types';
+import { getChallenge, getDailyGame, getLeaderboard, getSubmissionForToday, getGamesForChallenge, getSubmissionsForUser } from './services/api';
+import ScoringCriteria from './components/dashboard/ScoringCriteria';
+import AddToHomeScreen from './components/ui/AddToHomeScreen';
 import { Capacitor } from '@capacitor/core';
 import { StatusBar } from '@capacitor/status-bar';
+// Import the Capacitor App plugin
+import { App as CapacitorApp } from '@capacitor/app';
 
 const App: React.FC = () => {
   return (
@@ -86,7 +88,27 @@ const MainContent: React.FC = () => {
       }
     };
 
+    // --- Add Back Button Listener ---
+    const addBackButtonListener = () => {
+      if (Capacitor.isNativePlatform()) {
+        CapacitorApp.addListener('backButton', ({ canGoBack }) => {
+          // We use window.location.pathname to check our *React* route
+          // not the 'canGoBack' property from the event, which checks the webView history.
+          // We are managing history ourselves with 'navigate'.
+          if (window.location.pathname !== '/') {
+            // If we are on a sub-page, go back
+            window.history.back();
+          } else {
+            // If we are on the home page, exit the app (Android only)
+            CapacitorApp.exitApp();
+          }
+        });
+      }
+    };
+    // --- End of Back Button Listener ---
+
     setStatusBarPadding();
+    addBackButtonListener(); // Call the listener setup
   }, []); // Empty dependency array, runs once
 
 
@@ -224,36 +246,31 @@ const MainContent: React.FC = () => {
     return (
         <div>
             {!user && challengeStarted && <ChallengeIntro />}
-
             {!challengeStarted && challenge ? (
                 <Countdown targetDate={challenge.startDate} />
             ) : (
-                <>
-                    {/* Buttons moved above leaderboard */}
-                    {challengeStarted && (
-                        <div className="mb-8 flex flex-col sm:flex-row justify-center items-center gap-4">
-                            {user ? (
-                                <>
-                                    <button 
-                                        onClick={() => todaysGame && navigate(`/game/${todaysGame.id}`)}
-                                        disabled={!todaysGame}
-                                        className="bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold py-3 px-8 rounded-lg text-xl shadow-lg transition-transform transform hover:scale-105 disabled:bg-gray-600 disabled:cursor-not-allowed"
-                                    >
-                                        {todaysGame ? (todaysSubmission ? "Revisit Today's Game" : "Play Today's Game") : "No Game Today"}
-                                    </button>
-                                    <button onClick={() => navigate('/history')} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg text-xl shadow-lg transition-transform transform hover:scale-105">
-                                        View Challenge History
-                                    </button>
-                                </>
-                            ) : (
-                                <p className="text-center text-lg bg-gray-800 p-4 rounded-lg">Please log in or sign up to participate!</p>
-                            )}
-                        </div>
+                challenge && <LeaderboardWrapper challengeId={challenge.id} />
+            )}
+            
+            {challengeStarted && (
+                <div className="mt-8 flex flex-col sm:flex-row justify-center items-center gap-4">
+                    {user ? (
+                        <>
+                            <button 
+                                onClick={() => todaysGame && navigate(`/game/${todaysGame.id}`)}
+                                disabled={!todaysGame}
+                                className="bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold py-3 px-8 rounded-lg text-xl shadow-lg transition-transform transform hover:scale-105 disabled:bg-gray-600 disabled:cursor-not-allowed"
+                            >
+                                {todaysGame ? (todaysSubmission ? "Revisit Today's Game" : "Play Today's Game") : "No Game Today"}
+                            </button>
+                            <button onClick={() => navigate('/history')} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg text-xl shadow-lg transition-transform transform hover:scale-105">
+                                View Challenge History
+                            </button>
+                        </>
+                    ) : (
+                        <p className="text-center text-lg bg-gray-800 p-4 rounded-lg">Please log in or sign up to participate!</p>
                     )}
-
-                    {/* Leaderboard */}
-                    {challenge && <LeaderboardWrapper challengeId={challenge.id} />}
-                </>
+                </div>
             )}
             
             {/* Admin Link on Home if applicable */}
