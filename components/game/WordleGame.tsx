@@ -157,16 +157,18 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
     const guess = guesses[activeGuessIndex];
     
     setTimeout(() => {
-        if (guess === solution) {
-            setGameState('won');
-        } else if (activeGuessIndex === maxGuesses - 1) {
-            setGameState('lost');
-        } else {
-            setActiveGuessIndex(prev => prev + 1);
-            setCurrentGuess('');
-            setIsRevealing(false);
-        }
-    }, wordLength * 350); 
+      if (guess === solution) {
+        setGameState('won');
+        setIsRevealing(false); // stop revealing further rows
+      } else if (activeGuessIndex === maxGuesses - 1) {
+        setGameState('lost');
+        setIsRevealing(false);
+      } else {
+        setActiveGuessIndex(prev => prev + 1);
+        setCurrentGuess('');
+        setIsRevealing(false);
+      }
+    }, wordLength * 350);
   }, [isRevealing, activeGuessIndex, guesses, solution, maxGuesses, wordLength]);
 
   useEffect(() => {

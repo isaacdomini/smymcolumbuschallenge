@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { ConnectionsData, GameSubmission, GameType } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
 import { submitGame, getGameState, saveGameState, clearGameState } from '../../services/api';
@@ -26,6 +26,30 @@ const ConnectionsGame: React.FC<ConnectionsGameProps> = ({ gameId, gameData, sub
   const [isShaking, setIsShaking] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
 
+  const generateShuffledWords = useCallback((): string[] => {
+    const original = [...gameData.words];
+    const categories = gameData.categories.map(c => new Set(c.words));
+    const maxAttempts = 20;
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      // Fisher-Yates shuffle
+      const arr = [...original];
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      // Check no full category is contiguous in the shuffled order
+      let hasContiguousCategory = false;
+      for (let i = 0; i <= arr.length - 4 && !hasContiguousCategory; i++) {
+        const sliceSet = new Set(arr.slice(i, i + 4));
+        if (categories.some(cat => cat.size === sliceSet.size && [...cat].every(w => sliceSet.has(w)))) {
+          hasContiguousCategory = true;
+        }
+      }
+      if (!hasContiguousCategory) return arr;
+    }
+    return original.sort(() => Math.random() - 0.5); // fallback
+  }, [gameData.words, gameData.categories]);
+
   useEffect(() => {
     const loadState = async () => {
         if (isReadOnly && submission) {
@@ -49,15 +73,15 @@ const ConnectionsGame: React.FC<ConnectionsGameProps> = ({ gameId, gameData, sub
                     }
                 } catch (e) {
                     console.error("Failed to parse saved Connections state", e);
-                    setWords([...gameData.words].sort(() => Math.random() - 0.5));
+                    setWords(generateShuffledWords());
                 }
             } else {
-                setWords([...gameData.words].sort(() => Math.random() - 0.5));
+                setWords(generateShuffledWords());
             }
         }
     };
     loadState();
-  }, [gameData, isReadOnly, submission, gameId, user]);
+  }, [gameData, isReadOnly, submission, gameId, user, generateShuffledWords]);
 
   useEffect(() => {
     if (isReadOnly || gameState !== 'playing' || !user || !words.length || startTime === null) return;
@@ -157,6 +181,13 @@ const ConnectionsGame: React.FC<ConnectionsGameProps> = ({ gameId, gameData, sub
     setShowInstructions(false);
   };
 
+  const handleShuffle = () => {
+    if (isReadOnly || gameState !== 'playing') return;
+    // Only shuffle remaining words; keep found groups intact
+    setSelected([]);
+    setWords(prev => generateShuffledWords().filter(w => prev.includes(w) || !foundGroups.flatMap(g => g.words).includes(w)));
+  };
+
   // Define colors for groups based on index to make them visually distinct
   const GROUP_COLORS = [
       'bg-green-700',
@@ -199,7 +230,7 @@ const ConnectionsGame: React.FC<ConnectionsGameProps> = ({ gameId, gameData, sub
         ))}
       </div>
       
-      <div className="grid grid-cols-4 gap-2 w-full mb-4">
+        <div className="grid grid-cols-4 gap-2 w-full mb-4">
         {words.map(word => {
             const isSelected = selected.includes(word);
             return (
@@ -218,7 +249,7 @@ const ConnectionsGame: React.FC<ConnectionsGameProps> = ({ gameId, gameData, sub
         })}
       </div>
       
-      {!isReadOnly && gameState === 'playing' && (
+        {!isReadOnly && gameState === 'playing' && (
         <div className="flex flex-col items-center w-full">
             <div className="flex items-center space-x-4 mb-4">
                 <span className="text-gray-300">Mistakes remaining:</span>
@@ -246,6 +277,13 @@ const ConnectionsGame: React.FC<ConnectionsGameProps> = ({ gameId, gameData, sub
                     className="bg-white hover:bg-gray-200 text-black font-bold py-2 px-6 rounded-full disabled:bg-zinc-600 disabled:text-zinc-400 transition-colors"
                 >
                     Submit
+                </button>
+                <button
+                  onClick={handleShuffle}
+                  disabled={isShaking}
+                  className="bg-zinc-700 hover:bg-zinc-600 text-white font-bold py-2 px-6 rounded-full transition-colors"
+                >
+                  Shuffle
                 </button>
             </div>
         </div>
