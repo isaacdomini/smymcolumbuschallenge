@@ -87,6 +87,7 @@ const ResetPassword: React.FC = () => {
                             onChange={(e) => setPassword(e.target.value)}
                             required
                             minLength={6}
+                            autoComplete="new-password"
                             className="w-full p-3 bg-gray-900 border border-gray-700 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent outline-none transition-all text-white placeholder-gray-500"
                         />
                     </div>
@@ -99,6 +100,7 @@ const ResetPassword: React.FC = () => {
                             onChange={(e) => setConfirmPassword(e.target.value)}
                             required
                             minLength={6}
+                            autoComplete="new-password"
                             className="w-full p-3 bg-gray-900 border border-gray-700 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent outline-none transition-all text-white placeholder-gray-500"
                         />
                     </div>
