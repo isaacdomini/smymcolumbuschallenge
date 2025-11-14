@@ -10,11 +10,9 @@
       "DOM.Iterable"
     ],
     "skipLibCheck": true,
-    /* By removing the "types": ["node"] array, we allow TypeScript 
-      to auto-discover all types in node_modules, including 
-      the ones for Capacitor plugins like @capacitor/badge.
-    */
-    // "types": ["node"],
+    "types": [
+      "node"
+    ],
     "moduleResolution": "bundler",
     "isolatedModules": true,
     "moduleDetection": "force",
