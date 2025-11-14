@@ -224,31 +224,36 @@ const MainContent: React.FC = () => {
     return (
         <div>
             {!user && challengeStarted && <ChallengeIntro />}
+
             {!challengeStarted && challenge ? (
                 <Countdown targetDate={challenge.startDate} />
             ) : (
-                challenge && <LeaderboardWrapper challengeId={challenge.id} />
-            )}
-            
-            {challengeStarted && (
-                <div className="mt-8 flex flex-col sm:flex-row justify-center items-center gap-4">
-                    {user ? (
-                        <>
-                            <button 
-                                onClick={() => todaysGame && navigate(`/game/${todaysGame.id}`)}
-                                disabled={!todaysGame}
-                                className="bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold py-3 px-8 rounded-lg text-xl shadow-lg transition-transform transform hover:scale-105 disabled:bg-gray-600 disabled:cursor-not-allowed"
-                            >
-                                {todaysGame ? (todaysSubmission ? "Revisit Today's Game" : "Play Today's Game") : "No Game Today"}
-                            </button>
-                            <button onClick={() => navigate('/history')} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg text-xl shadow-lg transition-transform transform hover:scale-105">
-                                View Challenge History
-                            </button>
-                        </>
-                    ) : (
-                        <p className="text-center text-lg bg-gray-800 p-4 rounded-lg">Please log in or sign up to participate!</p>
+                <>
+                    {/* Buttons moved above leaderboard */}
+                    {challengeStarted && (
+                        <div className="mb-8 flex flex-col sm:flex-row justify-center items-center gap-4">
+                            {user ? (
+                                <>
+                                    <button 
+                                        onClick={() => todaysGame && navigate(`/game/${todaysGame.id}`)}
+                                        disabled={!todaysGame}
+                                        className="bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold py-3 px-8 rounded-lg text-xl shadow-lg transition-transform transform hover:scale-105 disabled:bg-gray-600 disabled:cursor-not-allowed"
+                                    >
+                                        {todaysGame ? (todaysSubmission ? "Revisit Today's Game" : "Play Today's Game") : "No Game Today"}
+                                    </button>
+                                    <button onClick={() => navigate('/history')} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg text-xl shadow-lg transition-transform transform hover:scale-105">
+                                        View Challenge History
+                                    </button>
+                                </>
+                            ) : (
+                                <p className="text-center text-lg bg-gray-800 p-4 rounded-lg">Please log in or sign up to participate!</p>
+                            )}
+                        </div>
                     )}
-                </div>
+
+                    {/* Leaderboard */}
+                    {challenge && <LeaderboardWrapper challengeId={challenge.id} />}
+                </>
             )}
             
             {/* Admin Link on Home if applicable */}

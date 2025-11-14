@@ -14,34 +14,69 @@ const getTodayEST = () => {
 };
 
 // --- HELPER: Score Calculation ---
-const calculateScore = (gameType: string, submissionData: any, timeTaken: number, mistakes: number): number => {
+const calculateScore = (game: any, submissionData: any, timeTaken: number, mistakes: number): number => {
+    let baseScore = 0;
+    const gameType = game.type;
+
     switch (gameType) {
         case 'wordle': {
             const maxGuesses = 6;
-            if (mistakes >= maxGuesses) return 0;
-            return (maxGuesses - mistakes) * 10;
+            if (mistakes >= maxGuesses) {
+                baseScore = 0;
+            } else {
+                baseScore = (maxGuesses - mistakes) * 10;
+            }
+            break;
         }
         case 'connections': {
             const categoriesFound = submissionData?.categoriesFound ?? 0;
-            return Math.max(0, (categoriesFound * 20) - (mistakes * 5));
+            baseScore = Math.max(0, (categoriesFound * 20) - (mistakes * 5));
+            break;
         }
         case 'crossword': {
             const correct = submissionData?.correctCells ?? 0;
             const total = submissionData?.totalFillableCells ?? 1;
-            if (total <= 0) return 0;
-            
-            const accuracyScore = Math.round((correct / total) * 70);
-            const timeBonus = Math.max(0, 30 - Math.floor(timeTaken / 60));
-            return Math.max(0, accuracyScore + timeBonus);
+            if (total <= 0) {
+                baseScore = 0;
+            } else {
+                const accuracyScore = Math.round((correct / total) * 70);
+                const timeBonus = Math.max(0, 30 - Math.floor(timeTaken / 60));
+                baseScore = Math.max(0, accuracyScore + timeBonus);
+            }
+            break;
         }
         default: {
              const timePenalty = Math.floor(timeTaken / 15);
              const mistakePenalty = mistakes * 10;
-             return Math.max(0, 100 - mistakePenalty - timePenalty);
+             baseScore = Math.max(0, 100 - mistakePenalty - timePenalty);
         }
     }
-};
 
+    // --- NEW: Apply Late Penalty ---
+    // We get the current date in EST
+    const today = new Date(getTodayEST() + 'T12:00:00Z'); // Use noon to avoid DST/timezone shift issues
+    // Get the game date as YYYY-MM-DD in EST
+    const gameDateStr = new Date(game.date).toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+    const gameDate = new Date(gameDateStr + 'T12:00:00Z');
+
+    const diffTime = today.getTime() - gameDate.getTime();
+    // Calculate days late. If today is the game day, diffDays will be 0.
+    const diffDays = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
+
+    let finalScore = 0;
+    // Only apply penalty if within the 5-day late window
+    if (diffDays <= 5) {
+        // 20% penalty per day late.
+        // Day 0 (on time): 1.0 (1 - 0*0.2)
+        // Day 1 late: 0.8 (1 - 1*0.2)
+        // Day 5 late: 0.0 (1 - 5*0.2)
+        const penaltyMultiplier = Math.max(0, 1.0 - (diffDays * 0.20));
+        finalScore = Math.round(baseScore * penaltyMultiplier);
+    }
+    // If diffDays > 5, finalScore remains 0, as they shouldn't have been able to submit.
+
+    return finalScore;
+};
 // --- LOGGING ENDPOINT ---
 router.post('/log', async (req: Request, res: Response) => {
     try {
@@ -406,7 +441,18 @@ router.post('/submit', async (req: Request, res: Response) => {
     
     const game = gameResult.rows[0];
     // Calculate score securely on server
-    const score = calculateScore(game.type, submissionData, timeTaken, mistakes);
+    const today = new Date(getTodayEST() + 'T12:00:00Z');
+    const gameDateStr = new Date(game.date).toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+    const gameDate = new Date(gameDateStr + 'T12:00:00Z');
+    const diffTime = today.getTime() - gameDate.getTime();
+    const diffDays = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
+
+    // Allow submission on day 5 (for 0 points), but block on day 6
+    if (diffDays > 5) {
+        return res.status(403).json({ error: 'This game is too old to submit.' });
+    }
+
+    const score = calculateScore(game, submissionData, timeTaken, mistakes);
 
     const existingSub = await pool.query('SELECT * FROM game_submissions WHERE user_id = $1 AND game_id = $2', [userId, gameId]);
 
