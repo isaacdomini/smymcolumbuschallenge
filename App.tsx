@@ -21,8 +21,7 @@ import { StatusBar } from '@capacitor/status-bar';
 import { App as CapacitorApp } from '@capacitor/app';
 // Import the PushNotifications plugin
 import { PushNotifications } from '@capacitor/push-notifications';
-// Import the Badge plugin
-import { Badge } from '@capacitor/badge';
+// [REMOVED] import { Badge } from '@capacitor/badge';
 
 const App: React.FC = () => {
   return (
@@ -119,7 +118,7 @@ const MainContent: React.FC = () => {
             // Clear all notifications from the notification center
             await PushNotifications.removeAllDeliveredNotifications();
             // Reset the app icon badge count to 0
-            await Badge.set({ count: 0 });
+            await PushNotifications.setBadge({ count: 0 });
           } catch (err) {
             console.error("Error clearing notifications or badge count on resume", err);
           }
@@ -137,7 +136,7 @@ const MainContent: React.FC = () => {
                 setTimeout(async () => {
                     await PushNotifications.removeAllDeliveredNotifications();
                     // Reset the app icon badge count to 0
-                    await Badge.set({ count: 0 });
+                    await PushNotifications.setBadge({ count: 0 });
                 }, 1000);
             } catch (err) {
                  console.error("Error clearing badge on load", err);
