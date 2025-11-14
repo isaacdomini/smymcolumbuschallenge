@@ -5,10 +5,10 @@ const config: CapacitorConfig = {
   appName: 'SMYM Bible Games',
   webDir: 'dist', // The build output of Vite
   server: {
-    androidScheme: 'https',
-    // --- Add this to allow http:// traffic to your local IP ---
-    cleartext: true,
-    // ---------------------------------------------------------
+    // androidScheme: 'https', // REMOVED
+    // cleartext: true, // REMOVED - Use HTTPS!
+    url: '[https://youth.columbuschurch.org](https://youth.columbuschurch.org)', // ADD THIS
+    // This tells the app to load its content from your live server
   },
   plugins: {
     PushNotifications: {
