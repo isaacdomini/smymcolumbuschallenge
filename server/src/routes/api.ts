@@ -56,8 +56,10 @@ const calculateScore = (game: any, submissionData: any, timeTaken: number, mista
     // We get the current date in EST
     const today = new Date(getTodayEST() + 'T12:00:00Z'); // Use noon to avoid DST/timezone shift issues
     // Get the game date as YYYY-MM-DD in EST
-    const gameDateStr = new Date(game.date).toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
-    const gameDate = new Date(gameDateStr + 'T12:00:00Z');
+    // game.date is a Date object from the DB, e.g., 2025-11-15 00:00:00 UTC
+    // We need its UTC date string.
+    const gameDateStr = game.date.toISOString().split('T')[0]; // "2025-11-15"
+    const gameDate = new Date(gameDateStr + 'T12:00:00Z'); // Noon UTC on that day
 
     const diffTime = today.getTime() - gameDate.getTime();
     // Calculate days late. If today is the game day, diffDays will be 0.

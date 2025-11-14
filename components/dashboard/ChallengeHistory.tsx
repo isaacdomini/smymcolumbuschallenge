@@ -72,9 +72,10 @@ const ChallengeHistory: React.FC<ChallengeHistoryProps> = ({ challengeId, userId
           {games.map((game) => {
             const submission = submissionsMap.get(game.id);
             
-            // Get the game's date in 'America/New_York' timezone
-            const gameDateStr = new Date(game.date).toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
-            const gameDate = new Date(gameDateStr + 'T12:00:00Z'); // Standardize to noon
+            // Get the UTC date string from the ISO string (e.g., "2025-11-15" from "2025-11-15T00:00:00.000Z")
+            // This assumes the DB stores the "intended day" as midnight UTC.
+            const gameDateStr = game.date.split('T')[0];
+            const gameDate = new Date(gameDateStr + 'T12:00:00Z'); // Standardize to noon UTC
             
             const isToday = gameDateStr === todayStr;
             const isFuture = gameDate > today;

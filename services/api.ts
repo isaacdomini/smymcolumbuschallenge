@@ -259,7 +259,7 @@ export const getDailyGame = async (challengeId: string): Promise<Game | null> =>
     if (USE_MOCK_DATA) {
         await simulateDelay(200);
         if (challengeId !== MOCK_CHALLENGE.id) return null;
-        const today = new Date().toISOString().split('T')[0];
+        const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
         return MOCK_GAMES.find(g => g.date.startsWith(today)) ?? null;
     } else {
         const response = await fetch(`${API_BASE_URL}/challenge/${challengeId}/daily`);
