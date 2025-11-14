@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import pool from '../db/pool.js';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
-import { sendVerificationEmail, sendPasswordResetEmail } from '../services/email.js';
+import { sendVerificationEmail, sendPasswordResetEmail, sendAccountDeletionRequestEmail } from '../services/email.js'; // Added new email function
 import { getVapidPublicKey, saveSubscription } from '../services/push.js';
 import { manualLog } from '../middleware/logger.js';
 
@@ -246,6 +246,30 @@ router.post('/reset-password', async (req: Request, res: Response) => {
     res.json({ message: 'Password has been reset successfully. You can now log in.' });
   } catch (error) {
     console.error('Reset password error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// --- NEW: Account Deletion Request ---
+router.post('/request-deletion', async (req: Request, res: Response) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) return res.status(400).json({ error: 'Email and password are required' });
+
+    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    if (result.rows.length === 0) return res.status(401).json({ error: 'Invalid credentials' });
+
+    const user = result.rows[0];
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(401).json({ error: 'Invalid credentials' });
+
+    // Credentials are valid, send email to admin
+    await sendAccountDeletionRequestEmail(user.email, user.id, user.name);
+    
+    res.json({ message: 'Your account deletion request has been submitted. An administrator will process it within 48 hours.' });
+
+  } catch (error) {
+    console.error('Account deletion request error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
