@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import * as api from '@/services/api'; 
+import * as api from '@/services/api';
 
 interface DeleteAccountProps {
   onBack: () => void;
