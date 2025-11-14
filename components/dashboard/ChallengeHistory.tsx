@@ -52,9 +52,9 @@ const ChallengeHistory: React.FC<ChallengeHistoryProps> = ({ challengeId, userId
     return new Map(submissions.map(s => [s.gameId, s]));
   }, [submissions]);
 
-  // FIX: Use local date string instead of toISOString().split('T')[0] to avoid UTC shift
-  // 'en-CA' gives YYYY-MM-DD format in local time.
-  const todayStr = new Date().toLocaleDateString('en-CA');
+  // Get today's date in 'America/New_York' timezone
+  const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+  const today = new Date(todayStr + 'T12:00:00Z'); // Standardize to noon to avoid timezone/DST shifts
 
   return (
     <div className="w-full max-w-2xl mx-auto">
@@ -71,21 +71,28 @@ const ChallengeHistory: React.FC<ChallengeHistoryProps> = ({ challengeId, userId
         <div className="space-y-3">
           {games.map((game) => {
             const submission = submissionsMap.get(game.id);
-            // Game dates from DB are ISO strings (e.g., 2025-11-08T00:00:00.000Z).
-            // When we want to compare "days", we should compare them in the same timezone.
-            // Since we standardized the backend to treat that date as EST, we should ideally convert it here too.
-            // A simpler approach for the UI is to just take the YYYY-MM-DD part if it was saved as midnight UTC intended as that date.
-            const gameDateStr = game.date.split('T')[0];
+            
+            // Get the game's date in 'America/New_York' timezone
+            const gameDateStr = new Date(game.date).toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+            const gameDate = new Date(gameDateStr + 'T12:00:00Z'); // Standardize to noon
             
             const isToday = gameDateStr === todayStr;
-            const isFuture = gameDateStr > todayStr;
+            const isFuture = gameDate > today;
+
+            // --- Calculate lateness ---
+            const diffTime = today.getTime() - gameDate.getTime();
+            // diffDays will be 0 if it's today, 1 if it's yesterday, etc.
+            const diffDays = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
+            // Games are too late to play if they are more than 5 days old (e.g., 6+ days)
+            const isTooLate = diffDays > 5;
+            // --- End Lateness Calc ---
 
             return (
               <div key={game.id} className="bg-gray-800 p-4 rounded-lg flex justify-between items-center">
                 <div>
-                  {/* Display date in a friendly format, explicitly using UTC to avoid browser shifting it back a day */}
+                  {/* Display date in a friendly format, explicitly using EST/EDT */}
                   <p className="text-gray-400 text-sm">
-                      {new Date(game.date).toLocaleDateString(undefined, { timeZone: 'UTC', weekday: 'long', month: 'long', day: 'numeric' })}
+                      {new Date(game.date).toLocaleDateString(undefined, { timeZone: 'America/New_York', weekday: 'long', month: 'long', day: 'numeric' })}
                   </p>
                   <p className="text-xl font-bold capitalize">
                     {game.type} 
@@ -108,6 +115,8 @@ const ChallengeHistory: React.FC<ChallengeHistoryProps> = ({ challengeId, userId
                     </Tooltip>
                   ) : isFuture ? (
                     <span className="text-gray-500 font-semibold py-2 px-4">Upcoming</span>
+                  ) : isTooLate ? ( // Check if it's too late
+                    <span className="text-gray-500 font-semibold py-2 px-4">Missed</span>
                   ) : (
                     <button onClick={() => onPlayGame(game)} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">Play</button>
                   )}

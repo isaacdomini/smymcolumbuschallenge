@@ -1,22 +1,28 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { AuthProvider, useAuth } from '@/hooks/useAuth';
-import { useLogger } from '@/hooks/useLogger'; // IMPORT NEW HOOK
-import Header from '@/components/Header';
-import Countdown from '@/components/dashboard/Countdown';
-import Leaderboard from '@/components/dashboard/Leaderboard';
-import WordleGame from '@/components/game/WordleGame';
-import ConnectionsGame from '@/components/game/ConnectionsGame';
-import CrosswordGame from '@/components/game/CrosswordGame';
-import ChallengeHistory from '@/components/dashboard/ChallengeHistory';
-import ChallengeIntro from '@/components/dashboard/ChallengeIntro';
-import ResetPassword from '@/components/auth/ResetPassword';
-import AdminDashboard from '@/components/admin/AdminDashboard';
-import { Game, GameType, Challenge, GameSubmission, User } from '@/types';
-import { getChallenge, getDailyGame, getLeaderboard, getSubmissionForToday, getGamesForChallenge, getSubmissionsForUser } from '@/services/api';
-import ScoringCriteria from '@/components/dashboard/ScoringCriteria';
-import AddToHomeScreen from '@/components/ui/AddToHomeScreen';
+import { AuthProvider, useAuth } from './hooks/useAuth';
+import { useLogger } from './hooks/useLogger'; // IMPORT NEW HOOK
+import Header from './components/Header';
+import Countdown from './components/dashboard/Countdown';
+import Leaderboard from './components/dashboard/Leaderboard';
+import WordleGame from './components/game/WordleGame';
+import ConnectionsGame from './components/game/ConnectionsGame';
+import CrosswordGame from './components/game/CrosswordGame';
+import ChallengeHistory from './components/dashboard/ChallengeHistory';
+import ChallengeIntro from './components/dashboard/ChallengeIntro';
+import ResetPassword from './components/auth/ResetPassword';
+import AdminDashboard from './components/admin/AdminDashboard';
+import { Game, GameType, Challenge, GameSubmission, User } from './types';
+import { getChallenge, getDailyGame, getLeaderboard, getSubmissionForToday, getGamesForChallenge, getSubmissionsForUser } from './services/api';
+import ScoringCriteria from './components/dashboard/ScoringCriteria';
+import AddToHomeScreen from './components/ui/AddToHomeScreen';
 import { Capacitor } from '@capacitor/core';
 import { StatusBar } from '@capacitor/status-bar';
+// Import the Capacitor App plugin
+import { App as CapacitorApp } from '@capacitor/app';
+// Import the PushNotifications plugin
+import { PushNotifications } from '@capacitor/push-notifications';
+// Import the Badge plugin
+import { Badge } from '@capacitor/badge';
 
 const App: React.FC = () => {
   return (
@@ -86,7 +92,64 @@ const MainContent: React.FC = () => {
       }
     };
 
+    // --- Add Back Button Listener ---
+    const addBackButtonListener = () => {
+      if (Capacitor.isNativePlatform()) {
+        CapacitorApp.addListener('backButton', ({ canGoBack }) => {
+          // We use window.location.pathname to check our *React* route
+          // not the 'canGoBack' property from the event, which checks the webView history.
+          // We are managing history ourselves with 'navigate'.
+          if (window.location.pathname !== '/') {
+            // If we are on a sub-page, go back
+            window.history.back();
+          } else {
+            // If we are on the home page, exit the app (Android only)
+            CapacitorApp.exitApp();
+          }
+        });
+      }
+    };
+    // --- End of Back Button Listener ---
+
+    // --- Add App Resume Listener to Clear Badges ---
+    const addResumeListener = () => {
+      if (Capacitor.isNativePlatform()) {
+        CapacitorApp.addListener('resume', async () => {
+          try {
+            // Clear all notifications from the notification center
+            await PushNotifications.removeAllDeliveredNotifications();
+            // Reset the app icon badge count to 0
+            await Badge.set({ count: 0 });
+          } catch (err) {
+            console.error("Error clearing notifications or badge count on resume", err);
+          }
+        });
+      }
+    };
+    // --- End of Resume Listener ---
+
+    // --- Initial Badge Clear on Load ---
+    // Also clear the badge when the app is first loaded, not just on resume
+    const clearBadgeOnLoad = async () => {
+        if (Capacitor.isNativePlatform()) {
+            try {
+                // We do this on a slight delay to ensure permissions are ready
+                setTimeout(async () => {
+                    await PushNotifications.removeAllDeliveredNotifications();
+                    // Reset the app icon badge count to 0
+                    await Badge.set({ count: 0 });
+                }, 1000);
+            } catch (err) {
+                 console.error("Error clearing badge on load", err);
+            }
+        }
+    }
+    // --- End of Initial Badge Clear ---
+
     setStatusBarPadding();
+    addBackButtonListener(); // Call the listener setup
+    addResumeListener(); // Call the new listener setup
+    clearBadgeOnLoad(); // Call the initial clear
   }, []); // Empty dependency array, runs once
 
 
@@ -224,14 +287,15 @@ const MainContent: React.FC = () => {
     return (
         <div>
             {!user && challengeStarted && <ChallengeIntro />}
+            
+            {/* Show Countdown if challenge hasn't started */}
             {!challengeStarted && challenge ? (
                 <Countdown targetDate={challenge.startDate} />
-            ) : (
-                challenge && <LeaderboardWrapper challengeId={challenge.id} />
-            )}
+            ) : null}
             
+            {/* Show buttons if challenge has started */}
             {challengeStarted && (
-                <div className="mt-8 flex flex-col sm:flex-row justify-center items-center gap-4">
+                <div className="mb-8 flex flex-col sm:flex-row justify-center items-center gap-4">
                     {user ? (
                         <>
                             <button 
@@ -250,6 +314,11 @@ const MainContent: React.FC = () => {
                     )}
                 </div>
             )}
+            
+            {/* Show Leaderboard if challenge has started */}
+            {challengeStarted && challenge ? (
+                <LeaderboardWrapper challengeId={challenge.id} />
+            ) : null}
             
             {/* Admin Link on Home if applicable */}
             {user?.isAdmin && (

@@ -1,13 +1,15 @@
 import React from 'react';
-import { GameSubmission, User } from '../../types';
-import Tooltip from '../ui/Tooltip';
-import { ICONS } from '../../constants';
+import { GameSubmission, User } from '@/types';
+import Tooltip from '@/components/ui/Tooltip';
+import { ICONS } from '@/constants';
+import { useAuth } from '@/hooks/useAuth'; // Import useAuth
 
 interface LeaderboardProps {
   data: (GameSubmission & { user: User })[];
 }
 
 const Leaderboard: React.FC<LeaderboardProps> = ({ data }) => {
+  const { user: currentUser } = useAuth(); // Get the current user
   const sortedData = [...data].sort((a, b) => b.score - a.score);
 
   const getRankColor = (rank: number) => {
@@ -15,6 +17,47 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data }) => {
     if (rank === 1) return 'text-gray-300 border-gray-300';
     if (rank === 2) return 'text-yellow-600 border-yellow-600';
     return 'text-gray-400 border-gray-700';
+  };
+
+  // Find the current user's rank
+  const currentUserRankIndex = currentUser
+    ? sortedData.findIndex(entry => entry.userId === currentUser.id)
+    : -1;
+  
+  // Get the top 5 entries
+  const top5Data = sortedData.slice(0, 5);
+
+  // Get the current user's entry if they exist and are not in the top 5
+  const currentUserEntry = (currentUserRankIndex !== -1 && currentUserRankIndex >= 5)
+    ? sortedData[currentUserRankIndex]
+    : null;
+
+  // Helper function to render a single leaderboard row
+  const renderRow = (entry: GameSubmission & { user: User }, index: number) => {
+    const isCurrentUser = entry.userId === currentUser?.id;
+    // Use the actual rank (index + 1) for display
+    const rank = index + 1; 
+
+    return (
+      <div 
+        key={entry.id} 
+        className={`flex items-center justify-between p-3 rounded-lg bg-gray-700/50 border-l-4 
+          ${isCurrentUser ? 'border-blue-400 bg-gray-700' : getRankColor(index)}
+        `}
+      >
+        <div className="flex items-center min-w-0 flex-1 mr-2">
+          <span className={`font-bold w-8 text-lg ${isCurrentUser ? 'text-blue-400' : getRankColor(index)} flex-shrink-0`}>
+            {rank}
+          </span>
+          <span className={`font-semibold truncate ${isCurrentUser ? 'text-blue-300' : 'text-white'}`}>
+            {entry.user.name} {isCurrentUser && '(You)'}
+          </span>
+        </div>
+        <div className="font-bold text-lg text-yellow-400 flex-shrink-0 whitespace-nowrap">
+          {entry.score} pts
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -30,18 +73,23 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data }) => {
         </div>
       </div>
       <div className="space-y-3">
-        {sortedData.length > 0 ? sortedData.map((entry, index) => (
-          <div key={entry.id} className={`flex items-center justify-between p-3 rounded-lg bg-gray-700/50 border-l-4 ${getRankColor(index)}`}>
-            {/* Added min-w-0 and flex-1 to allow truncation to work within flexbox */}
-            <div className="flex items-center min-w-0 flex-1 mr-2">
-              <span className={`font-bold w-8 text-lg ${getRankColor(index)} flex-shrink-0`}>{index + 1}</span>
-              {/* Added truncate to prevent long names from overflowing */}
-              <span className="font-semibold text-white truncate">{entry.user.name}</span>
-            </div>
-            {/* Added flex-shrink-0 and whitespace-nowrap to keep score on one line */}
-            <div className="font-bold text-lg text-yellow-400 flex-shrink-0 whitespace-nowrap">{entry.score} pts</div>
-          </div>
-        )) : (
+        {sortedData.length > 0 ? (
+          <>
+            {top5Data.map((entry, index) => renderRow(entry, index))}
+            
+            {currentUserEntry && (
+              <>
+                <div className="flex items-center justify-center py-2">
+                  <div className="h-px w-1/3 bg-gray-600"></div>
+                  <span className="text-gray-500 text-sm mx-2">...</span>
+                  <div className="h-px w-1/3 bg-gray-600"></div>
+                </div>
+                {/* Pass the user's actual rank index here */}
+                {renderRow(currentUserEntry, currentUserRankIndex)}
+              </>
+            )}
+          </>
+        ) : (
             <p className="text-center text-gray-400 py-4">No submissions yet. Be the first to play!</p>
         )}
       </div>

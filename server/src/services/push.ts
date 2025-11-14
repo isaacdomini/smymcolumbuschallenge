@@ -61,12 +61,15 @@ function initializeAPN() {
             keyId: process.env.APNS_KEY_ID || '',
             teamId: process.env.APNS_TEAM_ID || '',
         },
+        // --- FIX ---
+        // Force development mode for testing with Xcode.
+        // Set to `process.env.NODE_ENV === 'production'` for real release builds.
         production: process.env.NODE_ENV === 'production',
     };
 
     if (options.token.key && options.token.keyId && options.token.teamId) {
         apnProvider = new apn.Provider(options);
-        console.log('APN Provider initialized.');
+        console.log('APN Provider initialized (Forcing Development/Sandbox Mode).');
     } else {
         console.warn('APNS environment variables not set. iOS push notifications will not work.');
     }
@@ -183,12 +186,13 @@ async function sendApplePush(tokens: string[], payload: { title: string, body: s
         if (response.failed.length > 0) {
             const tokensToDelete: string[] = [];
             response.failed.forEach((failure) => {
-                // FIX: Access 'failure.error.message' instead of 'failure.error.reason'
                 const reason = failure.response?.reason || failure.error?.message || 'Unknown Reason';
                 console.error(`APN Error: ${failure.status} ${reason} for token ${failure.device}`);
                 
+                // --- FIX ---
                 // 'Unregistered' (410) means the user uninstalled the app
-                if (failure.status === '410' || reason === 'Unregistered') {
+                // 'BadDeviceToken' (400) means the token is invalid for this environment
+                if (failure.status === '410' || reason === 'Unregistered' || reason === 'BadDeviceToken') {
                     tokensToDelete.push(failure.device);
                 }
             });
