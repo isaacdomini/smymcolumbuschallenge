@@ -11,6 +11,7 @@ import ChallengeHistory from './components/dashboard/ChallengeHistory';
 import ChallengeIntro from './components/dashboard/ChallengeIntro';
 import ResetPassword from './components/auth/ResetPassword';
 import AdminDashboard from './components/admin/AdminDashboard';
+import PrivacyPolicy from './components/PrivacyPolicy'; // Import the new component
 import { Game, GameType, Challenge, GameSubmission, User } from './types';
 import { getChallenge, getDailyGame, getLeaderboard, getSubmissionForToday, getGamesForChallenge, getSubmissionsForUser } from './services/api';
 import ScoringCriteria from './components/dashboard/ScoringCriteria';
@@ -237,6 +238,11 @@ const MainContent: React.FC = () => {
   const renderContent = () => {
     if (locationPath.startsWith('/reset-password')) {
         return <ResetPassword />;
+    }
+
+    // ADDED: Privacy Policy Route
+    if (locationPath.startsWith('/privacy')) {
+        return <PrivacyPolicy onBack={() => navigate('/')} />;
     }
 
     // ADDED: Admin Route
