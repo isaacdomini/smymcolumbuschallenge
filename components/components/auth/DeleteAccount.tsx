@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import * as api from '../../services/api'; 
+import * as api from '@/services/api'; 
 
 interface DeleteAccountProps {
   onBack: () => void;
@@ -112,3 +112,9 @@ const DeleteAccount: React.FC<DeleteAccountProps> = ({ onBack }) => {
         >
           {isLoading ? 'Submitting...' : 'Request Account Deletion'}
         </button>
+      </form>
+    </div>
+  );
+};
+
+export default DeleteAccount;
