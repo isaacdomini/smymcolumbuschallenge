@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Capacitor } from '@capacitor/core'; // Import Capacitor
 
 // Define types for the BeforeInstallPromptEvent
 interface BeforeInstallPromptEvent extends Event {
@@ -16,6 +17,13 @@ const AddToHomeScreen: React.FC = () => {
     const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
 
     useEffect(() => {
+        // --- ADD THIS CHECK ---
+        // If it's a native app (from App Store/Play Store), don't show the banner.
+        if (Capacitor.isNativePlatform()) {
+            return;
+        }
+        // --- END ADDED CHECK ---
+
         // Check if already in standalone mode (added to home screen)
         const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone;
         // Check if user has already dismissed the banner
