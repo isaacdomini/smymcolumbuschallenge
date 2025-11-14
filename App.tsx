@@ -12,6 +12,7 @@ import ChallengeIntro from './components/dashboard/ChallengeIntro';
 import ResetPassword from './components/auth/ResetPassword';
 import AdminDashboard from './components/admin/AdminDashboard';
 import PrivacyPolicy from './components/PrivacyPolicy'; // Import the new component
+import DeleteAccount from './components/auth/DeleteAccount'; // Import the new component
 import { Game, GameType, Challenge, GameSubmission, User } from './types';
 import { getChallenge, getDailyGame, getLeaderboard, getSubmissionForToday, getGamesForChallenge, getSubmissionsForUser } from './services/api';
 import ScoringCriteria from './components/dashboard/ScoringCriteria';
@@ -170,7 +171,7 @@ const MainContent: React.FC = () => {
 
   const fetchInitialData = useCallback(async () => {
     // Don't fetch if we are on special routes
-    if (window.location.pathname.startsWith('/reset-password') || window.location.pathname.startsWith('/admin')) {
+    if (locationPath.startsWith('/reset-password') || locationPath.startsWith('/admin') || locationPath.startsWith('/privacy') || locationPath.startsWith('/request-deletion')) {
         setIsLoading(false);
         // If on admin but not admin user, redirect home handled in render
         return;
@@ -216,7 +217,7 @@ const MainContent: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [user]); // depend on user to refresh submissions on login
+  }, [user, locationPath]); // depend on user and locationPath
 
   useEffect(() => {
     fetchInitialData();
@@ -242,7 +243,12 @@ const MainContent: React.FC = () => {
 
     // ADDED: Privacy Policy Route
     if (locationPath.startsWith('/privacy')) {
-        return <PrivacyPolicy onBack={() => navigate('/')} />;
+        return <PrivacyPolicy onBack={() => navigate('/')} onNavigateToDeleteAccount={() => navigate('/request-deletion')} />;
+    }
+
+    // ADDED: Account Deletion Route
+    if (locationPath.startsWith('/request-deletion')) {
+        return <DeleteAccount onBack={() => navigate('/')} />;
     }
 
     // ADDED: Admin Route
