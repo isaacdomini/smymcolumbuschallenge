@@ -93,7 +93,7 @@ const ChallengeHistory: React.FC<ChallengeHistoryProps> = ({ challengeId, userId
                 <div>
                   {/* Display date in a friendly format, explicitly using EST/EDT */}
                   <p className="text-gray-400 text-sm">
-                      {new Date(game.date).toLocaleDateString(undefined, { timeZone: 'America/New_York', weekday: 'long', month: 'long', day: 'numeric' })}
+                      {new Date(game.date).toLocaleDateString(undefined, { timeZone: 'UTC', weekday: 'long', month: 'long', day: 'numeric' })}
                   </p>
                   <p className="text-xl font-bold capitalize">
                     {game.type} 
