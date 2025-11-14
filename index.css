@@ -4,8 +4,8 @@
 
 html, body, #root {
     @apply h-full;
-    /* Prevent the whole page from bouncing/scrolling */
-    overflow: hidden;
+    /* REMOVED: overflow: hidden; */
+    /* This allows IonContent to control the page scroll */
 }
 
 body {

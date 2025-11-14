@@ -1,29 +1,37 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import { AuthProvider, useAuth } from './hooks/useAuth';
-import { useLogger } from './hooks/useLogger'; // IMPORT NEW HOOK
+import { useLogger } from './hooks/useLogger';
 import Header from './components/Header';
 import Countdown from './components/dashboard/Countdown';
 import Leaderboard from './components/dashboard/Leaderboard';
-import WordleGame from './components/game/WordleGame';
-import ConnectionsGame from './components/game/ConnectionsGame';
-import CrosswordGame from './components/game/CrosswordGame';
-import ChallengeHistory from './components/dashboard/ChallengeHistory';
+// Lazily load components
+const WordleGame = lazy(() => import('./components/game/WordleGame'));
+const ConnectionsGame = lazy(() => import('./components/game/ConnectionsGame'));
+const CrosswordGame = lazy(() => import('./components/game/CrosswordGame'));
+const ChallengeHistory = lazy(() => import('./components/dashboard/ChallengeHistory'));
+const ResetPassword = lazy(() => import('./components/auth/ResetPassword'));
+const AdminDashboard = lazy(() => import('./components/admin/AdminDashboard'));
+const PrivacyPolicy = lazy(() => import('./components/PrivacyPolicy'));
+const DeleteAccount = lazy(() => import('./components/auth/DeleteAccount'));
 import ChallengeIntro from './components/dashboard/ChallengeIntro';
-import ResetPassword from './components/auth/ResetPassword';
-import AdminDashboard from './components/admin/AdminDashboard';
-import PrivacyPolicy from './components/PrivacyPolicy'; // Import the new component
-import DeleteAccount from './components/auth/DeleteAccount'; // Import the new component
 import { Game, GameType, Challenge, GameSubmission, User } from './types';
 import { getChallenge, getDailyGame, getLeaderboard, getSubmissionForToday, getGamesForChallenge, getSubmissionsForUser, getGameState } from './services/api';
 import ScoringCriteria from './components/dashboard/ScoringCriteria';
 import AddToHomeScreen from './components/ui/AddToHomeScreen';
 import { Capacitor } from '@capacitor/core';
-import { StatusBar } from '@capacitor/status-bar';
-// Import the Capacitor App plugin
+// Import Style enum along with StatusBar
+import { StatusBar, Style } from '@capacitor/status-bar';
 import { App as CapacitorApp } from '@capacitor/app';
-// Import the PushNotifications plugin
 import { PushNotifications } from '@capacitor/push-notifications';
-// [REMOVED] import { Badge } from '@capacitor/badge';
+// --- FIXED: Import the CORRECT Badge plugin ---
+import { Badge } from '@capawesome/capacitor-badge';
+import { IonApp, IonContent, IonRefresher, IonRefresherContent } from '@ionic/react';
+import { RefresherEventDetail } from '@ionic/core';
+
+// A simple loading component for Suspense
+const LoadingFallback: React.FC = () => (
+  <div className="text-center p-10">Loading...</div>
+);
 
 const App: React.FC = () => {
   return (
@@ -34,13 +42,12 @@ const App: React.FC = () => {
 };
 
 const MainContent: React.FC = () => {
-  useLogger(); // ACTIVATE LOGGER HERE
+  useLogger();
   const { user } = useAuth();
-  // ... rest of the file remains exactly the same
   const [challenge, setChallenge] = useState<Challenge | null>(null);
   const [todaysGame, setTodaysGame] = useState<Game | null>(null);
   const [todaysSubmission, setTodaysSubmission] = useState<GameSubmission | null>(null);
-  const [todaysProgress, setTodaysProgress] = useState<any | null>(null); // GameProgress type if defined
+  const [todaysProgress, setTodaysProgress] = useState<any | null>(null);
   
   const [allChallengeGames, setAllChallengeGames] = useState<Game[]>([]);
   const [allUserSubmissions, setAllUserSubmissions] = useState<GameSubmission[]>([]);
@@ -49,6 +56,7 @@ const MainContent: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [globalMessage, setGlobalMessage] = useState<string | null>(null);
+
   useEffect(() => {
     // This effect runs once on app load
     const setStatusBarPadding = async () => {
@@ -57,19 +65,15 @@ const MainContent: React.FC = () => {
           let height = 0;
 
           if (Capacitor.getPlatform() === 'android') {
-            // Try to get Android status bar height from the plugin
             try {
               const info = await StatusBar.getInfo();
-              // Use 'as any' to bypass TS error if types are old/mismatched
-              // This checks if the property exists at runtime.
               const androidHeight = (info as any).statusBarHeight; 
               
               if (androidHeight > 0) {
                 height = androidHeight;
               } else {
-                // Fallback if property doesn't exist or is 0
                 console.warn('Could not read statusBarHeight from plugin, using 24px default for Android.');
-                height = 24; // A common default pixel height for Android status bars
+                height = 24; // A common default pixel height
               }
             } catch (e) {
               console.error("Failed to get status bar info, using 24px default.", e);
@@ -77,16 +81,13 @@ const MainContent: React.FC = () => {
             }
           }
           
-          // Set the CSS variable.
-          // For iOS, height remains 0, so the CSS fallback 'env(safe-area-inset-top)' will be used.
-          // For Android, this will be 24px (or the actual height), overriding the fallback.
           document.documentElement.style.setProperty(
             '--safe-area-inset-top-js', 
             `${height}px`
           );
 
-          // Ensure the status bar icons (time, battery) are light-colored
-          await StatusBar.setStyle({ style: 'light' }); 
+          // This is correct: Use Style.Light enum
+          await StatusBar.setStyle({ style: Style.Light }); 
         
         } catch (e) {
           console.error("Failed to set status bar style", e);
@@ -94,65 +95,52 @@ const MainContent: React.FC = () => {
       }
     };
 
-    // --- Add Back Button Listener ---
     const addBackButtonListener = () => {
       if (Capacitor.isNativePlatform()) {
         CapacitorApp.addListener('backButton', ({ canGoBack }) => {
-          // We use window.location.pathname to check our *React* route
-          // not the 'canGoBack' property from the event, which checks the webView history.
-          // We are managing history ourselves with 'navigate'.
           if (window.location.pathname !== '/') {
-            // If we are on a sub-page, go back
             window.history.back();
           } else {
-            // If we are on the home page, exit the app (Android only)
             CapacitorApp.exitApp();
           }
         });
       }
     };
-    // --- End of Back Button Listener ---
-
-    // --- Add App Resume Listener to Clear Badges ---
+    
     const addResumeListener = () => {
       if (Capacitor.isNativePlatform()) {
         CapacitorApp.addListener('resume', async () => {
           try {
-            // Clear all notifications from the notification center
+            // This is fine
             await PushNotifications.removeAllDeliveredNotifications();
-            // Reset the app icon badge count to 0
-            await PushNotifications.setBadge({ count: 0 });
+            // --- FIXED: Use Badge.clear() from the correct plugin ---
+            await Badge.clear();
           } catch (err) {
             console.error("Error clearing notifications or badge count on resume", err);
           }
         });
       }
     };
-    // --- End of Resume Listener ---
-
-    // --- Initial Badge Clear on Load ---
-    // Also clear the badge when the app is first loaded, not just on resume
+    
     const clearBadgeOnLoad = async () => {
         if (Capacitor.isNativePlatform()) {
             try {
-                // We do this on a slight delay to ensure permissions are ready
                 setTimeout(async () => {
                     await PushNotifications.removeAllDeliveredNotifications();
-                    // Reset the app icon badge count to 0
-                    await PushNotifications.setBadge({ count: 0 });
+                    // --- FIXED: Use Badge.clear() from the correct plugin ---
+                    await Badge.clear();
                 }, 1000);
             } catch (err) {
                  console.error("Error clearing badge on load", err);
             }
         }
     }
-    // --- End of Initial Badge Clear ---
 
     setStatusBarPadding();
-    addBackButtonListener(); // Call the listener setup
-    addResumeListener(); // Call the new listener setup
-    clearBadgeOnLoad(); // Call the initial clear
-  }, []); // Empty dependency array, runs once
+    addBackButtonListener();
+    addResumeListener();
+    clearBadgeOnLoad();
+  }, []);
 
 
   const navigate = useCallback((path: string) => {
@@ -171,10 +159,8 @@ const MainContent: React.FC = () => {
   }, []);
 
   const fetchInitialData = useCallback(async () => {
-    // Don't fetch if we are on special routes
     if (locationPath.startsWith('/reset-password') || locationPath.startsWith('/admin') || locationPath.startsWith('/privacy') || locationPath.startsWith('/request-deletion')) {
         setIsLoading(false);
-        // If on admin but not admin user, redirect home handled in render
         return;
     }
 
@@ -186,8 +172,6 @@ const MainContent: React.FC = () => {
       if (currentChallenge) {
         const now = new Date();
         const challengeStartDate = new Date(currentChallenge.startDate);
-
-        // Always fetch games for history, even if challenge hasn't started
         const games = await getGamesForChallenge(currentChallenge.id);
         setAllChallengeGames(games);
 
@@ -201,11 +185,9 @@ const MainContent: React.FC = () => {
             setTodaysGame(game);
             
             if (user && game) {
-                // We might have already fetched submissions above
                 const submissions = allUserSubmissions.length > 0 ? allUserSubmissions : (user ? await getSubmissionsForUser(user.id, currentChallenge.id) : []);
                 const todaySub = submissions.find(s => s.gameId === game.id) ?? null;
                 setTodaysSubmission(todaySub);
-                // If user has started but not submitted, fetch progress
                 if (!todaySub) {
                   try {
                     const progress = await getGameState(user.id, game.id);
@@ -230,11 +212,12 @@ const MainContent: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [user, locationPath]); // depend on user and locationPath
+  }, [user, locationPath]);
 
   useEffect(() => {
     fetchInitialData();
   }, [fetchInitialData]);
+
 
   useEffect(() => {
     const handleLocationChange = () => {
@@ -246,6 +229,11 @@ const MainContent: React.FC = () => {
     };
   }, []);
   
+  const handleRefresh = async (event: CustomEvent<RefresherEventDetail>) => {
+    await fetchInitialData();
+    event.detail.complete();
+  };
+  
   const now = new Date();
   const challengeStarted = challenge && new Date(challenge.startDate) <= now;
 
@@ -253,18 +241,12 @@ const MainContent: React.FC = () => {
     if (locationPath.startsWith('/reset-password')) {
         return <ResetPassword />;
     }
-
-    // ADDED: Privacy Policy Route
     if (locationPath.startsWith('/privacy')) {
         return <PrivacyPolicy onBack={() => navigate('/')} onNavigateToDeleteAccount={() => navigate('/request-deletion')} />;
     }
-
-    // ADDED: Account Deletion Route
     if (locationPath.startsWith('/request-deletion')) {
         return <DeleteAccount onBack={() => navigate('/')} />;
     }
-
-    // ADDED: Admin Route
     if (locationPath.startsWith('/admin')) {
         if (!user || !user.isAdmin) {
              navigate('/'); 
@@ -272,11 +254,9 @@ const MainContent: React.FC = () => {
         }
         return <AdminDashboard />;
     }
-
     if (isLoading) return <div className="text-center p-10">Loading Challenge...</div>;
     if (error) return <div className="text-center p-10 text-red-400">{error}</div>;
     if (!challenge) return <div className="text-center p-10">No active challenge found.</div>;
-
     if (locationPath.startsWith('/game/')) {
         if (!user) { navigate('/'); return null; }
         const gameId = locationPath.split('/')[2];
@@ -284,14 +264,11 @@ const MainContent: React.FC = () => {
         const activeGame = allChallengeGames.find(g => g.id === gameId);
         const gameToPlay = activeGame || (todaysGame?.id === gameId ? todaysGame : null);
         const activeSubmission = allUserSubmissions.find(s => s.gameId === gameId) ?? null;
-
         if (!gameToPlay) return <div className="text-center p-10">Loading game... (or game not found)</div>;
-
         const onComplete = () => {
           fetchInitialData();
           navigate('/');
         }
-        
         switch (gameToPlay.type) {
             case GameType.WORDLE:
                 return <WordleGame gameData={gameToPlay.data as any} onComplete={onComplete} submission={activeSubmission} gameId={gameToPlay.id} />;
@@ -302,22 +279,16 @@ const MainContent: React.FC = () => {
             default: return <p>Unknown game type.</p>;
         }
     }
-
     if (locationPath === '/history') {
         if (!user) { navigate('/'); return null; }
         return <ChallengeHistory challengeId={challenge.id} userId={user.id} onPlayGame={(game) => navigate(`/game/${game.id}`)} onRevisitGame={(game, submission) => navigate(`/game/${game.id}`)} onBack={() => navigate('/')} />;
     }
-    
     return (
         <div>
             {!user && challengeStarted && <ChallengeIntro />}
-            
-            {/* Show Countdown if challenge hasn't started */}
             {!challengeStarted && challenge ? (
                 <Countdown targetDate={challenge.startDate} />
             ) : null}
-            
-            {/* Show buttons if challenge has started */}
             {challengeStarted && (
                 <div className="mb-8 flex flex-col sm:flex-row justify-center items-center gap-4">
                     {user ? (
@@ -342,13 +313,9 @@ const MainContent: React.FC = () => {
                     )}
                 </div>
             )}
-            
-            {/* Show Leaderboard if challenge has started */}
             {challengeStarted && challenge ? (
                 <LeaderboardWrapper challengeId={challenge.id} />
             ) : null}
-            
-            {/* Admin Link on Home if applicable */}
             {user?.isAdmin && (
                  <div className="mt-8 text-center">
                     <button onClick={() => navigate('/admin')} className="text-gray-400 hover:text-yellow-400 underline">
@@ -356,27 +323,35 @@ const MainContent: React.FC = () => {
                     </button>
                  </div>
             )}
-
             <ScoringCriteria />
         </div>
     );
   }
 
   return (
-    // Updated to h-full and overflow-y-auto for full-screen mobile experience
-    <div className="h-full overflow-y-auto bg-gray-900 text-gray-100 font-sans pb-20">
+    <IonApp>
       <Header challengeName={challenge?.name} onLogoClick={() => navigate('/')} />
-      {/* Added safe-area padding for iOS notches/home bar when in full-screen */}
-      <main className="container mx-auto p-4 md:p-6 pt-safe-top pb-safe-bottom">
-        {globalMessage && (
-          <div className="mb-4 p-4 text-center bg-green-700 text-white rounded-lg shadow-lg animate-fade-in">
-            {globalMessage}
-          </div>
-        )}
-        {renderContent()}
-      </main>
-      <AddToHomeScreen />
-    </div>
+      <IonContent className="text-gray-100 font-sans">
+        
+        <IonRefresher slot="fixed" onIonRefresh={handleRefresh}>
+          <IonRefresherContent></IonRefresherContent>
+        </IonRefresher>
+
+        <main className="container mx-auto p-4 md:p-6 pt-safe-top pb-safe-bottom">
+          {globalMessage && (
+            <div className="mb-4 p-4 text-center bg-green-700 text-white rounded-lg shadow-lg animate-fade-in">
+              {globalMessage}
+            </div>
+          )}
+          
+          <Suspense fallback={<LoadingFallback />}>
+            {renderContent()}
+          </Suspense>
+        </main>
+        
+        <AddToHomeScreen />
+      </IonContent>
+    </IonApp>
   );
 };
 
