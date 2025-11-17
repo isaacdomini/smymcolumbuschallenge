@@ -87,6 +87,20 @@ async function seedDatabase() {
                     { name: 'OLD TESTAMENT HISTORICAL BOOKS', words: ['JOSHUA', 'JUDGES', 'RUTH', 'ESTHER'] },
                 ]
             }
+        },
+        // Nov 16, 2025 - Sunday - Match The Word
+        {
+            date: '2025-11-16',
+            type: 'match_the_word',
+            data: {
+                pairs: [
+                    { word: 'David', match: 'Shepherd King' },
+                    { word: 'Moses', match: 'Lawgiver' },
+                    { word: 'Abraham', match: 'Father of Nations' },
+                    { word: 'Paul', match: 'Apostle to the Gentiles' },
+                    { word: 'Esther', match: 'Queen of Persia' }
+                ]
+            }
         }
     ];
 

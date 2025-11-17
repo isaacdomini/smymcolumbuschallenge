@@ -1,7 +1,18 @@
-import { User, Challenge, Game, GameType, GameSubmission, WordleData, ConnectionsData, CrosswordData, SubmitGamePayload, GameProgress, AdminStats, LogEntry} from '@/types';
+import { User, Challenge, Game, GameType, GameSubmission, WordleData, ConnectionsData, CrosswordData, MatchTheWordData, SubmitGamePayload, GameProgress, AdminStats, LogEntry} from '@/types';
 
 const USE_MOCK_DATA = import.meta.env.MODE === 'development';
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+
+const isTestUser = () => {
+    try {
+        const stored = localStorage.getItem('smym-user');
+        if (stored) {
+            const user = JSON.parse(stored);
+            return user && user.email && user.email.split('@')[0] === 'test';
+        }
+    } catch (e) {}
+    return false;
+};
 
 // --- MOCK DATABASE ---
 
@@ -14,8 +25,8 @@ const MOCK_USERS: User[] = [
 const MOCK_CHALLENGE: Challenge = {
     id: 'challenge-1', 
     name: 'Lenten Challenge 2025', 
-    startDate: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString(), 
-    endDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 38).toISOString() 
+    startDate: new Date(Date.now() - 1000 * 60 * 60 * 24 * 10).toISOString(), 
+    endDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 2).toISOString() 
 };
 
 const MOCK_GAMES: Game[] = [];
@@ -29,14 +40,6 @@ for (let i = 0; i < 40; i++) {
     let game: Game;
 
     if (gameTypeIndex === 0) {
-        game = {
-            id: `game-wordle-${dateStr}`,
-            challengeId: MOCK_CHALLENGE.id,
-            date: gameDate.toISOString(),
-            type: GameType.WORDLE,
-            data: { solution: i === 0 ? 'GRACE' : i === 3 ? 'ANGEL' : 'FAITH' } as WordleData,
-        };
-    } else if (gameTypeIndex === 1) {
         game = {
             id: `game-conn-${dateStr}`,
             challengeId: MOCK_CHALLENGE.id,
@@ -56,6 +59,22 @@ for (let i = 0; i < 40; i++) {
                     { name: 'SYMBOLS OF THE PASSION', words: ['CROSS', 'THORNS', 'NAILS', 'TOMB'] },
                 ],
             } as ConnectionsData,
+        };
+    } else if (gameTypeIndex === 1) {
+        game = {
+            id: `game-match-${dateStr}`,
+            challengeId: MOCK_CHALLENGE.id,
+            date: gameDate.toISOString(),
+            type: GameType.MATCH_THE_WORD,
+            data: {
+                pairs: [
+                    { word: 'David', match: 'Shepherd King' },
+                    { word: 'Moses', match: 'Lawgiver' },
+                    { word: 'Abraham', match: 'Father of Nations' },
+                    { word: 'Paul', match: 'Apostle to the Gentiles' },
+                    { word: 'Esther', match: 'Queen of Persia' }
+                ]
+            } as MatchTheWordData,
         };
     } else {
          const crosswordData: CrosswordData = {
@@ -122,13 +141,19 @@ const simulateDelay = (ms: number) => new Promise(res => setTimeout(res, ms));
 // --- API FUNCTIONS ---
 
 export const login = async (email: string, pass: string): Promise<User> => {
-    if (USE_MOCK_DATA) {
+    const useMock = USE_MOCK_DATA || email.split('@')[0] === 'test';
+    if (useMock) {
         await simulateDelay(500);
         const user = MOCK_USERS.find(u => u.email === email);
         if (user) {
             // MOCK ONLY: Map is_admin to isAdmin if it existed in a different format in legacy mock data, 
             // but here we defined it correctly above.
             return user;
+        }
+        if (email.split('@')[0] === 'test') {
+            const newUser: User = { id: `user-${Date.now()}`, name: 'Test User', email, isAdmin: true };
+            MOCK_USERS.push(newUser);
+            return newUser;
         }
         throw new Error("Invalid credentials");
     } else {
@@ -148,7 +173,8 @@ export const login = async (email: string, pass: string): Promise<User> => {
 };
 
 export const signup = async (name: string, email: string, pass: string, emailNotifications: boolean): Promise<{ message: string }> => {
-    if (USE_MOCK_DATA) {
+    const useMock = USE_MOCK_DATA || email.split('@')[0] === 'test';
+    if (useMock) {
         await simulateDelay(500);
         if (MOCK_USERS.some(u => u.email === email)) {
             throw new Error("User already exists");
@@ -178,7 +204,8 @@ export const logout = (): void => {
 };
 
 export const forgotPassword = async (email: string): Promise<{ message: string }> => {
-    if (USE_MOCK_DATA) {
+    const useMock = USE_MOCK_DATA || email.split('@')[0] === 'test';
+    if (useMock) {
         await simulateDelay(500);
         return { message: 'If an account with that email exists, a password reset link has been sent. (Mock)' };
     } else {
@@ -217,7 +244,8 @@ export const resetPassword = async (token: string, password: string): Promise<{ 
 
 // --- NEW Account Deletion Request ---
 export const requestAccountDeletion = async (email: string, password: string): Promise<{ message: string }> => {
-    if (USE_MOCK_DATA) {
+    const useMock = USE_MOCK_DATA || email.split('@')[0] === 'test';
+    if (useMock) {
         await simulateDelay(500);
         const user = MOCK_USERS.find(u => u.email === email);
         if (!user) throw new Error("Invalid credentials");
@@ -238,7 +266,7 @@ export const requestAccountDeletion = async (email: string, password: string): P
 };
 
 export const getChallenge = async (): Promise<Challenge | null> => {
-    if (USE_MOCK_DATA) {
+    if (USE_MOCK_DATA || isTestUser()) {
         await simulateDelay(300);
         const now = new Date();
         const isFinished = new Date(MOCK_CHALLENGE.endDate) < now;
@@ -256,7 +284,7 @@ export const getChallenge = async (): Promise<Challenge | null> => {
 };
 
 export const getDailyGame = async (challengeId: string): Promise<Game | null> => {
-    if (USE_MOCK_DATA) {
+    if (USE_MOCK_DATA || isTestUser()) {
         await simulateDelay(200);
         if (challengeId !== MOCK_CHALLENGE.id) return null;
         const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
@@ -271,7 +299,7 @@ export const getDailyGame = async (challengeId: string): Promise<Game | null> =>
 };
 
 export const getGameById = async (gameId: string): Promise<Game | null> => {
-    if (USE_MOCK_DATA) {
+    if (USE_MOCK_DATA || isTestUser()) {
         await simulateDelay(200);
         return MOCK_GAMES.find(g => g.id === gameId) ?? null;
     } else {
@@ -285,7 +313,7 @@ export const getGameById = async (gameId: string): Promise<Game | null> => {
 
 
 export const getGamesForChallenge = async (challengeId: string): Promise<Game[]> => {
-    if (USE_MOCK_DATA) {
+    if (USE_MOCK_DATA || isTestUser()) {
         await simulateDelay(400);
         if (challengeId !== MOCK_CHALLENGE.id) return [];
         // Updated to return ALL games, irrespective of current date
@@ -300,7 +328,7 @@ export const getGamesForChallenge = async (challengeId: string): Promise<Game[]>
 };
 
 export const getSubmissionsForUser = async (userId: string, challengeId: string): Promise<GameSubmission[]> => {
-    if (USE_MOCK_DATA) {
+    if (USE_MOCK_DATA || isTestUser()) {
         await simulateDelay(200);
         return MOCK_SUBMISSIONS.filter(s => s.userId === userId && s.challengeId === challengeId);
     } else {
@@ -313,7 +341,7 @@ export const getSubmissionsForUser = async (userId: string, challengeId: string)
 };
 
 export const getSubmissionForToday = async (userId: string, gameId: string): Promise<GameSubmission | null> => {
-    if (USE_MOCK_DATA) {
+    if (USE_MOCK_DATA || isTestUser()) {
         await simulateDelay(100);
         return MOCK_SUBMISSIONS.find(s => s.userId === userId && s.gameId === gameId) ?? null;
     } else {
@@ -328,7 +356,7 @@ export const getSubmissionForToday = async (userId: string, gameId: string): Pro
 };
 
 export const getLeaderboard = async (challengeId: string): Promise<(GameSubmission & { user: User })[]> => {
-    if (USE_MOCK_DATA) {
+    if (USE_MOCK_DATA || isTestUser()) {
         await simulateDelay(400);
         if (challengeId !== MOCK_CHALLENGE.id) return [];
 
@@ -394,6 +422,13 @@ const calculateScore = (payload: SubmitGamePayload, game: Game): number => {
             return Math.max(0, accuracyScore + timeBonus);
         }
 
+        case GameType.MATCH_THE_WORD: {
+            const foundPairsCount = submissionData?.foundPairsCount ?? 0;
+            const pairScore = foundPairsCount * 20;
+            const mistakePenalty = mistakes * 10;
+            return Math.max(0, pairScore - mistakePenalty);
+        }
+
         default: {
             const timePenalty = Math.floor(timeTaken / 15);
             const mistakePenalty = mistakes * 10;
@@ -403,7 +438,7 @@ const calculateScore = (payload: SubmitGamePayload, game: Game): number => {
 }
 
 export const submitGame = async (payload: SubmitGamePayload): Promise<GameSubmission> => {
-    if (USE_MOCK_DATA) {
+    if (USE_MOCK_DATA || isTestUser()) {
         await simulateDelay(500);
         const game = MOCK_GAMES.find(g => g.id === payload.gameId);
         if (!game) throw new Error("Game not found to submit to.");
@@ -449,7 +484,7 @@ export const submitGame = async (payload: SubmitGamePayload): Promise<GameSubmis
 };
 
 export const getGameState = async (userId: string, gameId: string): Promise<GameProgress | null> => {
-    if (USE_MOCK_DATA) {
+    if (USE_MOCK_DATA || isTestUser()) {
         await simulateDelay(200);
         return MOCK_GAME_PROGRESS.find(p => p.userId === userId && p.gameId === gameId) ?? null;
     } else {
@@ -464,7 +499,7 @@ export const getGameState = async (userId: string, gameId: string): Promise<Game
 };
 
 export const saveGameState = async (userId: string, gameId: string, gameState: any): Promise<GameProgress> => {
-    if (USE_MOCK_DATA) {
+    if (USE_MOCK_DATA || isTestUser()) {
         await simulateDelay(300);
         let progress = MOCK_GAME_PROGRESS.find(p => p.userId === userId && p.gameId === gameId);
         if (progress) {
@@ -495,7 +530,7 @@ export const saveGameState = async (userId: string, gameId: string, gameState: a
 };
 
 export const clearGameState = async (userId: string, gameId: string): Promise<void> => {
-    if (USE_MOCK_DATA) {
+    if (USE_MOCK_DATA || isTestUser()) {
         await simulateDelay(100);
         const index = MOCK_GAME_PROGRESS.findIndex(p => p.userId === userId && p.gameId === gameId);
         if (index > -1) {
@@ -514,7 +549,7 @@ export const clearGameState = async (userId: string, gameId: string): Promise<vo
 // --- ADMIN API ---
 
 export const getAdminStats = async (userId: string): Promise<AdminStats> => {
-    if (USE_MOCK_DATA) {
+    if (USE_MOCK_DATA || isTestUser()) {
         // Mock admin stats
         return {
             totalUsers: MOCK_USERS.length,
@@ -531,7 +566,7 @@ export const getAdminStats = async (userId: string): Promise<AdminStats> => {
 }
 
 export const getChallenges = async (userId: string): Promise<Challenge[]> => {
-    if (USE_MOCK_DATA) {
+    if (USE_MOCK_DATA || isTestUser()) {
         return [MOCK_CHALLENGE];
     }
      const response = await fetch(`${API_BASE_URL}/admin/challenges`, {
@@ -542,7 +577,7 @@ export const getChallenges = async (userId: string): Promise<Challenge[]> => {
 }
 
 export const createGame = async (userId: string, gameData: any): Promise<void> => {
-    if (USE_MOCK_DATA) {
+    if (USE_MOCK_DATA || isTestUser()) {
         console.log("Mock create game:", gameData);
         MOCK_GAMES.push({
             id: `game-${gameData.type}-${gameData.date}`,
@@ -565,7 +600,7 @@ export const createGame = async (userId: string, gameData: any): Promise<void> =
 }
 
 export const createChallenge = async (userId: string, challengeData: Partial<Challenge>): Promise<void> => {
-    if (USE_MOCK_DATA) return; // Not implemented for mock
+    if (USE_MOCK_DATA || isTestUser()) return; // Not implemented for mock
     const response = await fetch(`${API_BASE_URL}/admin/challenges`, {
         method: 'POST',
         headers: getAuthHeaders(userId),
@@ -578,7 +613,7 @@ export const createChallenge = async (userId: string, challengeData: Partial<Cha
 }
 
 export const updateChallenge = async (userId: string, challengeId: string, challengeData: Partial<Challenge>): Promise<void> => {
-    if (USE_MOCK_DATA) return; // Not implemented for mock
+    if (USE_MOCK_DATA || isTestUser()) return; // Not implemented for mock
     const response = await fetch(`${API_BASE_URL}/admin/challenges/${challengeId}`, {
         method: 'PUT',
         headers: getAuthHeaders(userId),
@@ -591,7 +626,7 @@ export const updateChallenge = async (userId: string, challengeId: string, chall
 }
 
 export const deleteChallenge = async (userId: string, challengeId: string): Promise<void> => {
-    if (USE_MOCK_DATA) return; // Not implemented for mock
+    if (USE_MOCK_DATA || isTestUser()) return; // Not implemented for mock
     const response = await fetch(`${API_BASE_URL}/admin/challenges/${challengeId}`, {
         method: 'DELETE',
         headers: getAuthHeaders(userId)
@@ -603,7 +638,7 @@ export const deleteChallenge = async (userId: string, challengeId: string): Prom
 }
 
 export const getUsers = async (userId: string, limit = 50, offset = 0): Promise<User[]> => {
-    if (USE_MOCK_DATA) return MOCK_USERS;
+    if (USE_MOCK_DATA || isTestUser()) return MOCK_USERS;
     const response = await fetch(`${API_BASE_URL}/admin/users?limit=${limit}&offset=${offset}`, {
         headers: getAuthHeaders(userId)
     });
@@ -612,7 +647,7 @@ export const getUsers = async (userId: string, limit = 50, offset = 0): Promise<
 };
 
 export const updateUser = async (adminUserId: string, targetUserId: string, data: { isAdmin?: boolean, isVerified?: boolean }): Promise<void> => {
-    if (USE_MOCK_DATA) return;
+    if (USE_MOCK_DATA || isTestUser()) return;
      const response = await fetch(`${API_BASE_URL}/admin/users/${targetUserId}`, {
         method: 'PUT',
         headers: getAuthHeaders(adminUserId),
@@ -622,10 +657,50 @@ export const updateUser = async (adminUserId: string, targetUserId: string, data
 };
 
 export const getLogs = async (userId: string, limit = 100, offset = 0): Promise<LogEntry[]> => {
-    if (USE_MOCK_DATA) return [];
+    if (USE_MOCK_DATA || isTestUser()) return [];
     const response = await fetch(`${API_BASE_URL}/admin/logs?limit=${limit}&offset=${offset}`, {
         headers: getAuthHeaders(userId)
     });
     if (!response.ok) throw new Error('Failed to fetch logs');
     return await response.json();
+};
+    
+export const getScoringCriteria = async (): Promise<any[]> => {
+    return [
+        {
+            title: 'Connect the Words',
+            description: 'Solve the puzzle by grouping words into categories.',
+            points: [
+                'Category Score: 20 points for each correct category found.',
+                'Mistake Penalty: -5 points for each incorrect guess.'
+            ]
+        },
+        {
+            title: 'Crossword',
+            description: 'Complete the crossword by solving the clues.',
+            points: [
+                'Accuracy Score: Up to 70 points based on the percentage of correctly filled cells.',
+                'Time Bonus: Up to 30 points for a fast completion time.'
+            ]
+        },
+        {
+            title: 'Match the Word',
+            description: 'Your score is based on how quickly and accurately you match the words.',
+            points: [
+                'Match Score: 10 points for each correct match.',
+                'Time Bonus: Up to 30 points for a fast completion time.',
+                'Mistake Penalty: -5 points for each incorrect match.'
+            ]
+        },
+        ... !(USE_MOCK_DATA || isTestUser()) ? [ 
+        {
+            title: 'Word of the Day',
+            description: 'Your score is based solely on the number of guesses used.',
+            points: [
+                'Guess Score: Up to 60 points (10 points for every unused guess remaining).',
+                'Losing (6 incorrect guesses) results in a score of 0.'
+            ]
+        }] : []
+    ];
+    
 };

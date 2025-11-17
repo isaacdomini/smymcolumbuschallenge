@@ -8,6 +8,7 @@ import Leaderboard from './components/dashboard/Leaderboard';
 const WordleGame = lazy(() => import('./components/game/WordleGame'));
 const ConnectionsGame = lazy(() => import('./components/game/ConnectionsGame'));
 const CrosswordGame = lazy(() => import('./components/game/CrosswordGame'));
+const MatchTheWordGame = lazy(() => import('./components/game/MatchTheWordGame'));
 const ChallengeHistory = lazy(() => import('./components/dashboard/ChallengeHistory'));
 const ResetPassword = lazy(() => import('./components/auth/ResetPassword'));
 const AdminDashboard = lazy(() => import('./components/admin/AdminDashboard'));
@@ -276,6 +277,8 @@ const MainContent: React.FC = () => {
                 return <ConnectionsGame gameData={gameToPlay.data as any} onComplete={onComplete} submission={activeSubmission} gameId={gameToPlay.id} />;
             case GameType.CROSSWORD:
                 return <CrosswordGame gameData={gameToPlay.data as any} onComplete={onComplete} submission={activeSubmission} gameId={gameToPlay.id} />;
+            case GameType.MATCH_THE_WORD:
+                return <MatchTheWordGame gameData={gameToPlay.data as any} onComplete={onComplete} submission={activeSubmission} gameId={gameToPlay.id} />;
             default: return <p>Unknown game type.</p>;
         }
     }
@@ -323,7 +326,7 @@ const MainContent: React.FC = () => {
                     </button>
                  </div>
             )}
-            <ScoringCriteria />
+            {user && <ScoringCriteria />}
         </div>
     );
   }

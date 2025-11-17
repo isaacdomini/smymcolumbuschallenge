@@ -50,7 +50,7 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
                     setShowInstructions(false); // Don't show instructions if resuming
                 }
             } catch (e) {
-                console.error("Failed to parse saved Wordle state", e);
+                console.error("Failed to parse saved Word of the Day state", e);
                 setGuesses(Array(maxGuesses).fill('')); 
             }
         }
@@ -228,7 +228,7 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
   return (
     <div className="w-full max-w-md mx-auto flex flex-col items-center">
       <div className="flex items-center justify-between w-full mb-4">
-        <h2 className="text-2xl font-bold">Wordle</h2>
+        <h2 className="text-2xl font-bold">Word of the Day</h2>
         <button onClick={() => setShowInstructions(true)} className="text-gray-400 hover:text-white" title="Show Instructions">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
         </button>
