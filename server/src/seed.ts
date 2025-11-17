@@ -22,10 +22,9 @@ async function seedDatabase() {
     // Seed challenge
     const challengeId = 'challenge-advent-2025';
     const challengeName = 'November 2025 Christian Challenge';
-    // Set dates to cover the requested range (Nov 8 - Nov 15, 2025)
-    const startDate = new Date('2025-11-08T00:00:00Z'); // Saturday
-    const endDate = new Date('2025-11-15T23:59:59Z');   // Saturday following
-
+// Set dates to cover the requested range (Nov 8 - Nov 15, 2025)
+    const startDate = new Date('2025-11-08T00:00:00-05:00'); // Saturday
+    const endDate = new Date('2025-11-15T23:59:59-05:00');   // Saturday following
     await client.query(
       'INSERT INTO challenges (id, name, start_date, end_date) VALUES ($1, $2, $3, $4) ON CONFLICT (id) DO UPDATE SET start_date = EXCLUDED.start_date, end_date = EXCLUDED.end_date',
       [challengeId, challengeName, startDate, endDate]

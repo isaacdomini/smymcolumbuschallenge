@@ -34,18 +34,29 @@ const ScoringCriteria: React.FC = () => {
       {loading ? (
         <div className="text-center text-white">Loading scoring criteria...</div>
       ) : (
-        <div className="grid md:grid-cols-3 gap-6">
-          {criteria.map((item) => (
-            <div key={item.title} className="bg-gray-700/50 p-4 rounded-lg border-l-4 border-yellow-500">
-              <h3 className="text-xl font-bold text-white mb-2">{item.title}</h3>
-              <p className="text-gray-300 mb-3 text-sm">{item.description}</p>
-              <ul className="list-none space-y-1 text-gray-400 text-sm">
-                {item.points.map((point, index) => (
-                  <li key={index}>{point}</li>
-                ))}
-              </ul>
-            </div>
-          ))}
+        <div>
+          <div className="mb-6 p-4 bg-red-900/30 border border-red-700/50 rounded-lg text-center">
+            <h3 className="text-xl font-bold text-red-300 mb-2">Late Submissions & Missed Games</h3>
+            <p className="text-gray-300">
+              Scores receive a <strong className="font-bold text-white">20% penalty for each day</strong> submitted after the game's date.
+            </p>
+            <p className="text-gray-400 text-sm mt-1">
+              Games are marked as "Missed" and become unplayable <strong className="font-bold text-white">more than 5 days</strong> after their release.
+            </p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-6">
+            {criteria.map((item) => (
+              <div key={item.title} className="bg-gray-700/50 p-4 rounded-lg border-l-4 border-yellow-500">
+                <h3 className="text-xl font-bold text-white mb-2">{item.title}</h3>
+                <p className="text-gray-300 mb-3 text-sm">{item.description}</p>
+                <ul className="list-none space-y-1 text-gray-400 text-sm">
+                  {item.points.map((point, index) => (
+                    <li key={index}>{point}</li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
