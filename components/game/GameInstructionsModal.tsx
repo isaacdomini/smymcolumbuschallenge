@@ -104,11 +104,24 @@ const GameInstructionsModal: React.FC<GameInstructionsModalProps> = ({ gameType,
     </div>
   );
 
+  const renderMatchTheWordInstructions = () => (
+    <div className="space-y-4">
+      <p>Match the words on the left with their corresponding pairs on the right.</p>
+      <ul className="list-disc pl-5 space-y-2 text-gray-300">
+        <li>Select a word from the first column, then select its matching pair from the second column.</li>
+        <li>Correct pairs will be highlighted and locked in.</li>
+        <li>You have a limited number of mistakes. The game ends if you exceed the mistake limit.</li>
+        <li>Match all pairs to win!</li>
+      </ul>
+    </div>
+  );
+
   const getTitle = () => {
     switch (gameType) {
-      case GameType.WORDLE: return 'How to Play Wordle';
-      case GameType.CONNECTIONS: return 'How to Play Connections';
+      case GameType.WORDLE: return 'How to Play Word of the Day';
+      case GameType.CONNECTIONS: return 'How to Play Connect the Words';
       case GameType.CROSSWORD: return 'How to Play Crossword';
+      case GameType.MATCH_THE_WORD: return 'How to Play Match the Word';
       default: return 'Instructions';
     }
   };
@@ -118,6 +131,7 @@ const GameInstructionsModal: React.FC<GameInstructionsModalProps> = ({ gameType,
       case GameType.WORDLE: return renderWordleInstructions();
       case GameType.CONNECTIONS: return renderConnectionsInstructions();
       case GameType.CROSSWORD: return renderCrosswordInstructions();
+      case GameType.MATCH_THE_WORD: return renderMatchTheWordInstructions();
       default: return null;
     }
   };

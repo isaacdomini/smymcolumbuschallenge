@@ -24,6 +24,19 @@ const getScoringTooltipText = (gameType: GameType): string => {
     }
 }
 
+const getGameName = (gameType: GameType): string => {
+    switch (gameType) {
+        case GameType.WORDLE:
+            return "Word of the Day";
+        case GameType.CONNECTIONS:
+            return "Connect the Words";
+        case GameType.MATCH_THE_WORD:
+            return "Match the Word";
+        default:
+            return gameType.charAt(0).toUpperCase() + gameType.slice(1);
+    }
+}
+
 const ChallengeHistory: React.FC<ChallengeHistoryProps> = ({ challengeId, userId, onPlayGame, onRevisitGame, onBack }) => {
   const [games, setGames] = useState<Game[]>([]);
   const [submissions, setSubmissions] = useState<GameSubmission[]>([]);
@@ -95,8 +108,8 @@ const ChallengeHistory: React.FC<ChallengeHistoryProps> = ({ challengeId, userId
                   <p className="text-gray-400 text-sm">
                       {new Date(game.date).toLocaleDateString(undefined, { timeZone: 'UTC', weekday: 'long', month: 'long', day: 'numeric' })}
                   </p>
-                  <p className="text-xl font-bold capitalize">
-                    {game.type} 
+                  <p className="text-xl font-bold">
+                    {getGameName(game.type)}
                     {isToday && <span className="text-xs text-yellow-400 ml-2">TODAY</span>}
                     {isFuture && <span className="text-xs text-gray-500 ml-2">UPCOMING</span>}
                   </p>

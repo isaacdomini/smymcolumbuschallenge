@@ -130,8 +130,8 @@ const GameBuilder: React.FC = () => {
                             onChange={e => setGameType(e.target.value as GameType)}
                             className="w-full p-2 bg-gray-900 border border-gray-700 rounded focus:ring-yellow-500 focus:border-yellow-500 text-white"
                         >
-                            <option value={GameType.WORDLE}>Wordle</option>
-                            <option value={GameType.CONNECTIONS}>Connections</option>
+                            <option value={GameType.WORDLE}>Word of the Day</option>
+                            <option value={GameType.CONNECTIONS}>Connect the Words</option>
                             <option value={GameType.CROSSWORD}>Crossword (JSON)</option>
                         </select>
                     </div>

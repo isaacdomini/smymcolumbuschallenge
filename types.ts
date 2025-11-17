@@ -11,6 +11,7 @@ export enum GameType {
   WORDLE = 'wordle',
   CONNECTIONS = 'connections',
   CROSSWORD = 'crossword',
+  MATCH_THE_WORD = 'match_the_word',
 }
 
 export interface WordleData {
@@ -43,6 +44,13 @@ export interface CrosswordData {
   downClues: Clue[];
 }
 
+export interface MatchTheWordData {
+  pairs: {
+    word: string;
+    match: string;
+  }[];
+}
+
 export type Game = {
   id: string;
   challengeId: string;
@@ -59,6 +67,10 @@ export type Game = {
   | {
       type: GameType.CROSSWORD;
       data: CrosswordData;
+    }
+  | {
+      type: GameType.MATCH_THE_WORD;
+      data: MatchTheWordData;
     }
 );
 
@@ -110,8 +122,15 @@ export interface LogEntry {
     id: number;
     ip_address: string;
     user_agent: string | null;
-    path: string;
-    method: string;
-    user_id: string | null;
-    created_at: string;
-}
+        path: string;
+        method: string;
+        user_id: string | null;
+        created_at: string;
+    }
+    
+    export interface ScoringCriterion {
+      title: string;
+      description: string;
+      points: string[];
+    }
+    
