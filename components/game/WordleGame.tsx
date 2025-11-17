@@ -244,7 +244,7 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
       </div>
       
       <div 
-        className="grid gap-1.5 mb-4"
+        className="grid gap-1.5 mb-4 w-full"
         style={{ gridTemplateRows: `repeat(${maxGuesses}, 1fr)` }}
       >
         {guesses.map((guess, i) => (
@@ -330,7 +330,7 @@ const getTileStatus = (char: string, index: number, isSubmitted: boolean, soluti
 };
 
 const Tile: React.FC<{char?: string; status: 'empty' | 'correct' | 'present' | 'absent'; isRevealing: boolean; index: number}> = ({ char, status, isRevealing, index }) => {
-    const baseClasses = "w-12 h-12 sm:w-14 sm:h-14 border-2 flex items-center justify-center text-2xl sm:text-3xl font-bold uppercase transition-all duration-300";
+    const baseClasses = "aspect-square sm:w-14 sm:h-14 border-2 flex items-center justify-center text-2xl sm:text-3xl font-bold uppercase transition-all duration-300";
     const statusClasses = {
         empty: 'border-gray-600',
         absent: 'bg-gray-700 border-gray-700',

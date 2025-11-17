@@ -273,7 +273,7 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
 
   // Mobile-specific container classes for full-screen, sticky layout
   const mobileContainerClasses = isMobile && !isReviewMode
-      ? 'fixed inset-0 top-[60px] z-20 bg-gray-900' 
+      ? 'fixed inset-0 top-[80px] z-20 bg-gray-900' 
       : 'relative w-full';
 
   return (

@@ -145,7 +145,6 @@ const GameBuilder: React.FC = () => {
                                 type="text" 
                                 value={wordleSolution}
                                 onChange={e => setWordleSolution(e.target.value)}
-                                maxLength={5}
                                 required
                                 className="w-full p-2 bg-gray-900 border border-gray-700 rounded focus:ring-yellow-500 focus:border-yellow-500 text-white uppercase"
                                 placeholder="FAITH"
