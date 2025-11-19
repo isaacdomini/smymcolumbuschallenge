@@ -276,6 +276,76 @@ router.post('/request-deletion', async (req: Request, res: Response) => {
   }
 });
 
+// --- USER PROFILE MANAGEMENT ---
+router.put('/users/:userId', async (req: Request, res: Response) => {
+    try {
+        const { userId } = req.params;
+        const authUserId = req.headers['x-user-id'];
+
+        if (userId !== authUserId) {
+            return res.status(403).json({ error: 'Forbidden: You can only update your own profile.' });
+        }
+
+        const { name } = req.body;
+        if (!name) {
+            return res.status(400).json({ error: 'Name is required.' });
+        }
+
+        const result = await pool.query(
+            'UPDATE users SET name = $1 WHERE id = $2 RETURNING *',
+            [name, userId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'User not found.' });
+        }
+
+        const user = result.rows[0];
+        delete user.password;
+        delete user.verification_token;
+        delete user.reset_password_token;
+        delete user.reset_password_expires;
+        res.json(user);
+
+    } catch (error) {
+        console.error('Update user profile error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+router.delete('/users/:userId', async (req: Request, res: Response) => {
+    try {
+        const { userId } = req.params;
+        const authUserId = req.headers['x-user-id'];
+
+        if (userId !== authUserId) {
+            return res.status(403).json({ error: 'Forbidden: You can only delete your own account.' });
+        }
+
+        // Use a transaction to ensure all data is deleted
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+            await client.query('DELETE FROM game_submissions WHERE user_id = $1', [userId]);
+            await client.query('DELETE FROM game_progress WHERE user_id = $1', [userId]);
+            await client.query('DELETE FROM push_subscriptions WHERE user_id = $1', [userId]);
+            await client.query('DELETE FROM users WHERE id = $1', [userId]);
+            await client.query('COMMIT');
+            
+            res.status(204).send();
+        } catch (error) {
+            await client.query('ROLLBACK');
+            throw error;
+        } finally {
+            client.release();
+        }
+
+    } catch (error) {
+        console.error('Delete user error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 // --- GAME DATA ENDPOINTS ---
 router.get('/challenge', async (req: Request, res: Response) => {
   try {

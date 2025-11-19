@@ -14,6 +14,7 @@ const ResetPassword = lazy(() => import('./components/auth/ResetPassword'));
 const AdminDashboard = lazy(() => import('./components/admin/AdminDashboard'));
 const PrivacyPolicy = lazy(() => import('./components/PrivacyPolicy'));
 const DeleteAccount = lazy(() => import('./components/auth/DeleteAccount'));
+const Profile = lazy(() => import('./components/Profile'));
 import ChallengeIntro from './components/dashboard/ChallengeIntro';
 import { Game, GameType, Challenge, GameSubmission, User } from './types';
 import { getChallenge, getDailyGame, getLeaderboard, getSubmissionForToday, getGamesForChallenge, getSubmissionsForUser, getGameState } from './services/api';
@@ -160,7 +161,7 @@ const MainContent: React.FC = () => {
   }, []);
 
   const fetchInitialData = useCallback(async () => {
-    if (locationPath.startsWith('/reset-password') || locationPath.startsWith('/admin') || locationPath.startsWith('/privacy') || locationPath.startsWith('/request-deletion')) {
+    if (locationPath.startsWith('/reset-password') || locationPath.startsWith('/admin') || locationPath.startsWith('/privacy') || locationPath.startsWith('/request-deletion') || locationPath.startsWith('/profile')) {
         setIsLoading(false);
         return;
     }
@@ -248,6 +249,9 @@ const MainContent: React.FC = () => {
     if (locationPath.startsWith('/request-deletion')) {
         return <DeleteAccount onBack={() => navigate('/')} />;
     }
+    if (locationPath.startsWith('/profile')) {
+        return <Profile onBack={() => navigate('/')} />;
+    }
     if (locationPath.startsWith('/admin')) {
         if (!user || !user.isAdmin) {
              navigate('/'); 
@@ -290,7 +294,10 @@ const MainContent: React.FC = () => {
         <div>
             {!user && challengeStarted && <ChallengeIntro />}
             {!challengeStarted && challenge ? (
+                <>
+                <ChallengeIntro />
                 <Countdown targetDate={challenge.startDate} />
+                </>
             ) : null}
             {challengeStarted && (
                 <div className="mb-8 flex flex-col sm:flex-row justify-center items-center gap-4">
@@ -333,7 +340,7 @@ const MainContent: React.FC = () => {
 
   return (
     <IonApp>
-      <Header challengeName={challenge?.name} onLogoClick={() => navigate('/')} />
+      <Header challengeName={challenge?.name} onLogoClick={() => navigate('/')} navigate={navigate} />
       <IonContent className="text-gray-100 font-sans">
         
         <IonRefresher slot="fixed" onIonRefresh={handleRefresh}>

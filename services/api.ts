@@ -646,7 +646,7 @@ export const getUsers = async (userId: string, limit = 50, offset = 0): Promise<
     return await response.json();
 };
 
-export const updateUser = async (adminUserId: string, targetUserId: string, data: { isAdmin?: boolean, isVerified?: boolean }): Promise<void> => {
+export const updateUserAsAdmin = async (adminUserId: string, targetUserId: string, data: { isAdmin?: boolean, isVerified?: boolean }): Promise<void> => {
     if (USE_MOCK_DATA || isTestUser()) return;
      const response = await fetch(`${API_BASE_URL}/admin/users/${targetUserId}`, {
         method: 'PUT',
@@ -655,6 +655,38 @@ export const updateUser = async (adminUserId: string, targetUserId: string, data
     });
     if (!response.ok) throw new Error('Failed to update user');
 };
+
+export const updateUserProfile = async (userId: string, data: { name: string }): Promise<User> => {
+    if (USE_MOCK_DATA || isTestUser()) {
+        await simulateDelay(500);
+        const user = MOCK_USERS.find(u => u.id === userId);
+        if (!user) throw new Error("User not found");
+        user.name = data.name;
+        return user;
+    }
+    const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(userId),
+        body: JSON.stringify(data)
+    });
+    if (!response.ok) throw new Error('Failed to update user profile');
+    return await response.json();
+}
+
+export const deleteUser = async (userId: string): Promise<void> => {
+    if (USE_MOCK_DATA || isTestUser()) {
+        await simulateDelay(500);
+        const index = MOCK_USERS.findIndex(u => u.id === userId);
+        if (index === -1) throw new Error("User not found");
+        MOCK_USERS.splice(index, 1);
+        return;
+    }
+    const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(userId)
+    });
+    if (!response.ok) throw new Error('Failed to delete user');
+}
 
 export const getLogs = async (userId: string, limit = 100, offset = 0): Promise<LogEntry[]> => {
     if (USE_MOCK_DATA || isTestUser()) return [];
@@ -683,15 +715,6 @@ export const getScoringCriteria = async (): Promise<any[]> => {
                 'Time Bonus: Up to 30 points for a fast completion time.'
             ]
         },
-        {
-            title: 'Match the Word',
-            description: 'Your score is based on how quickly and accurately you match the words.',
-            points: [
-                'Match Score: 10 points for each correct match.',
-                'Time Bonus: Up to 30 points for a fast completion time.',
-                'Mistake Penalty: -5 points for each incorrect match.'
-            ]
-        },
         ... !(USE_MOCK_DATA || isTestUser()) ? [ 
         {
             title: 'Word of the Day',
@@ -700,7 +723,16 @@ export const getScoringCriteria = async (): Promise<any[]> => {
                 'Guess Score: Up to 60 points (10 points for every unused guess remaining).',
                 'Losing (6 incorrect guesses) results in a score of 0.'
             ]
-        }] : []
+        }] :
+        [{
+            title: 'Match the Word',
+            description: 'Your score is based on how quickly and accurately you match the words.',
+            points: [
+                'Match Score: 10 points for each correct match.',
+                'Time Bonus: Up to 30 points for a fast completion time.',
+                'Mistake Penalty: -5 points for each incorrect match.'
+            ]
+        }]
     ];
     
 };
