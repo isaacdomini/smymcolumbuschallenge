@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import AuthModal from './auth/AuthModal';
@@ -8,13 +8,16 @@ import Tooltip from './ui/Tooltip';
 interface HeaderProps {
     challengeName?: string;
     onLogoClick?: () => void;
+    navigate: (path: string) => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ challengeName, onLogoClick }) => {
+const Header: React.FC<HeaderProps> = ({ challengeName, onLogoClick, navigate }) => {
     const { user, logout } = useAuth();
     const [isAuthModalOpen, setAuthModalOpen] = useState(false);
     const { isSupported, isSubscribed, notificationPermission, subscribeToPush } = usePushNotifications();
     const [showPushPopup, setShowPushPopup] = useState(false);
+    const [isProfileMenuOpen, setProfileMenuOpen] = useState(false);
+    const profileMenuRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         // Show popup if:
@@ -33,6 +36,18 @@ const Header: React.FC<HeaderProps> = ({ challengeName, onLogoClick }) => {
             setShowPushPopup(false);
         }
     }, [user, isSupported, notificationPermission]);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
+                setProfileMenuOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
 
     const handleDismissPopup = () => {
         setShowPushPopup(false);
@@ -96,13 +111,31 @@ const Header: React.FC<HeaderProps> = ({ challengeName, onLogoClick }) => {
                                         )}
                                     </div>
                                 )}
-                                <div className="flex items-center space-x-2">
-                                    <span className="hidden sm:inline text-gray-300">{user.name}</span>
-                                    <div className="p-2 bg-gray-700 rounded-full">{ICONS.user}</div>
+                                <div className="relative" ref={profileMenuRef}>
+                                    <button onClick={() => setProfileMenuOpen(!isProfileMenuOpen)} className="flex items-center space-x-2 cursor-pointer">
+                                        <span className="hidden sm:inline text-gray-300">{user.name}</span>
+                                        <div className="p-2 bg-gray-700 rounded-full">{ICONS.user}</div>
+                                    </button>
+                                    {isProfileMenuOpen && (
+                                        <div className="absolute top-full right-0 mt-2 w-48 bg-gray-700 rounded-md shadow-lg z-50">
+                                            <button
+                                                onClick={() => {
+                                                    navigate('/profile');
+                                                    setProfileMenuOpen(false);
+                                                }}
+                                                className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-600"
+                                            >
+                                                Profile
+                                            </button>
+                                            <button
+                                                onClick={logout}
+                                                className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-600"
+                                            >
+                                                Logout
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
-                                <button onClick={logout} className="p-2 text-gray-400 hover:text-white" title="Logout">
-                                    {ICONS.logout}
-                                </button>
                             </>
                         ) : (
                             <button
