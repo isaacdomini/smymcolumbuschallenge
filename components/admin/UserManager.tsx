@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User } from '../../types';
-import { getUsers, updateUser } from '../../services/api';
+import { getUsers, updateUserAsAdmin } from '../../services/api';
 import { useAuth } from '../../hooks/useAuth';
 
 const UserManager: React.FC = () => {
@@ -29,7 +29,7 @@ const UserManager: React.FC = () => {
         if (!window.confirm(`Are you sure you want to ${currentStatus ? 'remove' : 'grant'} admin rights for this user?`)) return;
 
         try {
-            await updateUser(currentUser.id, userId, { isAdmin: !currentStatus });
+            await updateUserAsAdmin(currentUser.id, userId, { isAdmin: !currentStatus });
             fetchUsers();
         } catch (error) {
             alert("Failed to update user");
