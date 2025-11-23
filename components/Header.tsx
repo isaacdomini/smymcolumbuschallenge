@@ -66,7 +66,7 @@ const Header: React.FC<HeaderProps> = ({ challengeName, onLogoClick, navigate })
                     <div onClick={onLogoClick} className="flex items-center space-x-3 cursor-pointer">
                         {ICONS.smymLogo}
                         <div>
-                            <h1 className="text-lg md:text-xl font-bold text-yellow-400">SMYM Bible Games</h1>
+                            <h1 className="text-lg md:text-xl font-bold text-yellow-400">SMYM Christian Games</h1>
                             {challengeName && <p className="text-xs text-gray-400 hidden sm:block">{challengeName}</p>}
                         </div>
                     </div>
@@ -76,8 +76,8 @@ const Header: React.FC<HeaderProps> = ({ challengeName, onLogoClick, navigate })
                                 {isSupported && !isSubscribed && notificationPermission !== 'denied' && (
                                     <div className="relative">
                                         <Tooltip text="Enable daily reminders">
-                                            <button 
-                                                onClick={handleSubscribeClicked} 
+                                            <button
+                                                onClick={handleSubscribeClicked}
                                                 className="p-2 text-gray-400 hover:text-yellow-400 transition-colors relative"
                                             >
                                                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -101,8 +101,8 @@ const Header: React.FC<HeaderProps> = ({ challengeName, onLogoClick, navigate })
                                                 <p className="text-sm font-medium mb-2">
                                                     Never miss a daily challenge! Click the bell to enable reminders on this device.
                                                 </p>
-                                                <button 
-                                                    onClick={handleDismissPopup} 
+                                                <button
+                                                    onClick={handleDismissPopup}
                                                     className="text-xs text-blue-200 hover:text-white underline transition-colors"
                                                 >
                                                     Dismiss
