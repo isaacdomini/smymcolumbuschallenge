@@ -1,5 +1,6 @@
 import UIKit
 import Capacitor
+import WebKit
 
 class MainViewController: CAPBridgeViewController {
 

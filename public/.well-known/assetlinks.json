@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.tesarsoft.smym.biblegames",
+      "sha256_cert_fingerprints":
+      ["C2:0D:42:D7:EA:B1:B5:1E:D6:BE:69:C0:E4:DD:B0:7F:07:1A:24:1B:71:E2:55:1C:FC:40:4A:22:E2:5C:09:12",
+      "5B:20:2F:2A:6D:AC:CA:AB:84:02:FC:03:7B:CF:2C:C3:F7:42:A9:43:DB:4C:C4:2F:8D:0F:D1:52:32:B1:A8:EE"]
+    }
+  }
+]
