@@ -160,45 +160,14 @@ const MainContent: React.FC = () => {
       }
     }
 
-    // New Logic: Check if live site is available and redirect
-    // This serves as the "Live with Local Fallback" strategy
-    const checkAndRedirectToLive = async () => {
-      if (Capacitor.isNativePlatform()) {
-        const liveDomain = 'youth.columbuschurch.org';
-        // Check if we are already on the live domain to avoid loops
-        if (window.location.hostname === liveDomain) return;
 
-        try {
-          // We fetch a small file (manifest) to check connectivity and server status
-          // If this returns 200 OK, the server is up and reachable
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
-
-          const response = await fetch(`https://${liveDomain}/manifest.webmanifest`, {
-            method: 'HEAD',
-            signal: controller.signal
-          });
-          clearTimeout(timeoutId);
-
-          if (response.ok) {
-            // Server is up! Redirect to live site
-            // We use window.location.href to navigate the WebView
-            window.location.href = `https://${liveDomain}`;
-          } else {
-            console.log('Live site returned non-OK status, staying local.');
-          }
-        } catch (e) {
-          console.log('Live site unreachable (offline or down), staying local.', e);
-        }
-      }
-    };
 
     setStatusBarPadding();
     addBackButtonListener();
     addResumeListener();
     addAppUrlOpenListener();
     clearBadgeOnLoad();
-    checkAndRedirectToLive();
+
   }, []);
 
 
