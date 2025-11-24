@@ -4,7 +4,7 @@ import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import { sendVerificationEmail, sendPasswordResetEmail, sendAccountDeletionRequestEmail } from '../services/email.js'; // Added new email function
 import { getVapidPublicKey, saveSubscription } from '../services/push.js';
-import { manualLog } from '../middleware/logger.js';
+import { manualLog, getClientIp } from '../middleware/logger.js';
 
 const router = Router();
 
@@ -15,118 +15,146 @@ const getTodayEST = () => {
 
 // --- HELPER: Score Calculation ---
 const calculateScore = (game: any, submissionData: any, timeTaken: number, mistakes: number): number => {
-    let baseScore = 0;
-    const gameType = game.type;
+  let baseScore = 0;
+  const gameType = game.type;
 
-    switch (gameType) {
-        case 'wordle': {
-            const maxGuesses = 6;
-            if (mistakes >= maxGuesses) {
-                baseScore = 0;
-            } else {
-                baseScore = (maxGuesses - mistakes) * 10;
-            }
-            break;
-        }
-        case 'connections': {
-            const categoriesFound = submissionData?.categoriesFound ?? 0;
-            baseScore = Math.max(0, (categoriesFound * 20) - (mistakes * 5));
-            break;
-        }
-        case 'crossword': {
-            const correct = submissionData?.correctCells ?? 0;
-            const total = submissionData?.totalFillableCells ?? 1;
-            if (total <= 0) {
-                baseScore = 0;
-            } else {
-                const accuracyScore = Math.round((correct / total) * 70);
-                const timeBonus = Math.max(0, 30 - Math.floor(timeTaken / 60));
-                baseScore = Math.max(0, accuracyScore + timeBonus);
-            }
-            break;
-        }
-        default: {
-             const timePenalty = Math.floor(timeTaken / 15);
-             const mistakePenalty = mistakes * 10;
-             baseScore = Math.max(0, 100 - mistakePenalty - timePenalty);
-        }
+  switch (gameType) {
+    case 'wordle': {
+      const maxGuesses = 6;
+      if (mistakes >= maxGuesses) {
+        baseScore = 0;
+      } else {
+        baseScore = (maxGuesses - mistakes) * 10;
+      }
+      break;
     }
-
-    // --- NEW: Apply Late Penalty ---
-    // We get the current date in EST
-    const today = new Date(getTodayEST() + 'T12:00:00Z'); // Use noon to avoid DST/timezone shift issues
-    // Get the game date as YYYY-MM-DD in EST
-    // game.date is a Date object from the DB, e.g., 2025-11-15 00:00:00 UTC
-    // We need its UTC date string.
-    const gameDateStr = game.date.toISOString().split('T')[0]; // "2025-11-15"
-    const gameDate = new Date(gameDateStr + 'T12:00:00Z'); // Noon UTC on that day
-
-    const diffTime = today.getTime() - gameDate.getTime();
-    // Calculate days late. If today is the game day, diffDays will be 0.
-    const diffDays = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
-
-    let finalScore = 0;
-    // Only apply penalty if within the 5-day late window
-    if (diffDays <= 5) {
-        // 20% penalty per day late.
-        // Day 0 (on time): 1.0 (1 - 0*0.2)
-        // Day 1 late: 0.8 (1 - 1*0.2)
-        // Day 5 late: 0.0 (1 - 5*0.2)
-        const penaltyMultiplier = Math.max(0, 1.0 - (diffDays * 0.20));
-        finalScore = Math.round(baseScore * penaltyMultiplier);
+    case 'connections': {
+      const categoriesFound = submissionData?.categoriesFound ?? 0;
+      baseScore = Math.max(0, (categoriesFound * 20) - (mistakes * 5));
+      break;
     }
-    // If diffDays > 5, finalScore remains 0, as they shouldn't have been able to submit.
+    case 'crossword': {
+      const correct = submissionData?.correctCells ?? 0;
+      const total = submissionData?.totalFillableCells ?? 1;
+      if (total <= 0) {
+        baseScore = 0;
+      } else {
+        const accuracyScore = Math.round((correct / total) * 70);
+        const timeBonus = Math.max(0, 30 - Math.floor(timeTaken / 60));
+        baseScore = Math.max(0, accuracyScore + timeBonus);
+      }
+      break;
+    }
+    default: {
+      const timePenalty = Math.floor(timeTaken / 15);
+      const mistakePenalty = mistakes * 10;
+      baseScore = Math.max(0, 100 - mistakePenalty - timePenalty);
+    }
+  }
 
-    return finalScore;
+  // --- NEW: Apply Late Penalty ---
+  // We get the current date in EST
+  const today = new Date(getTodayEST() + 'T12:00:00Z'); // Use noon to avoid DST/timezone shift issues
+  // Get the game date as YYYY-MM-DD in EST
+  // game.date is a Date object from the DB, e.g., 2025-11-15 00:00:00 UTC
+  // We need its UTC date string.
+  const gameDateStr = game.date.toISOString().split('T')[0]; // "2025-11-15"
+  const gameDate = new Date(gameDateStr + 'T12:00:00Z'); // Noon UTC on that day
+
+  const diffTime = today.getTime() - gameDate.getTime();
+  // Calculate days late. If today is the game day, diffDays will be 0.
+  const diffDays = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
+
+  let finalScore = 0;
+  // Only apply penalty if within the 5-day late window
+  if (diffDays <= 5) {
+    // 20% penalty per day late.
+    // Day 0 (on time): 1.0 (1 - 0*0.2)
+    // Day 1 late: 0.8 (1 - 1*0.2)
+    // Day 5 late: 0.0 (1 - 5*0.2)
+    const penaltyMultiplier = Math.max(0, 1.0 - (diffDays * 0.20));
+    finalScore = Math.round(baseScore * penaltyMultiplier);
+  }
+  // If diffDays > 5, finalScore remains 0, as they shouldn't have been able to submit.
+
+  return finalScore;
 };
 // --- LOGGING ENDPOINT ---
 router.post('/log', async (req: Request, res: Response) => {
-    try {
-        const { path, userId, metadata } = req.body;
-        await manualLog(req, path || 'unknown', 'VIEW', userId, metadata);
-        res.status(200).send();
-    } catch (error) {
-        res.status(200).send();
-    }
+  try {
+    const { path, userId, metadata } = req.body;
+    await manualLog(req, path || 'unknown', 'VIEW', userId, metadata);
+    res.status(200).send();
+  } catch (error) {
+    res.status(200).send();
+  }
+});
+
+// --- EXTERNAL LOGGING ENDPOINT ---
+router.post('/log-visit', async (req: Request, res: Response) => {
+  try {
+    const { path, appName, userId, metadata, ip, userAgent } = req.body;
+
+    // Use provided IP/UA or fallback to request details
+    const finalIp = ip || getClientIp(req) || null;
+    const finalUA = userAgent || req.get('User-Agent') || null;
+
+    // Construct metadata with appName if provided
+    const finalMetadata = {
+      ...(metadata || {}),
+      source: 'external_api',
+      appName: appName || 'unknown'
+    };
+
+    await pool.query(
+      'INSERT INTO visit_logs (ip_address, user_agent, path, method, user_id, metadata) VALUES ($1, $2, $3, $4, $5, $6)',
+      [finalIp, finalUA, path || 'external', 'VIEW', userId || null, JSON.stringify(finalMetadata)]
+    );
+
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error('External log visit error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // --- Push Notification Endpoints ---
 router.get('/vapid-public-key', (req, res) => {
-    res.json({ publicKey: getVapidPublicKey() });
+  res.json({ publicKey: getVapidPublicKey() });
 });
 
 router.post('/subscribe', async (req, res) => {
-    try {
-        const { userId, subscription, token, platform } = req.body;
+  try {
+    const { userId, subscription, token, platform } = req.body;
 
-        if (!userId) {
-            return res.status(400).json({ error: 'Missing userId' });
-        }
-
-        if (subscription) {
-            // This is a Web Push subscription
-            await saveSubscription(userId, subscription, 'web');
-            res.status(201).json({ message: 'Web subscription saved successfully' });
-        
-        } else if (token && platform) {
-            // This is a Native Push subscription
-            await saveSubscription(userId, token, platform);
-            res.status(201).json({ message: 'Native subscription saved successfully' });
-        
-        } else {
-            return res.status(400).json({ error: 'Missing subscription or token/platform data' });
-        }
-
-    } catch (error: any) {
-        // Handle duplicate token errors gracefully
-        if (error.code === '23505') { // unique_violation
-            if (error.constraint === 'push_subscriptions_endpoint_key' || error.constraint === 'unique_device_token') {
-                return res.status(200).json({ message: 'Subscription already exists' });
-            }
-        }
-        console.error('Subscription error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+    if (!userId) {
+      return res.status(400).json({ error: 'Missing userId' });
     }
+
+    if (subscription) {
+      // This is a Web Push subscription
+      await saveSubscription(userId, subscription, 'web');
+      res.status(201).json({ message: 'Web subscription saved successfully' });
+
+    } else if (token && platform) {
+      // This is a Native Push subscription
+      await saveSubscription(userId, token, platform);
+      res.status(201).json({ message: 'Native subscription saved successfully' });
+
+    } else {
+      return res.status(400).json({ error: 'Missing subscription or token/platform data' });
+    }
+
+  } catch (error: any) {
+    // Handle duplicate token errors gracefully
+    if (error.code === '23505') { // unique_violation
+      if (error.constraint === 'push_subscriptions_endpoint_key' || error.constraint === 'unique_device_token') {
+        return res.status(200).json({ message: 'Subscription already exists' });
+      }
+    }
+    console.error('Subscription error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // --- Authentication Endpoints ---
@@ -160,12 +188,12 @@ router.post('/signup', async (req: Request, res: Response) => {
   try {
     const { name, email, password, emailNotifications = true } = req.body;
     if (!name || !email || !password) return res.status(400).json({ error: 'Name, email, and password are required' });
-    
+
     const existingUserResult = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
     if (existingUserResult.rows.length > 0) {
       const existingUser = existingUserResult.rows[0];
       if (existingUser.is_verified) {
-         return res.status(400).json({ error: 'User already exists' });
+        return res.status(400).json({ error: 'User already exists' });
       } else {
         if (!existingUser.verification_token) {
           existingUser.verification_token = crypto.randomBytes(32).toString('hex');
@@ -175,12 +203,12 @@ router.post('/signup', async (req: Request, res: Response) => {
         return res.status(201).json({ message: 'Account already registered. Verification email resent. Please check your email.' });
       }
     }
-    
+
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
     const verificationToken = crypto.randomBytes(32).toString('hex');
     const userId = `user-${Date.now()}`;
-    
+
     await pool.query(
       'INSERT INTO users (id, name, email, password, is_verified, verification_token, email_notifications) VALUES ($1, $2, $3, $4, $5, $6, $7)',
       [userId, name, email, hashedPassword, false, verificationToken, emailNotifications]
@@ -220,10 +248,10 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
 
     const userResult = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
     if (userResult.rows.length > 0) {
-        const token = crypto.randomBytes(32).toString('hex');
-        const expires = Date.now() + 3600000; // 1 hour
-        await pool.query('UPDATE users SET reset_password_token = $1, reset_password_expires = $2 WHERE email = $3', [token, expires, email]);
-        await sendPasswordResetEmail(email, token, req.get('host'));
+      const token = crypto.randomBytes(32).toString('hex');
+      const expires = Date.now() + 3600000; // 1 hour
+      await pool.query('UPDATE users SET reset_password_token = $1, reset_password_expires = $2 WHERE email = $3', [token, expires, email]);
+      await sendPasswordResetEmail(email, token, req.get('host'));
     }
     res.json({ message: 'If an account with that email exists, a password reset link has been sent.' });
   } catch (error) {
@@ -267,7 +295,7 @@ router.post('/request-deletion', async (req: Request, res: Response) => {
 
     // Credentials are valid, send email to admin
     await sendAccountDeletionRequestEmail(user.email, user.id, user.name);
-    
+
     res.json({ message: 'Your account deletion request has been submitted. An administrator will process it within 48 hours.' });
 
   } catch (error) {
@@ -278,72 +306,72 @@ router.post('/request-deletion', async (req: Request, res: Response) => {
 
 // --- USER PROFILE MANAGEMENT ---
 router.put('/users/:userId', async (req: Request, res: Response) => {
-    try {
-        const { userId } = req.params;
-        const authUserId = req.headers['x-user-id'];
+  try {
+    const { userId } = req.params;
+    const authUserId = req.headers['x-user-id'];
 
-        if (userId !== authUserId) {
-            return res.status(403).json({ error: 'Forbidden: You can only update your own profile.' });
-        }
-
-        const { name } = req.body;
-        if (!name) {
-            return res.status(400).json({ error: 'Name is required.' });
-        }
-
-        const result = await pool.query(
-            'UPDATE users SET name = $1 WHERE id = $2 RETURNING *',
-            [name, userId]
-        );
-
-        if (result.rows.length === 0) {
-            return res.status(404).json({ error: 'User not found.' });
-        }
-
-        const user = result.rows[0];
-        delete user.password;
-        delete user.verification_token;
-        delete user.reset_password_token;
-        delete user.reset_password_expires;
-        res.json(user);
-
-    } catch (error) {
-        console.error('Update user profile error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+    if (userId !== authUserId) {
+      return res.status(403).json({ error: 'Forbidden: You can only update your own profile.' });
     }
+
+    const { name } = req.body;
+    if (!name) {
+      return res.status(400).json({ error: 'Name is required.' });
+    }
+
+    const result = await pool.query(
+      'UPDATE users SET name = $1 WHERE id = $2 RETURNING *',
+      [name, userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    const user = result.rows[0];
+    delete user.password;
+    delete user.verification_token;
+    delete user.reset_password_token;
+    delete user.reset_password_expires;
+    res.json(user);
+
+  } catch (error) {
+    console.error('Update user profile error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 router.delete('/users/:userId', async (req: Request, res: Response) => {
-    try {
-        const { userId } = req.params;
-        const authUserId = req.headers['x-user-id'];
+  try {
+    const { userId } = req.params;
+    const authUserId = req.headers['x-user-id'];
 
-        if (userId !== authUserId) {
-            return res.status(403).json({ error: 'Forbidden: You can only delete your own account.' });
-        }
-
-        // Use a transaction to ensure all data is deleted
-        const client = await pool.connect();
-        try {
-            await client.query('BEGIN');
-            await client.query('DELETE FROM game_submissions WHERE user_id = $1', [userId]);
-            await client.query('DELETE FROM game_progress WHERE user_id = $1', [userId]);
-            await client.query('DELETE FROM push_subscriptions WHERE user_id = $1', [userId]);
-            await client.query('DELETE FROM users WHERE id = $1', [userId]);
-            await client.query('COMMIT');
-            
-            res.status(204).send();
-        } catch (error) {
-            await client.query('ROLLBACK');
-            throw error;
-        } finally {
-            client.release();
-        }
-
-    } catch (error) {
-        console.error('Delete user error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+    if (userId !== authUserId) {
+      return res.status(403).json({ error: 'Forbidden: You can only delete your own account.' });
     }
+
+    // Use a transaction to ensure all data is deleted
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('DELETE FROM game_submissions WHERE user_id = $1', [userId]);
+      await client.query('DELETE FROM game_progress WHERE user_id = $1', [userId]);
+      await client.query('DELETE FROM push_subscriptions WHERE user_id = $1', [userId]);
+      await client.query('DELETE FROM users WHERE id = $1', [userId]);
+      await client.query('COMMIT');
+
+      res.status(204).send();
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+
+  } catch (error) {
+    console.error('Delete user error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // --- GAME DATA ENDPOINTS ---
@@ -355,7 +383,7 @@ router.get('/challenge', async (req: Request, res: Response) => {
       'SELECT * FROM challenges WHERE start_date <= $1 AND end_date >= $1 ORDER BY start_date DESC LIMIT 1',
       [now]
     );
-    
+
     if (result.rows.length > 0) {
       const challenge = result.rows[0];
       res.json({
@@ -379,7 +407,7 @@ router.get('/challenge', async (req: Request, res: Response) => {
           endDate: challenge.end_date.toISOString(),
         });
       } else {
-         res.json(null);
+        res.json(null);
       }
     }
   } catch (error) {
@@ -393,7 +421,7 @@ router.get('/challenge/:challengeId/daily', async (req: Request, res: Response) 
     const { challengeId } = req.params;
     const today = getTodayEST();
     const result = await pool.query('SELECT * FROM games WHERE challenge_id = $1 AND DATE(date) = $2', [challengeId, today]);
-    
+
     if (result.rows.length > 0) {
       const game = result.rows[0];
       res.json({
@@ -531,10 +559,10 @@ router.get('/challenge/:challengeId/leaderboard', async (req: Request, res: Resp
 router.post('/submit', async (req: Request, res: Response) => {
   try {
     const { userId, gameId, startedAt, timeTaken, mistakes, submissionData } = req.body;
-    
+
     const gameResult = await pool.query('SELECT * FROM games WHERE id = $1', [gameId]);
     if (gameResult.rows.length === 0) return res.status(404).json({ error: 'Game not found' });
-    
+
     const game = gameResult.rows[0];
     // Calculate score securely on server
     const today = new Date(getTodayEST() + 'T12:00:00Z');
@@ -545,7 +573,7 @@ router.post('/submit', async (req: Request, res: Response) => {
 
     // Allow submission on day 5 (for 0 points), but block on day 6
     if (diffDays > 5) {
-        return res.status(403).json({ error: 'This game is too old to submit.' });
+      return res.status(403).json({ error: 'This game is too old to submit.' });
     }
 
     const score = calculateScore(game, submissionData, timeTaken, mistakes);
@@ -559,12 +587,12 @@ router.post('/submit', async (req: Request, res: Response) => {
           'UPDATE game_submissions SET started_at = $1, completed_at = $2, time_taken = $3, mistakes = $4, score = $5, submission_data = $6 WHERE id = $7 RETURNING *',
           [startedAt, new Date(), timeTaken, mistakes, score, JSON.stringify(submissionData), existingSub.rows[0].id]
         );
-         return res.json(mapSubmission(result.rows[0]));
+        return res.json(mapSubmission(result.rows[0]));
       } else {
         return res.json(mapSubmission(existingSub.rows[0]));
       }
     }
-    
+
     const submissionId = `sub-${Date.now()}`;
     const result = await pool.query(
       'INSERT INTO game_submissions (id, user_id, game_id, challenge_id, started_at, completed_at, time_taken, mistakes, score, submission_data) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *',
@@ -580,16 +608,16 @@ router.post('/submit', async (req: Request, res: Response) => {
 
 // Helper to map DB submission to API response
 const mapSubmission = (sub: any) => ({
-    id: sub.id,
-    userId: sub.user_id,
-    gameId: sub.game_id,
-    challengeId: sub.challenge_id,
-    startedAt: sub.started_at ? sub.started_at.toISOString() : new Date(sub.completed_at.getTime() - sub.time_taken * 1000).toISOString(),
-    completedAt: sub.completed_at.toISOString(),
-    timeTaken: sub.time_taken,
-    mistakes: sub.mistakes,
-    score: sub.score,
-    submissionData: sub.submission_data,
+  id: sub.id,
+  userId: sub.user_id,
+  gameId: sub.game_id,
+  challengeId: sub.challenge_id,
+  startedAt: sub.started_at ? sub.started_at.toISOString() : new Date(sub.completed_at.getTime() - sub.time_taken * 1000).toISOString(),
+  completedAt: sub.completed_at.toISOString(),
+  timeTaken: sub.time_taken,
+  mistakes: sub.mistakes,
+  score: sub.score,
+  submissionData: sub.submission_data,
 });
 
 // --- GAME STATE ENDPOINTS ---
@@ -629,11 +657,11 @@ router.post('/game-state/user/:userId/game/:gameId', async (req: Request, res: R
 
     const result = await pool.query('SELECT * FROM game_progress WHERE user_id = $1 AND game_id = $2', [userId, gameId]);
     res.json({
-        id: result.rows[0].id,
-        userId: result.rows[0].user_id,
-        gameId: result.rows[0].game_id,
-        gameState: result.rows[0].game_state,
-        updatedAt: result.rows[0].updated_at.toISOString(),
+      id: result.rows[0].id,
+      userId: result.rows[0].user_id,
+      gameId: result.rows[0].game_id,
+      gameState: result.rows[0].game_state,
+      updatedAt: result.rows[0].updated_at.toISOString(),
     });
   } catch (error) {
     console.error('Save game state error:', error);
