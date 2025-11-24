@@ -9,6 +9,13 @@ const config: CapacitorConfig = {
       presentationOptions: ["badge", "sound", "alert"],
     },
   },
+  server: {
+    url: "https://youth.columbuschurch.org",
+    allowNavigation: [
+      "youth.columbuschurch.org",
+      "*.youth.columbuschurch.org"
+    ]
+  }
 };
 
 export default config;
