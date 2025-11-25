@@ -84,7 +84,7 @@ export const sendDailyReminder = async (email: string, name: string, gameType: s
 // ADDED: Password reset email
 export const sendPasswordResetEmail = async (email: string, token: string, host?: string) => {
   const baseUrl = getAppUrl(host);
-  const resetUrl = `https://smymverify.columbuschurch.org/reset-password?token=${token}`;
+  const resetUrl = `https://smymverify.columbuschurch.org/api/reset-password?token=${token}`;
 
   try {
     await transporter.sendMail({
