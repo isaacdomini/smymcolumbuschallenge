@@ -25,7 +25,7 @@ export const sendVerificationEmail = async (email: string, token: string, host?:
   // If development mode and using separate frontend/backend ports, ensure we point to frontend
   // Note: The actual verification endpoint is on the API, but we want to redirect to frontend ultimately.
   // Let's stick to the API endpoint for the actual click, which then redirects.
-  const apiVerificationUrl = `https://smymgame.columbuschurch.org/api/verify-email?token=${token}`;
+  const apiVerificationUrl = `https://smymverify.columbuschurch.org/api/verify-email?token=${token}`;
 
   try {
     await transporter.sendMail({
@@ -84,7 +84,7 @@ export const sendDailyReminder = async (email: string, name: string, gameType: s
 // ADDED: Password reset email
 export const sendPasswordResetEmail = async (email: string, token: string, host?: string) => {
   const baseUrl = getAppUrl(host);
-  const resetUrl = `https://smymgame.columbuschurch.org/reset-password?token=${token}`;
+  const resetUrl = `https://smymverify.columbuschurch.org/reset-password?token=${token}`;
 
   try {
     await transporter.sendMail({
