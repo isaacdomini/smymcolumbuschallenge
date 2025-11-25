@@ -292,9 +292,34 @@ const MainContent: React.FC = () => {
       if (!user) { navigate('/'); return null; }
       const gameId = locationPath.split('/')[2];
       if (!gameId) { navigate('/'); return null; }
-      const activeGame = allChallengeGames.find(g => g.id === gameId);
-      const gameToPlay = activeGame || (todaysGame?.id === gameId ? todaysGame : null);
-      const activeSubmission = allUserSubmissions.find(s => s.gameId === gameId) ?? null;
+
+      const isSample = gameId.startsWith('sample-');
+      let gameToPlay: Game | null = null;
+      let activeSubmission: GameSubmission | null = null;
+
+      if (isSample) {
+        // Construct a dummy game object for sample mode
+        const typeStr = gameId.replace('sample-', '');
+        let type: GameType | null = null;
+        if (Object.values(GameType).includes(typeStr as GameType)) {
+          type = typeStr as GameType;
+        }
+
+        if (type) {
+          gameToPlay = {
+            id: gameId,
+            challengeId: 'sample',
+            date: new Date().toISOString(),
+            type: type,
+            data: {} as any // Data is handled inside the component for sample mode
+          } as Game;
+        }
+      } else {
+        const activeGame = allChallengeGames.find(g => g.id === gameId);
+        gameToPlay = activeGame || (todaysGame?.id === gameId ? todaysGame : null);
+        activeSubmission = allUserSubmissions.find(s => s.gameId === gameId) ?? null;
+      }
+
       if (!gameToPlay) return <div className="text-center p-10">Loading game... (or game not found)</div>;
       const onComplete = () => {
         fetchInitialData();
