@@ -168,6 +168,69 @@ router.post('/games', async (req: Request, res: Response) => {
     }
 });
 
+// Get games for a challenge
+router.get('/games', async (req: Request, res: Response) => {
+    try {
+        const { challengeId } = req.query;
+        if (!challengeId) {
+            return res.status(400).json({ error: 'Missing challengeId parameter' });
+        }
+
+        const result = await pool.query('SELECT * FROM games WHERE challenge_id = $1 ORDER BY date ASC', [challengeId]);
+        res.json(result.rows.map(row => ({
+            id: row.id,
+            challengeId: row.challenge_id,
+            date: row.date,
+            type: row.type,
+            data: row.data
+        })));
+    } catch (error) {
+        console.error('Error fetching games:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Get a single game
+router.get('/games/:id', async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const result = await pool.query('SELECT * FROM games WHERE id = $1', [id]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Game not found' });
+        }
+
+        const row = result.rows[0];
+        res.json({
+            id: row.id,
+            challengeId: row.challenge_id,
+            date: row.date,
+            type: row.type,
+            data: row.data
+        });
+    } catch (error) {
+        console.error('Error fetching game:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Delete a game
+router.delete('/games/:id', async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const result = await pool.query('DELETE FROM games WHERE id = $1 RETURNING *', [id]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Game not found' });
+        }
+
+        res.json({ message: 'Game deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting game:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 // --- CHALLENGES ---
 
 // Get all challenges

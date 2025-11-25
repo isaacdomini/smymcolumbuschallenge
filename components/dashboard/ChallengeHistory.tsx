@@ -12,36 +12,36 @@ interface ChallengeHistoryProps {
 }
 
 const getScoringTooltipText = (gameType: GameType): string => {
-    switch (gameType) {
-        case GameType.WORDLE:
-            return "Score based on guesses and speed. Fewer guesses and faster times earn more points. 0 for a loss.";
-        case GameType.CONNECTIONS:
-            return "Score based on categories found, mistakes made, and speed. Each category adds points, mistakes subtract, and speed adds a bonus.";
-        case GameType.CROSSWORD:
-            return "Score based on accuracy and speed. A higher percentage of correct cells and a faster time result in a higher score.";
-        default:
-            return "Scoring is based on performance in the game.";
-    }
+  switch (gameType) {
+    case GameType.WORDLE:
+      return "Score based on guesses and speed. Fewer guesses and faster times earn more points. 0 for a loss.";
+    case GameType.CONNECTIONS:
+      return "Score based on categories found, mistakes made, and speed. Each category adds points, mistakes subtract, and speed adds a bonus.";
+    case GameType.CROSSWORD:
+      return "Score based on accuracy and speed. A higher percentage of correct cells and a faster time result in a higher score.";
+    default:
+      return "Scoring is based on performance in the game.";
+  }
 }
 
 const getGameName = (gameType: GameType): string => {
-    switch (gameType) {
-        case GameType.WORDLE:
-            return "Word of the Day";
-        case GameType.CONNECTIONS:
-            return "Connect the Words";
-        case GameType.MATCH_THE_WORD:
-            return "Match the Word";
-        default:
-            return gameType.charAt(0).toUpperCase() + gameType.slice(1);
-    }
+  switch (gameType) {
+    case GameType.WORDLE:
+      return "Wordle";
+    case GameType.CONNECTIONS:
+      return "Connect the Words";
+    case GameType.MATCH_THE_WORD:
+      return "Match the Word";
+    default:
+      return gameType.charAt(0).toUpperCase() + gameType.slice(1);
+  }
 }
 
 const ChallengeHistory: React.FC<ChallengeHistoryProps> = ({ challengeId, userId, onPlayGame, onRevisitGame, onBack }) => {
   const [games, setGames] = useState<Game[]>([]);
   const [submissions, setSubmissions] = useState<GameSubmission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  
+
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
@@ -60,7 +60,7 @@ const ChallengeHistory: React.FC<ChallengeHistoryProps> = ({ challengeId, userId
     };
     fetchData();
   }, [challengeId, userId]);
-  
+
   const submissionsMap = useMemo(() => {
     return new Map(submissions.map(s => [s.gameId, s]));
   }, [submissions]);
@@ -71,25 +71,25 @@ const ChallengeHistory: React.FC<ChallengeHistoryProps> = ({ challengeId, userId
 
   return (
     <div className="w-full max-w-2xl mx-auto">
-        <div className="flex justify-between items-center mb-6">
-            <h2 className="text-3xl font-bold text-yellow-400">Challenge History</h2>
-            <button onClick={onBack} className="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded">
-                &larr; Back
-            </button>
-        </div>
-      
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-3xl font-bold text-yellow-400">Challenge History</h2>
+        <button onClick={onBack} className="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded">
+          &larr; Back
+        </button>
+      </div>
+
       {isLoading ? (
         <p>Loading history...</p>
       ) : (
         <div className="space-y-3">
           {games.map((game) => {
             const submission = submissionsMap.get(game.id);
-            
+
             // Get the UTC date string from the ISO string (e.g., "2025-11-15" from "2025-11-15T00:00:00.000Z")
             // This assumes the DB stores the "intended day" as midnight UTC.
             const gameDateStr = game.date.split('T')[0];
             const gameDate = new Date(gameDateStr + 'T12:00:00Z'); // Standardize to noon UTC
-            
+
             const isToday = gameDateStr === todayStr;
             const isFuture = gameDate > today;
 
@@ -106,7 +106,7 @@ const ChallengeHistory: React.FC<ChallengeHistoryProps> = ({ challengeId, userId
                 <div>
                   {/* Display date in a friendly format, explicitly using EST/EDT */}
                   <p className="text-gray-400 text-sm">
-                      {new Date(game.date).toLocaleDateString(undefined, { timeZone: 'UTC', weekday: 'long', month: 'long', day: 'numeric' })}
+                    {new Date(game.date).toLocaleDateString(undefined, { timeZone: 'UTC', weekday: 'long', month: 'long', day: 'numeric' })}
                   </p>
                   <p className="text-xl font-bold">
                     {getGameName(game.type)}
@@ -122,10 +122,10 @@ const ChallengeHistory: React.FC<ChallengeHistoryProps> = ({ challengeId, userId
                 <div>
                   {submission ? (
                     <Tooltip text={getScoringTooltipText(game.type)}>
-                        <div className="text-right">
-                            <p className="font-semibold text-lg cursor-help">{submission.score} pts</p>
-                            <button onClick={() => onRevisitGame(game, submission)} className="text-blue-400 hover:text-blue-300">Revisit</button>
-                        </div>
+                      <div className="text-right">
+                        <p className="font-semibold text-lg cursor-help">{submission.score} pts</p>
+                        <button onClick={() => onRevisitGame(game, submission)} className="text-blue-400 hover:text-blue-300">Revisit</button>
+                      </div>
                     </Tooltip>
                   ) : isFuture ? (
                     <span className="text-gray-500 font-semibold py-2 px-4">Upcoming</span>

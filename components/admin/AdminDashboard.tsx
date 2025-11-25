@@ -3,7 +3,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { getAdminStats } from '../../services/api';
 import { AdminStats } from '../../types';
 import GameBuilder from './GameBuilder';
-import ChallengeManager from './ChallengeManager';
+import { ChallengeManager } from './ChallengeManager';
 import UserManager from './UserManager';
 import LogViewer from './LogViewer';
 
@@ -34,7 +34,7 @@ const AdminDashboard: React.FC = () => {
     return (
         <div className="container mx-auto px-4 py-8 max-w-6xl">
             <h1 className="text-3xl font-bold text-white mb-8 border-b border-gray-700 pb-4">Admin Dashboard</h1>
-            
+
             {/* Stats Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                 <StatCard title="Total Users" value={stats?.totalUsers ?? '-'} />
@@ -49,11 +49,10 @@ const AdminDashboard: React.FC = () => {
                     <button
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id)}
-                        className={`px-4 py-2 rounded-md font-medium transition-colors whitespace-nowrap ${
-                            activeTab === tab.id 
-                                ? 'bg-yellow-500 text-gray-900' 
+                        className={`px-4 py-2 rounded-md font-medium transition-colors whitespace-nowrap ${activeTab === tab.id
+                                ? 'bg-yellow-500 text-gray-900'
                                 : 'text-gray-400 hover:text-white hover:bg-gray-700'
-                        }`}
+                            }`}
                     >
                         {tab.label}
                     </button>
@@ -62,7 +61,7 @@ const AdminDashboard: React.FC = () => {
 
             {/* Tab Content */}
             <div className="animate-fade-in">
-                {activeTab === 'challenges' && <ChallengeManager />}
+                {activeTab === 'challenges' && <ChallengeManager user={user} />}
                 {activeTab === 'games' && <GameBuilder />}
                 {activeTab === 'users' && <UserManager />}
                 {activeTab === 'logs' && <LogViewer />}

@@ -54,7 +54,7 @@ const GameBuilder: React.FC = () => {
                 try {
                     gameData = JSON.parse(crosswordJson);
                     if (!gameData.rows || !gameData.cols) {
-                         throw new Error("Crossword JSON must include 'rows' and 'cols'.");
+                        throw new Error("Crossword JSON must include 'rows' and 'cols'.");
                     }
                 } catch (err: any) {
                     throw new Error("Invalid Crossword JSON: " + err.message);
@@ -90,7 +90,7 @@ const GameBuilder: React.FC = () => {
     return (
         <div className="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700">
             <h2 className="text-2xl font-bold text-yellow-400 mb-6">Game Builder</h2>
-            
+
             {message.text && (
                 <div className={`p-4 mb-6 rounded-lg ${message.type === 'success' ? 'bg-green-900/50 text-green-400' : 'bg-red-900/50 text-red-400'}`}>
                     {message.text}
@@ -101,8 +101,8 @@ const GameBuilder: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-300 mb-1">Challenge</label>
-                        <select 
-                            value={selectedChallenge} 
+                        <select
+                            value={selectedChallenge}
                             onChange={e => setSelectedChallenge(e.target.value)}
                             required
                             className="w-full p-2 bg-gray-900 border border-gray-700 rounded focus:ring-yellow-500 focus:border-yellow-500 text-white"
@@ -115,9 +115,9 @@ const GameBuilder: React.FC = () => {
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-300 mb-1">Date</label>
-                        <input 
-                            type="date" 
-                            value={date} 
+                        <input
+                            type="date"
+                            value={date}
                             onChange={e => setDate(e.target.value)}
                             required
                             className="w-full p-2 bg-gray-900 border border-gray-700 rounded focus:ring-yellow-500 focus:border-yellow-500 text-white"
@@ -125,12 +125,12 @@ const GameBuilder: React.FC = () => {
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-300 mb-1">Game Type</label>
-                        <select 
-                            value={gameType} 
+                        <select
+                            value={gameType}
                             onChange={e => setGameType(e.target.value as GameType)}
                             className="w-full p-2 bg-gray-900 border border-gray-700 rounded focus:ring-yellow-500 focus:border-yellow-500 text-white"
                         >
-                            <option value={GameType.WORDLE}>Word of the Day</option>
+                            <option value={GameType.WORDLE}>Wordle</option>
                             <option value={GameType.CONNECTIONS}>Connect the Words</option>
                             <option value={GameType.CROSSWORD}>Crossword (JSON)</option>
                         </select>
@@ -141,8 +141,8 @@ const GameBuilder: React.FC = () => {
                     {gameType === GameType.WORDLE && (
                         <div>
                             <label className="block text-sm font-medium text-gray-300 mb-1">Solution Word (5-letters standard)</label>
-                            <input 
-                                type="text" 
+                            <input
+                                type="text"
                                 value={wordleSolution}
                                 onChange={e => setWordleSolution(e.target.value)}
                                 required
@@ -157,7 +157,7 @@ const GameBuilder: React.FC = () => {
                             <p className="text-sm text-gray-400 mb-2">Enter 4 categories with 4 words each. Order them by difficulty if desired (e.g., Yellow, Green, Blue, Purple).</p>
                             {connectionsCategories.map((cat, catIdx) => (
                                 <div key={catIdx} className="p-4 bg-gray-900/50 rounded border border-gray-700">
-                                    <input 
+                                    <input
                                         type="text"
                                         value={cat.name}
                                         onChange={e => handleConnectionChange(catIdx, null, e.target.value)}
@@ -167,7 +167,7 @@ const GameBuilder: React.FC = () => {
                                     />
                                     <div className="grid grid-cols-4 gap-2">
                                         {cat.words.map((word, wordIdx) => (
-                                            <input 
+                                            <input
                                                 key={wordIdx}
                                                 type="text"
                                                 value={word}
@@ -184,9 +184,9 @@ const GameBuilder: React.FC = () => {
                     )}
 
                     {gameType === GameType.CROSSWORD && (
-                         <div>
+                        <div>
                             <label className="block text-sm font-medium text-gray-300 mb-1">Crossword JSON Data</label>
-                            <textarea 
+                            <textarea
                                 value={crosswordJson}
                                 onChange={e => setCrosswordJson(e.target.value)}
                                 required
@@ -199,8 +199,8 @@ const GameBuilder: React.FC = () => {
                     )}
                 </div>
 
-                <button 
-                    type="submit" 
+                <button
+                    type="submit"
                     disabled={isLoading}
                     className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-colors disabled:bg-gray-600"
                 >
