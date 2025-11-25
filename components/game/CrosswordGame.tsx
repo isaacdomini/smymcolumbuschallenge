@@ -13,21 +13,15 @@ interface CrosswordGameProps {
 }
 
 const SAMPLE_DATA: CrosswordData = {
-    rows: 5,
-    cols: 5,
+    rows: 3,
+    cols: 3,
     acrossClues: [
-        { number: 1, clue: 'On the ___ (using Tinder or Bumble)', answer: 'APPS', row: 0, col: 0, direction: 'across' },
-        { number: 5, clue: 'Color of the second-hardest Connections category', answer: 'BLUE', row: 1, col: 0, direction: 'across' },
-        { number: 6, clue: 'Prepare, as a Thanksgiving turkey', answer: 'CARVE', row: 2, col: 0, direction: 'across' },
-        { number: 8, clue: 'Have to have', answer: 'NEED', row: 3, col: 1, direction: 'across' },
-        { number: 9, clue: 'Camper\'s construction', answer: 'TENT', row: 4, col: 1, direction: 'across' },
+        { number: 1, clue: 'vehicle', answer: 'CAR', row: 0, col: 0, direction: 'across' },
+        { number: 2, clue: 'you do this to your broken down car', answer: 'TOW', row: 2, col: 0, direction: 'across' },
     ],
     downClues: [
-        { number: 1, clue: 'Kimmel\'s channel', answer: 'ABC', row: 0, col: 0, direction: 'down' },
-        { number: 2, clue: 'Audience member who\'s in on the magic trick', answer: 'PLANT', row: 0, col: 1, direction: 'down' },
-        { number: 3, clue: 'Many a baby food', answer: 'PUREE', row: 0, col: 2, direction: 'down' },
-        { number: 4, clue: 'Typical number of objects that humans can hold in working memory, hence phone numbers', answer: 'SEVEN', row: 0, col: 3, direction: 'down' },
-        { number: 7, clue: 'Summer hrs. in N.Y.C.', answer: 'EDT', row: 2, col: 4, direction: 'down' },
+        { number: 1, clue: 'meow', answer: 'CAT', row: 0, col: 0, direction: 'down' },
+        { number: 2, clue: 'you do this to your broken down car', answer: 'ROW', row: 0, col: 2, direction: 'down' },
     ],
 };
 
