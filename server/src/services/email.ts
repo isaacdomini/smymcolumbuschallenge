@@ -5,9 +5,9 @@ dotenv.config();
 
 // Get the application base URL from environment or default to localhost for dev
 const getAppUrl = (host?: string) => {
-    if (process.env.APP_URL) return process.env.APP_URL;
-    if (host) return `${process.env.NODE_ENV === 'development' ? 'http' : 'https'}://${host}`;
-    return 'http://localhost:5173';
+  if (process.env.APP_URL) return process.env.APP_URL;
+  if (host) return `${process.env.NODE_ENV === 'development' ? 'http' : 'https'}://${host}`;
+  return 'http://localhost:5173';
 };
 
 const transporter = nodemailer.createTransport({
@@ -25,7 +25,7 @@ export const sendVerificationEmail = async (email: string, token: string, host?:
   // If development mode and using separate frontend/backend ports, ensure we point to frontend
   // Note: The actual verification endpoint is on the API, but we want to redirect to frontend ultimately.
   // Let's stick to the API endpoint for the actual click, which then redirects.
-  const apiVerificationUrl = `${baseUrl}/api/verify-email?token=${token}`;
+  const apiVerificationUrl = `https://smymgame.columbuschurch.org/api/verify-email?token=${token}`;
 
   try {
     await transporter.sendMail({
@@ -53,15 +53,15 @@ export const sendVerificationEmail = async (email: string, token: string, host?:
 };
 
 export const sendDailyReminder = async (email: string, name: string, gameType: string) => {
-    const baseUrl = getAppUrl();
-    const gameUrl = `${baseUrl}`; // Just direct them to the home page to play today's game
+  const baseUrl = getAppUrl();
+  const gameUrl = `${baseUrl}`; // Just direct them to the home page to play today's game
 
-    try {
-        await transporter.sendMail({
-            from: process.env.EMAIL_FROM,
-            to: email,
-            subject: `Daily Challenge Reminder: Time for ${gameType}!`,
-            html: `
+  try {
+    await transporter.sendMail({
+      from: process.env.EMAIL_FROM,
+      to: email,
+      subject: `Daily Challenge Reminder: Time for ${gameType}!`,
+      html: `
                 <div style="font-family: sans-serif; color: #333;">
                     <h2>Hi ${name},</h2>
                     <p>Don't forget to play today's <strong>${gameType}</strong> challenge!</p>
@@ -74,24 +74,24 @@ export const sendDailyReminder = async (email: string, name: string, gameType: s
                     <p style="font-size: 12px; color: #666;">Good luck!<br/>SMYM Columbus Team</p>
                 </div>
             `,
-        });
-        console.log(`Reminder email sent to ${email} for ${gameType}`);
-    } catch (error) {
-        console.error(`Failed to send reminder email to ${email}:`, error);
-    }
+    });
+    console.log(`Reminder email sent to ${email} for ${gameType}`);
+  } catch (error) {
+    console.error(`Failed to send reminder email to ${email}:`, error);
+  }
 };
 
 // ADDED: Password reset email
 export const sendPasswordResetEmail = async (email: string, token: string, host?: string) => {
-    const baseUrl = getAppUrl(host);
-    const resetUrl = `${baseUrl}/reset-password?token=${token}`;
-  
-    try {
-      await transporter.sendMail({
-        from: process.env.EMAIL_FROM,
-        to: email,
-        subject: 'Password Reset Request for SMYM Bible Games',
-        html: `
+  const baseUrl = getAppUrl(host);
+  const resetUrl = `https://smymgame.columbuschurch.org/reset-password?token=${token}`;
+
+  try {
+    await transporter.sendMail({
+      from: process.env.EMAIL_FROM,
+      to: email,
+      subject: 'Password Reset Request for SMYM Bible Games',
+      html: `
           <div style="font-family: sans-serif; color: #333;">
             <h2>Password Reset Request</h2>
             <p>You requested a password reset for your SMYM Bible Games account.</p>
@@ -105,23 +105,23 @@ export const sendPasswordResetEmail = async (email: string, token: string, host?
             <p>If you did not request a password reset, please ignore this email.</p>
           </div>
         `,
-      });
-      console.log(`Password reset email sent to ${email}`);
-    } catch (error) {
-      console.error(`Failed to send password reset email to ${email}:`, error);
-    }
+    });
+    console.log(`Password reset email sent to ${email}`);
+  } catch (error) {
+    console.error(`Failed to send password reset email to ${email}:`, error);
+  }
 };
 
 // NEW: Account deletion request email to admin
 export const sendAccountDeletionRequestEmail = async (userEmail: string, userId: string, userName: string) => {
-    const adminEmail = 'me@isaacdomini.com'; // Admin's email address
-  
-    try {
-      await transporter.sendMail({
-        from: process.env.EMAIL_FROM,
-        to: adminEmail,
-        subject: '[ACTION REQUIRED] Account Deletion Request for SMYM Bible Games',
-        html: `
+  const adminEmail = 'me@isaacdomini.com'; // Admin's email address
+
+  try {
+    await transporter.sendMail({
+      from: process.env.EMAIL_FROM,
+      to: adminEmail,
+      subject: '[ACTION REQUIRED] Account Deletion Request for SMYM Bible Games',
+      html: `
           <div style="font-family: sans-serif; color: #333;">
             <h2>Account Deletion Request</h2>
             <p>A user has requested their account to be deleted. Please process this request within 48 hours.</p>
@@ -136,9 +136,9 @@ export const sendAccountDeletionRequestEmail = async (userEmail: string, userId:
             <p><strong>Action:</strong> Please log in to the admin dashboard or database to delete this user's data (User ID: ${userId}).</p>
           </div>
         `,
-      });
-      console.log(`Account deletion request sent to admin for user ${userEmail}`);
-    } catch (error) {
-      console.error(`Failed to send account deletion email to admin for user ${userEmail}:`, error);
-    }
+    });
+    console.log(`Account deletion request sent to admin for user ${userEmail}`);
+  } catch (error) {
+    console.error(`Failed to send account deletion email to admin for user ${userEmail}:`, error);
+  }
 };

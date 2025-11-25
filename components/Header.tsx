@@ -66,7 +66,7 @@ const Header: React.FC<HeaderProps> = ({ challengeName, onLogoClick, navigate })
                     <div onClick={onLogoClick} className="flex items-center space-x-3 cursor-pointer">
                         {ICONS.smymLogo}
                         <div>
-                            <h1 className="text-lg md:text-xl font-bold text-yellow-400">SMYM Christian Games</h1>
+                            <h1 className="text-lg md:text-xl font-bold text-yellow-400">SMYM Christian Challenges</h1>
                             {challengeName && <p className="text-xs text-gray-400 hidden sm:block">{challengeName}</p>}
                         </div>
                     </div>
