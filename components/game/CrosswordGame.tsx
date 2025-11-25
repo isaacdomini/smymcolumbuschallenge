@@ -12,37 +12,42 @@ interface CrosswordGameProps {
     onComplete: () => void;
 }
 
+const SAMPLE_DATA: CrosswordData = {
+    rows: 5,
+    cols: 5,
+    acrossClues: [
+        { number: 1, clue: 'On the ___ (using Tinder or Bumble)', answer: 'APPS', row: 0, col: 0, direction: 'across' },
+        { number: 5, clue: 'Color of the second-hardest Connections category', answer: 'BLUE', row: 1, col: 0, direction: 'across' },
+        { number: 6, clue: 'Prepare, as a Thanksgiving turkey', answer: 'CARVE', row: 2, col: 0, direction: 'across' },
+        { number: 8, clue: 'Have to have', answer: 'NEED', row: 3, col: 1, direction: 'across' },
+        { number: 9, clue: 'Camper\'s construction', answer: 'TENT', row: 4, col: 1, direction: 'across' },
+    ],
+    downClues: [
+        { number: 1, clue: 'Kimmel\'s channel', answer: 'ABC', row: 0, col: 0, direction: 'down' },
+        { number: 2, clue: 'Audience member who\'s in on the magic trick', answer: 'PLANT', row: 0, col: 1, direction: 'down' },
+        { number: 3, clue: 'Many a baby food', answer: 'PUREE', row: 0, col: 2, direction: 'down' },
+        { number: 4, clue: 'Typical number of objects that humans can hold in working memory, hence phone numbers', answer: 'SEVEN', row: 0, col: 3, direction: 'down' },
+        { number: 7, clue: 'Summer hrs. in N.Y.C.', answer: 'EDT', row: 2, col: 4, direction: 'down' },
+    ],
+};
+
 const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submission, onComplete }) => {
     const { user } = useAuth();
     const isSample = gameId.startsWith('sample-');
     const isReadOnly = !!submission;
+
+    // Use correct data for initialization
+    const activeData = isSample ? SAMPLE_DATA : gameData;
+
     const [userGrid, setUserGrid] = useState<(string | null)[][]>(() =>
-        Array(gameData.rows).fill(null).map(() => Array(gameData.cols).fill(null))
+        Array(activeData.rows).fill(null).map(() => Array(activeData.cols).fill(null))
     );
     const [isSubmitted, setIsSubmitted] = useState(!!submission);
     const [startTime, setStartTime] = useState<number | null>(null);
     const [showInstructions, setShowInstructions] = useState(!isReadOnly);
 
     const solutionGrid = useMemo(() => {
-        const sampleData: CrosswordData = {
-            rows: 5,
-            cols: 5,
-            acrossClues: [
-                { number: 1, clue: 'On the ___ (using Tinder or Bumble)', answer: 'APPS', row: 0, col: 0, direction: 'across' },
-                { number: 5, clue: 'Color of the second-hardest Connections category', answer: 'BLUE', row: 1, col: 0, direction: 'across' },
-                { number: 6, clue: 'Prepare, as a Thanksgiving turkey', answer: 'CARVE', row: 2, col: 0, direction: 'across' },
-                { number: 8, clue: 'Have to have', answer: 'NEED', row: 3, col: 1, direction: 'across' },
-                { number: 9, clue: 'Camper\'s construction', answer: 'TENT', row: 4, col: 1, direction: 'across' },
-            ],
-            downClues: [
-                { number: 1, clue: 'Kimmel\'s channel', answer: 'ABC', row: 0, col: 0, direction: 'down' },
-                { number: 2, clue: 'Audience member who\'s in on the magic trick', answer: 'PLANT', row: 0, col: 1, direction: 'down' },
-                { number: 3, clue: 'Many a baby food', answer: 'PUREE', row: 0, col: 2, direction: 'down' },
-                { number: 4, clue: 'Typical number of objects that humans can hold in working memory, hence phone numbers', answer: 'SEVEN', row: 0, col: 3, direction: 'down' },
-                { number: 7, clue: 'Summer hrs. in N.Y.C.', answer: 'EDT', row: 2, col: 4, direction: 'down' },
-            ],
-        };
-        const dataToUse = isSample ? sampleData : gameData;
+        const dataToUse = isSample ? SAMPLE_DATA : gameData;
         const grid: (string | null)[][] = Array(dataToUse.rows).fill(null).map(() => Array(dataToUse.cols).fill(null));
         const allClues: Clue[] = [...dataToUse.acrossClues, ...dataToUse.downClues];
         allClues.forEach(clue => {
@@ -192,24 +197,7 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
             </div>
 
             <DarkModeCrossword
-                puzzleData={isSample ? {
-                    rows: 5,
-                    cols: 5,
-                    acrossClues: [
-                        { number: 1, clue: 'On the ___ (using Tinder or Bumble)', answer: 'APPS', row: 0, col: 0, direction: 'across' },
-                        { number: 5, clue: 'Color of the second-hardest Connections category', answer: 'BLUE', row: 1, col: 0, direction: 'across' },
-                        { number: 6, clue: 'Prepare, as a Thanksgiving turkey', answer: 'CARVE', row: 2, col: 0, direction: 'across' },
-                        { number: 8, clue: 'Have to have', answer: 'NEED', row: 3, col: 1, direction: 'across' },
-                        { number: 9, clue: 'Camper\'s construction', answer: 'TENT', row: 4, col: 1, direction: 'across' },
-                    ],
-                    downClues: [
-                        { number: 1, clue: 'Kimmel\'s channel', answer: 'ABC', row: 0, col: 0, direction: 'down' },
-                        { number: 2, clue: 'Audience member who\'s in on the magic trick', answer: 'PLANT', row: 0, col: 1, direction: 'down' },
-                        { number: 3, clue: 'Many a baby food', answer: 'PUREE', row: 0, col: 2, direction: 'down' },
-                        { number: 4, clue: 'Typical number of objects that humans can hold in working memory, hence phone numbers', answer: 'SEVEN', row: 0, col: 3, direction: 'down' },
-                        { number: 7, clue: 'Summer hrs. in N.Y.C.', answer: 'EDT', row: 2, col: 4, direction: 'down' },
-                    ],
-                } : gameData}
+                puzzleData={isSample ? SAMPLE_DATA : gameData}
                 onCellChange={isReadOnly || isSubmitted ? undefined : handleCellChange}
                 onPuzzleComplete={isReadOnly ? undefined : handleSubmit}
                 initialGrid={userGrid}

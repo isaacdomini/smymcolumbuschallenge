@@ -245,7 +245,7 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
       </div>
 
       <div
-        className="grid gap-1.5 mb-4 w-full"
+        className="grid gap-1 sm:gap-1.5 mb-2 sm:mb-4 w-full max-w-[350px] sm:max-w-md"
         style={{ gridTemplateRows: `repeat(${maxGuesses}, 1fr)` }}
       >
         {guesses.map((guess, i) => (
@@ -285,7 +285,7 @@ const Row: React.FC<{ guess: string; isSubmitted: boolean; solution: string; wor
   const letters = Array.from(Array(wordLength));
   return (
     <div
-      className="grid gap-1.5"
+      className="grid gap-1 sm:gap-1.5"
       style={{ gridTemplateColumns: `repeat(${wordLength}, 1fr)` }}
     >
       {letters.map((_, i) => {
@@ -331,7 +331,7 @@ const getTileStatus = (char: string, index: number, isSubmitted: boolean, soluti
 };
 
 const Tile: React.FC<{ char?: string; status: 'empty' | 'correct' | 'present' | 'absent'; isRevealing: boolean; index: number }> = ({ char, status, isRevealing, index }) => {
-  const baseClasses = "aspect-square sm:w-14 sm:h-14 border-2 flex items-center justify-center text-2xl sm:text-3xl font-bold uppercase transition-all duration-300";
+  const baseClasses = "aspect-square w-full border-2 flex items-center justify-center text-xl sm:text-3xl font-bold uppercase transition-all duration-300";
   const statusClasses = {
     empty: 'border-gray-600',
     absent: 'bg-gray-700 border-gray-700',
@@ -373,9 +373,9 @@ const KEY_ROWS = [
 
 const Keyboard: React.FC<{ onKeyPress: (key: string) => void; letterStatuses: { [key: string]: 'correct' | 'present' | 'absent' }; }> = ({ onKeyPress, letterStatuses }) => {
   return (
-    <div className="w-full max-w-lg mt-4">
+    <div className="w-full max-w-lg mt-2 sm:mt-4">
       {KEY_ROWS.map((row, i) => (
-        <div key={i} className="flex justify-center gap-1 my-1 w-full">
+        <div key={i} className="flex justify-center gap-1 my-0.5 sm:my-1 w-full">
           {row.map(key => {
             const status = letterStatuses[key];
             const keyClasses = {
@@ -385,13 +385,13 @@ const Keyboard: React.FC<{ onKeyPress: (key: string) => void; letterStatuses: { 
               default: 'bg-gray-500 hover:bg-gray-600'
             };
             const flexClass = (key === 'Enter' || key === 'Backspace') ? 'flex-[1.5]' : 'flex-1';
-            const textSize = (key === 'Enter' || key === 'Backspace') ? 'text-xs' : 'text-sm';
+            const textSize = (key === 'Enter' || key === 'Backspace') ? 'text-[10px] sm:text-xs' : 'text-sm sm:text-base';
 
             return (
               <button
                 key={key}
                 onClick={() => onKeyPress(key)}
-                className={`h-12 rounded font-semibold uppercase text-white transition-colors ${flexClass} ${status ? keyClasses[status] : keyClasses.default} ${textSize}`}
+                className={`h-10 sm:h-14 rounded font-semibold uppercase text-white transition-colors ${flexClass} ${status ? keyClasses[status] : keyClasses.default} ${textSize}`}
               >
                 {key === 'Backspace' ? '⌫' : key}
               </button>
