@@ -514,23 +514,28 @@ router.get('/reset-password', async (req: Request, res: Response) => {
                 body: JSON.stringify({ token: '${token}', password })
               });
               
-              if (response.ok) {
-                document.body.innerHTML = \`
-                  <div class="bg-gray-800 p-8 rounded-xl shadow-2xl max-w-md w-full text-center border border-gray-700">
-                    <svg class="checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
-                      <circle class="checkmark__circle" cx="26" cy="26" r="25" fill="none"/>
-                      <path class="checkmark__check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
-                    </svg>
-                    <h1 class="text-3xl font-bold text-white mb-4">Password Reset!</h1>
-                    <p class="text-gray-300 text-lg">Your password has been successfully reset. You can now log in to the app.</p>
-                  </div>
-                \`;
-              } else {
+              const contentType = response.headers.get('content-type');
+              
+              if (contentType && contentType.includes('application/json')) {
                 const data = await response.json();
-                error.textContent = data.error || 'Failed to reset password';
-                error.classList.remove('hidden');
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Reset Password';
+                if (!response.ok) {
+                  error.textContent = data.error || 'Failed to reset password';
+                  error.classList.remove('hidden');
+                  submitBtn.disabled = false;
+                  submitBtn.textContent = 'Reset Password';
+                } else {
+                   // Should not happen given current server logic (returns HTML on success), 
+                   // but handling just in case we revert to JSON success
+                   error.textContent = data.message;
+                   error.classList.remove('hidden'); 
+                   // Or redirect/show success
+                }
+              } else {
+                // Assume HTML response (Success or 500 Error)
+                const html = await response.text();
+                document.open();
+                document.write(html);
+                document.close();
               }
             } catch (err) {
               error.textContent = 'Network error. Please try again.';
