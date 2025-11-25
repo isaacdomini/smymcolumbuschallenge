@@ -179,7 +179,7 @@ const MainContent: React.FC = () => {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('verified') === 'true') {
-      setGlobalMessage('Your email has been verified! You can now log in.');
+      setGlobalMessage('Your email has been verified! You can now log in to the app.');
       window.history.replaceState({}, '', '/');
       const timer = setTimeout(() => setGlobalMessage(null), 5000);
       return () => clearTimeout(timer);
