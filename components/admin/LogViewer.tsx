@@ -25,15 +25,15 @@ const LogViewer: React.FC = () => {
             <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold text-yellow-400">System Logs</h2>
                 <div className="space-x-2">
-                    <button 
-                        onClick={() => setPage(p => Math.max(0, p - 1))} 
+                    <button
+                        onClick={() => setPage(p => Math.max(0, p - 1))}
                         disabled={page === 0 || isLoading}
                         className="px-3 py-1 bg-gray-700 rounded disabled:opacity-50"
                     >
                         Prev
                     </button>
-                    <button 
-                        onClick={() => setPage(p => p + 1)} 
+                    <button
+                        onClick={() => setPage(p => p + 1)}
                         disabled={logs.length < limit || isLoading}
                         className="px-3 py-1 bg-gray-700 rounded disabled:opacity-50"
                     >
@@ -50,6 +50,8 @@ const LogViewer: React.FC = () => {
                             <th className="px-4 py-2">Method</th>
                             <th className="px-4 py-2">Path</th>
                             <th className="px-4 py-2">IP</th>
+                            <th className="px-4 py-2">User ID</th>
+                            <th className="px-4 py-2">User Agent</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-700">
@@ -65,10 +67,16 @@ const LogViewer: React.FC = () => {
                                 </td>
                                 <td className="px-4 py-2 truncate max-w-xs" title={log.path}>{log.path}</td>
                                 <td className="px-4 py-2 text-gray-500">{log.ip_address}</td>
+                                <td className="px-4 py-2 text-gray-500 truncate max-w-[120px]" title={log.user_id || 'N/A'}>
+                                    {log.user_id || 'N/A'}
+                                </td>
+                                <td className="px-4 py-2 text-gray-500 truncate max-w-xs" title={log.user_agent || 'N/A'}>
+                                    {log.user_agent || 'N/A'}
+                                </td>
                             </tr>
                         ))}
-                         {isLoading && (
-                            <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-500">Loading logs...</td></tr>
+                        {isLoading && (
+                            <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-500">Loading logs...</td></tr>
                         )}
                     </tbody>
                 </table>

@@ -40,7 +40,7 @@ router.get('/users', async (req: Request, res: Response) => {
             'SELECT id, name, email, is_verified, is_admin, created_at FROM users ORDER BY created_at DESC LIMIT $1 OFFSET $2',
             [limit, offset]
         );
-        
+
         // Map snake_case DB to camelCase for frontend
         const users = result.rows.map(row => ({
             id: row.id,
@@ -74,8 +74,8 @@ router.put('/users/:id', async (req: Request, res: Response) => {
             values.push(isAdmin);
         }
         if (isVerified !== undefined) {
-             fields.push(`is_verified = $${idx++}`);
-             values.push(isVerified);
+            fields.push(`is_verified = $${idx++}`);
+            values.push(isVerified);
         }
 
         if (fields.length === 0) {
@@ -95,6 +95,29 @@ router.put('/users/:id', async (req: Request, res: Response) => {
         res.json({ message: 'User updated successfully' });
     } catch (error) {
         console.error('Error updating user:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Delete user (admin only)
+router.delete('/users/:id', async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+
+        // Delete related data first (cascading delete)
+        await pool.query('DELETE FROM game_submissions WHERE user_id = $1', [id]);
+        await pool.query('DELETE FROM game_progress WHERE user_id = $1', [id]);
+
+        // Delete the user
+        const result = await pool.query('DELETE FROM users WHERE id = $1 RETURNING *', [id]);
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        res.json({ message: 'User deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting user:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
@@ -124,13 +147,13 @@ router.get('/logs', async (req: Request, res: Response) => {
 router.post('/games', async (req: Request, res: Response) => {
     try {
         const { challengeId, date, type, data } = req.body;
-        
+
         if (!challengeId || !date || !type || !data) {
             return res.status(400).json({ error: 'Missing required game fields' });
         }
 
         const gameId = `game-${type}-${date}`;
-        
+
         await pool.query(
             `INSERT INTO games (id, challenge_id, date, type, data) 
              VALUES ($1, $2, $3, $4, $5) 
@@ -168,7 +191,7 @@ router.post('/challenges', async (req: Request, res: Response) => {
     try {
         const { id, name, startDate, endDate } = req.body;
         if (!id || !name || !startDate || !endDate) {
-             return res.status(400).json({ error: 'Missing required challenge fields' });
+            return res.status(400).json({ error: 'Missing required challenge fields' });
         }
 
         await pool.query(
@@ -179,7 +202,7 @@ router.post('/challenges', async (req: Request, res: Response) => {
         res.status(201).json({ message: 'Challenge created successfully', id });
     } catch (error: any) {
         if (error.code === '23505') { // unique_violation
-             return res.status(409).json({ error: 'A challenge with this ID already exists.' });
+            return res.status(409).json({ error: 'A challenge with this ID already exists.' });
         }
         console.error('Error creating challenge:', error);
         res.status(500).json({ error: 'Internal server error' });
@@ -210,9 +233,9 @@ router.put('/challenges/:id', async (req: Request, res: Response) => {
 
 // Delete a challenge
 router.delete('/challenges/:id', async (req: Request, res: Response) => {
-     try {
+    try {
         const { id } = req.params;
-        
+
         // Check if games exist for this challenge first
         const gamesResult = await pool.query('SELECT COUNT(*) FROM games WHERE challenge_id = $1', [id]);
         if (parseInt(gamesResult.rows[0].count) > 0) {
