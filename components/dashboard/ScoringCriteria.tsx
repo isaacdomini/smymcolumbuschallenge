@@ -45,17 +45,33 @@ const ScoringCriteria: React.FC = () => {
             </p>
           </div>
           <div className="grid md:grid-cols-3 gap-6">
-            {criteria.map((item) => (
-              <div key={item.title} className="bg-gray-700/50 p-4 rounded-lg border-l-4 border-yellow-500">
-                <h3 className="text-xl font-bold text-white mb-2">{item.title}</h3>
-                <p className="text-gray-300 mb-3 text-sm">{item.description}</p>
-                <ul className="list-none space-y-1 text-gray-400 text-sm">
-                  {item.points.map((point, index) => (
-                    <li key={index}>{point}</li>
-                  ))}
-                </ul>
-              </div>
-            ))}
+            {criteria.map((item) => {
+              let sampleUrl = '';
+              if (item.title === 'Wordle') sampleUrl = '/game/sample-wordle';
+              else if (item.title === 'Connections') sampleUrl = '/game/sample-connections';
+              else if (item.title === 'Crossword') sampleUrl = '/game/sample-crossword';
+              else if (item.title === 'Match the Word') sampleUrl = '/game/sample-match_the_word';
+
+              return (
+                <div key={item.title} className="bg-gray-700/50 p-4 rounded-lg border-l-4 border-yellow-500 flex flex-col h-full">
+                  <h3 className="text-xl font-bold text-white mb-2">{item.title}</h3>
+                  <p className="text-gray-300 mb-3 text-sm flex-grow">{item.description}</p>
+                  <ul className="list-none space-y-1 text-gray-400 text-sm">
+                    {item.points.map((point, index) => (
+                      <li key={index}>{point}</li>
+                    ))}
+                  </ul>
+                  {sampleUrl && (
+                    <button
+                      onClick={() => window.location.href = sampleUrl}
+                      className="mt-4 w-full bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded text-sm transition-colors"
+                    >
+                      Try Sample
+                    </button>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

@@ -141,12 +141,30 @@ const GameInstructionsModal: React.FC<GameInstructionsModalProps> = ({ gameType,
       <div className="mb-6 max-h-[60vh] overflow-y-auto pr-2">
         {getContent()}
       </div>
-      <button
-        onClick={onStart}
-        className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg text-lg transition-transform transform hover:scale-105"
-      >
-        Start Game
-      </button>
+      <div className="flex flex-col gap-3">
+        <button
+          onClick={onStart}
+          className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg text-lg transition-transform transform hover:scale-105"
+        >
+          Start Game
+        </button>
+        {/* Only show sample button if we are not already in a sample game (which would be handled by parent not passing onSample if so desired, or we can just always show it but maybe it's redundant) */}
+        {/* Actually, the requirement is to add a button to try playing. */}
+        <button
+          onClick={() => {
+            onClose();
+            // We'll navigate to the sample game route.
+            // Since this modal is used inside the game, we might need a way to switch context.
+            // But wait, if we are inside a game, we are already at /game/:id.
+            // If we want to play a sample, we should probably just switch the game component to sample mode.
+            // However, the cleanest way given the App structure is to navigate to a sample URL.
+            window.location.href = `/game/sample-${gameType}`;
+          }}
+          className="w-full bg-gray-700 hover:bg-gray-600 text-gray-300 font-bold py-2 px-6 rounded-lg text-base transition-colors"
+        >
+          Try Sample Game
+        </button>
+      </div>
     </Modal>
   );
 };
