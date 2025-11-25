@@ -1,4 +1,4 @@
-import { User, Challenge, Game, GameType, GameSubmission, WordleData, ConnectionsData, CrosswordData, MatchTheWordData, SubmitGamePayload, GameProgress, AdminStats, LogEntry} from '@/types';
+import { User, Challenge, Game, GameType, GameSubmission, WordleData, ConnectionsData, CrosswordData, MatchTheWordData, SubmitGamePayload, GameProgress, AdminStats, LogEntry } from '@/types';
 
 const USE_MOCK_DATA = import.meta.env.MODE === 'development';
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
@@ -10,7 +10,7 @@ const isTestUser = () => {
             const user = JSON.parse(stored);
             return user && user.email && user.email.split('@')[0] === 'test';
         }
-    } catch (e) {}
+    } catch (e) { }
     return false;
 };
 
@@ -23,10 +23,10 @@ const MOCK_USERS: User[] = [
 ];
 
 const MOCK_CHALLENGE: Challenge = {
-    id: 'challenge-1', 
-    name: 'Lenten Challenge 2025', 
-    startDate: new Date(Date.now() - 1000 * 60 * 60 * 24 * 10).toISOString(), 
-    endDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 2).toISOString() 
+    id: 'challenge-1',
+    name: 'Lenten Challenge 2025',
+    startDate: new Date(Date.now() - 1000 * 60 * 60 * 24 * 10).toISOString(),
+    endDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 2).toISOString()
 };
 
 const MOCK_GAMES: Game[] = [];
@@ -77,7 +77,7 @@ for (let i = 0; i < 40; i++) {
             } as MatchTheWordData,
         };
     } else {
-         const crosswordData: CrosswordData = {
+        const crosswordData: CrosswordData = {
             rows: 5,
             cols: 5,
             acrossClues: [
@@ -125,13 +125,13 @@ const getAuthHeaders = (userId?: string) => {
         headers['X-User-ID'] = userId;
     }
     else {
-         try {
+        try {
             const stored = localStorage.getItem('smym-user');
             if (stored) {
                 const user = JSON.parse(stored);
                 if (user.id) headers['X-User-ID'] = user.id;
             }
-        } catch (e) {}
+        } catch (e) { }
     }
     return headers;
 };
@@ -162,12 +162,12 @@ export const login = async (email: string, pass: string): Promise<User> => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password: pass }),
         });
-        
+
         if (!response.ok) {
             const error = await response.json();
             throw new Error(error.error || 'Invalid credentials');
         }
-        
+
         return await response.json();
     }
 };
@@ -189,12 +189,12 @@ export const signup = async (name: string, email: string, pass: string, emailNot
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name, email, password: pass, emailNotifications }),
         });
-        
+
         if (!response.ok) {
             const error = await response.json();
             throw new Error(error.error || 'Signup failed');
         }
-        
+
         return await response.json();
     }
 };
@@ -226,7 +226,7 @@ export const forgotPassword = async (email: string): Promise<{ message: string }
 export const resetPassword = async (token: string, password: string): Promise<{ message: string }> => {
     if (USE_MOCK_DATA) {
         await simulateDelay(500);
-         return { message: 'Password has been reset successfully. You can now log in. (Mock)' };
+        return { message: 'Password has been reset successfully. You can now log in. (Mock)' };
     } else {
         const response = await fetch(`${API_BASE_URL}/reset-password`, {
             method: 'POST',
@@ -270,7 +270,7 @@ export const getChallenge = async (): Promise<Challenge | null> => {
         await simulateDelay(300);
         const now = new Date();
         const isFinished = new Date(MOCK_CHALLENGE.endDate) < now;
-        
+
         if (isFinished) return null;
 
         return MOCK_CHALLENGE;
@@ -347,9 +347,9 @@ export const getSubmissionForToday = async (userId: string, gameId: string): Pro
     } else {
         const response = await fetch(`${API_BASE_URL}/submissions/user/${userId}/game/${gameId}`);
         if (!response.ok) {
-             if (response.status === 404) return null;
-             const data = await response.json().catch(() => null);
-             return data || null;
+            if (response.status === 404) return null;
+            const data = await response.json().catch(() => null);
+            return data || null;
         }
         return await response.json();
     }
@@ -371,7 +371,7 @@ export const getLeaderboard = async (challengeId: string): Promise<(GameSubmissi
                 userScores[sub.userId].totalScore += sub.score;
             }
         }
-        
+
         return Object.values(userScores).map(us => ({
             id: `leaderboard-${us.user.id}`,
             userId: us.user.id,
@@ -398,7 +398,7 @@ const calculateScore = (payload: SubmitGamePayload, game: Game): number => {
 
     switch (game.type) {
         case GameType.WORDLE: {
-            const maxGuesses = 6; 
+            const maxGuesses = 6;
             if (mistakes >= maxGuesses) {
                 return 0;
             }
@@ -459,10 +459,10 @@ export const submitGame = async (payload: SubmitGamePayload): Promise<GameSubmis
         };
         const existingIndex = MOCK_SUBMISSIONS.findIndex(s => s.userId === payload.userId && s.gameId === payload.gameId);
         if (existingIndex > -1) {
-             if (score > MOCK_SUBMISSIONS[existingIndex].score) {
-                 MOCK_SUBMISSIONS[existingIndex] = newSubmission;
-             }
-             return MOCK_SUBMISSIONS[existingIndex];
+            if (score > MOCK_SUBMISSIONS[existingIndex].score) {
+                MOCK_SUBMISSIONS[existingIndex] = newSubmission;
+            }
+            return MOCK_SUBMISSIONS[existingIndex];
         } else {
             MOCK_SUBMISSIONS.push(newSubmission);
             return newSubmission;
@@ -474,11 +474,11 @@ export const submitGame = async (payload: SubmitGamePayload): Promise<GameSubmis
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
         });
-        
+
         if (!response.ok) {
             throw new Error('Failed to submit game');
         }
-        
+
         return await response.json();
     }
 };
@@ -490,9 +490,9 @@ export const getGameState = async (userId: string, gameId: string): Promise<Game
     } else {
         const response = await fetch(`${API_BASE_URL}/game-state/user/${userId}/game/${gameId}`);
         if (!response.ok) {
-             if (response.status === 404) return null;
-             const data = await response.json().catch(() => null);
-             return data;
+            if (response.status === 404) return null;
+            const data = await response.json().catch(() => null);
+            return data;
         }
         return await response.json();
     }
@@ -569,7 +569,7 @@ export const getChallenges = async (userId: string): Promise<Challenge[]> => {
     if (USE_MOCK_DATA || isTestUser()) {
         return [MOCK_CHALLENGE];
     }
-     const response = await fetch(`${API_BASE_URL}/admin/challenges`, {
+    const response = await fetch(`${API_BASE_URL}/admin/challenges`, {
         headers: getAuthHeaders(userId)
     });
     if (!response.ok) throw new Error('Failed to fetch challenges');
@@ -588,7 +588,7 @@ export const createGame = async (userId: string, gameData: any): Promise<void> =
         } as Game);
         return;
     }
-     const response = await fetch(`${API_BASE_URL}/admin/games`, {
+    const response = await fetch(`${API_BASE_URL}/admin/games`, {
         method: 'POST',
         headers: getAuthHeaders(userId),
         body: JSON.stringify(gameData)
@@ -648,12 +648,27 @@ export const getUsers = async (userId: string, limit = 50, offset = 0): Promise<
 
 export const updateUserAsAdmin = async (adminUserId: string, targetUserId: string, data: { isAdmin?: boolean, isVerified?: boolean }): Promise<void> => {
     if (USE_MOCK_DATA || isTestUser()) return;
-     const response = await fetch(`${API_BASE_URL}/admin/users/${targetUserId}`, {
+    const response = await fetch(`${API_BASE_URL}/admin/users/${targetUserId}`, {
         method: 'PUT',
         headers: getAuthHeaders(adminUserId),
         body: JSON.stringify(data)
     });
     if (!response.ok) throw new Error('Failed to update user');
+};
+
+export const deleteUserAsAdmin = async (adminUserId: string, targetUserId: string): Promise<void> => {
+    if (USE_MOCK_DATA || isTestUser()) {
+        await simulateDelay(500);
+        const index = MOCK_USERS.findIndex(u => u.id === targetUserId);
+        if (index === -1) throw new Error("User not found");
+        MOCK_USERS.splice(index, 1);
+        return;
+    }
+    const response = await fetch(`${API_BASE_URL}/admin/users/${targetUserId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(adminUserId)
+    });
+    if (!response.ok) throw new Error('Failed to delete user');
 };
 
 export const updateUserProfile = async (userId: string, data: { name: string }): Promise<User> => {
@@ -696,7 +711,7 @@ export const getLogs = async (userId: string, limit = 100, offset = 0): Promise<
     if (!response.ok) throw new Error('Failed to fetch logs');
     return await response.json();
 };
-    
+
 export const getScoringCriteria = async (): Promise<any[]> => {
     return [
         {
@@ -715,24 +730,24 @@ export const getScoringCriteria = async (): Promise<any[]> => {
                 'Time Bonus: Up to 30 points for a fast completion time.'
             ]
         },
-        ... !(USE_MOCK_DATA || isTestUser()) ? [ 
-        {
-            title: 'Word of the Day',
-            description: 'Your score is based solely on the number of guesses used.',
-            points: [
-                'Guess Score: Up to 60 points (10 points for every unused guess remaining).',
-                'Losing (6 incorrect guesses) results in a score of 0.'
-            ]
-        }] :
-        [{
-            title: 'Match the Word',
-            description: 'Your score is based on how quickly and accurately you match the words.',
-            points: [
-                'Match Score: 10 points for each correct match.',
-                'Time Bonus: Up to 30 points for a fast completion time.',
-                'Mistake Penalty: -5 points for each incorrect match.'
-            ]
-        }]
+        ... !(USE_MOCK_DATA || isTestUser()) ? [
+            {
+                title: 'Word of the Day',
+                description: 'Your score is based solely on the number of guesses used.',
+                points: [
+                    'Guess Score: Up to 60 points (10 points for every unused guess remaining).',
+                    'Losing (6 incorrect guesses) results in a score of 0.'
+                ]
+            }] :
+            [{
+                title: 'Match the Word',
+                description: 'Your score is based on how quickly and accurately you match the words.',
+                points: [
+                    'Match Score: 10 points for each correct match.',
+                    'Time Bonus: Up to 30 points for a fast completion time.',
+                    'Mistake Penalty: -5 points for each incorrect match.'
+                ]
+            }]
     ];
-    
+
 };
