@@ -233,8 +233,97 @@ router.get('/verify-email', async (req: Request, res: Response) => {
     const user = result.rows[0];
     await pool.query('UPDATE users SET is_verified = true, verification_token = NULL WHERE id = $1', [user.id]);
 
-    const frontendUrl = 'https://smymverify.columbuschurch.org/' //|| (process.env.NODE_ENV === 'development' ? 'http://localhost:5173' : '/');
-    return res.redirect(`${frontendUrl}?verified=true`);
+    // Return a simple HTML page with the success message
+    return res.send(`
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Email Verified</title>
+        <style>
+          * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+          }
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          }
+          .container {
+            text-align: center;
+            padding: 3rem;
+            background: white;
+            border-radius: 1rem;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 500px;
+          }
+          .checkmark {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            display: block;
+            stroke-width: 3;
+            stroke: #4CAF50;
+            stroke-miterlimit: 10;
+            margin: 0 auto 2rem;
+            box-shadow: inset 0 0 0 #4CAF50;
+            animation: fill .4s ease-in-out .4s forwards, scale .3s ease-in-out .9s both;
+          }
+          .checkmark__circle {
+            stroke-dasharray: 166;
+            stroke-dashoffset: 166;
+            stroke-width: 3;
+            stroke-miterlimit: 10;
+            stroke: #4CAF50;
+            fill: none;
+            animation: stroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+          }
+          .checkmark__check {
+            transform-origin: 50% 50%;
+            stroke-dasharray: 48;
+            stroke-dashoffset: 48;
+            animation: stroke 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.8s forwards;
+          }
+          @keyframes stroke {
+            100% { stroke-dashoffset: 0; }
+          }
+          @keyframes scale {
+            0%, 100% { transform: none; }
+            50% { transform: scale3d(1.1, 1.1, 1); }
+          }
+          @keyframes fill {
+            100% { box-shadow: inset 0 0 0 30px #4CAF50; }
+          }
+          h1 {
+            color: #333;
+            font-size: 2rem;
+            margin-bottom: 1rem;
+          }
+          p {
+            color: #666;
+            font-size: 1.1rem;
+            line-height: 1.6;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <svg class="checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+            <circle class="checkmark__circle" cx="26" cy="26" r="25" fill="none"/>
+            <path class="checkmark__check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+          </svg>
+          <h1>Your email has been verified!</h1>
+          <p>You can now log in to the app.</p>
+        </div>
+      </body>
+      </html>
+    `);
   } catch (error) {
     console.error('Email verification error:', error);
     res.status(500).send('Internal server error during email verification.');
