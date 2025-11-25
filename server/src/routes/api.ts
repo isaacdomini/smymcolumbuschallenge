@@ -241,28 +241,24 @@ router.get('/verify-email', async (req: Request, res: Response) => {
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Email Verified</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <script>
+          tailwind.config = {
+            theme: {
+              extend: {
+                colors: {
+                  gray: {
+                    900: '#111827',
+                    800: '#1f2937',
+                    700: '#374151',
+                    100: '#f3f4f6',
+                  }
+                }
+              }
+            }
+          }
+        </script>
         <style>
-          * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-          }
-          body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          }
-          .container {
-            text-align: center;
-            padding: 3rem;
-            background: white;
-            border-radius: 1rem;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            max-width: 500px;
-          }
           .checkmark {
             width: 80px;
             height: 80px;
@@ -300,26 +296,16 @@ router.get('/verify-email', async (req: Request, res: Response) => {
           @keyframes fill {
             100% { box-shadow: inset 0 0 0 30px #4CAF50; }
           }
-          h1 {
-            color: #333;
-            font-size: 2rem;
-            margin-bottom: 1rem;
-          }
-          p {
-            color: #666;
-            font-size: 1.1rem;
-            line-height: 1.6;
-          }
         </style>
       </head>
-      <body>
-        <div class="container">
+      <body class="bg-gray-900 text-gray-100 min-h-screen flex items-center justify-center p-4">
+        <div class="bg-gray-800 p-8 rounded-xl shadow-2xl max-w-md w-full text-center border border-gray-700">
           <svg class="checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
             <circle class="checkmark__circle" cx="26" cy="26" r="25" fill="none"/>
             <path class="checkmark__check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
           </svg>
-          <h1>Your email has been verified!</h1>
-          <p>You can now log in to the app.</p>
+          <h1 class="text-3xl font-bold text-white mb-4">Email Verified!</h1>
+          <p class="text-gray-300 text-lg">Your email has been successfully verified. You can now log in to the app.</p>
         </div>
       </body>
       </html>
@@ -346,6 +332,193 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Forgot password error:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.get('/reset-password', async (req: Request, res: Response) => {
+  try {
+    const { token } = req.query;
+
+    const tailwindHead = `
+      <script src="https://cdn.tailwindcss.com"></script>
+      <script>
+        tailwind.config = {
+          theme: {
+            extend: {
+              colors: {
+                gray: {
+                  900: '#111827',
+                  800: '#1f2937',
+                  700: '#374151',
+                  600: '#4b5563',
+                  400: '#9ca3af',
+                  300: '#d1d5db',
+                  100: '#f3f4f6',
+                },
+                yellow: {
+                  400: '#facc15',
+                  500: '#eab308',
+                }
+              }
+            }
+          }
+        }
+      </script>
+    `;
+
+    if (!token || typeof token !== 'string') {
+      return res.send(`
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Invalid Reset Link</title>
+          ${tailwindHead}
+        </head>
+        <body class="bg-gray-900 text-gray-100 min-h-screen flex items-center justify-center p-4">
+          <div class="bg-gray-800 p-8 rounded-xl shadow-2xl max-w-md w-full text-center border border-gray-700">
+            <h1 class="text-3xl font-bold text-red-500 mb-4">Invalid Reset Link</h1>
+            <p class="text-gray-300 text-lg">This password reset link is invalid. Please request a new password reset.</p>
+          </div>
+        </body>
+        </html>
+      `);
+    }
+
+    // Verify token is valid and not expired
+    const userResult = await pool.query('SELECT * FROM users WHERE reset_password_token = $1 AND reset_password_expires > $2', [token, Date.now()]);
+    if (userResult.rows.length === 0) {
+      return res.send(`
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Expired Reset Link</title>
+          ${tailwindHead}
+        </head>
+        <body class="bg-gray-900 text-gray-100 min-h-screen flex items-center justify-center p-4">
+          <div class="bg-gray-800 p-8 rounded-xl shadow-2xl max-w-md w-full text-center border border-gray-700">
+            <h1 class="text-3xl font-bold text-red-500 mb-4">Link Expired</h1>
+            <p class="text-gray-300 text-lg">This password reset link has expired. Please request a new password reset.</p>
+          </div>
+        </body>
+        </html>
+      `);
+    }
+
+    // Show password reset form
+    return res.send(`
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Reset Password</title>
+        ${tailwindHead}
+        <style>
+          /* Custom checkmark styles */
+          .checkmark { width: 80px; height: 80px; border-radius: 50%; display: block; stroke-width: 3; stroke: #4CAF50; stroke-miterlimit: 10; margin: 0 auto 2rem; box-shadow: inset 0 0 0 #4CAF50; animation: fill .4s ease-in-out .4s forwards, scale .3s ease-in-out .9s both; }
+          .checkmark__circle { stroke-dasharray: 166; stroke-dashoffset: 166; stroke-width: 3; stroke-miterlimit: 10; stroke: #4CAF50; fill: none; animation: stroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards; }
+          .checkmark__check { transform-origin: 50% 50%; stroke-dasharray: 48; stroke-dashoffset: 48; animation: stroke 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.8s forwards; }
+          @keyframes stroke { 100% { stroke-dashoffset: 0; } }
+          @keyframes scale { 0%, 100% { transform: none; } 50% { transform: scale3d(1.1, 1.1, 1); } }
+          @keyframes fill { 100% { box-shadow: inset 0 0 0 30px #4CAF50; } }
+        </style>
+      </head>
+      <body class="bg-gray-900 text-gray-100 min-h-screen flex items-center justify-center p-4">
+        <div class="bg-gray-800 p-8 rounded-xl shadow-2xl max-w-md w-full border border-gray-700">
+          <h1 class="text-3xl font-bold text-white mb-2 text-center">Reset Password</h1>
+          <p class="text-gray-400 text-center mb-8">Enter your new password below.</p>
+          
+          <form id="resetForm" class="space-y-6">
+            <div>
+              <label for="password" class="block text-sm font-medium text-gray-300 mb-2">New Password</label>
+              <input type="password" id="password" name="password" required minlength="6" placeholder="Enter new password" 
+                class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 transition-colors">
+            </div>
+            <div>
+              <label for="confirmPassword" class="block text-sm font-medium text-gray-300 mb-2">Confirm Password</label>
+              <input type="password" id="confirmPassword" name="confirmPassword" required minlength="6" placeholder="Confirm new password"
+                class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 transition-colors">
+            </div>
+            
+            <div id="error" class="hidden p-3 bg-red-900/50 border border-red-500/50 rounded-lg text-red-200 text-sm text-center"></div>
+            
+            <button type="submit" id="submitBtn" 
+              class="w-full py-3 px-4 bg-yellow-500 hover:bg-yellow-400 text-gray-900 font-bold rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed">
+              Reset Password
+            </button>
+          </form>
+        </div>
+
+        <script>
+          const form = document.getElementById('resetForm');
+          const error = document.getElementById('error');
+          const submitBtn = document.getElementById('submitBtn');
+          
+          form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            error.classList.add('hidden');
+            
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            
+            if (password !== confirmPassword) {
+              error.textContent = 'Passwords do not match';
+              error.classList.remove('hidden');
+              return;
+            }
+            
+            if (password.length < 6) {
+              error.textContent = 'Password must be at least 6 characters';
+              error.classList.remove('hidden');
+              return;
+            }
+            
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Resetting...';
+            
+            try {
+              const response = await fetch('/api/reset-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token: '${token}', password })
+              });
+              
+              if (response.ok) {
+                document.body.innerHTML = \`
+                  <div class="bg-gray-800 p-8 rounded-xl shadow-2xl max-w-md w-full text-center border border-gray-700">
+                    <svg class="checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+                      <circle class="checkmark__circle" cx="26" cy="26" r="25" fill="none"/>
+                      <path class="checkmark__check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+                    </svg>
+                    <h1 class="text-3xl font-bold text-white mb-4">Password Reset!</h1>
+                    <p class="text-gray-300 text-lg">Your password has been successfully reset. You can now log in to the app.</p>
+                  </div>
+                \`;
+              } else {
+                const data = await response.json();
+                error.textContent = data.error || 'Failed to reset password';
+                error.classList.remove('hidden');
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Reset Password';
+              }
+            } catch (err) {
+              error.textContent = 'Network error. Please try again.';
+              error.classList.remove('hidden');
+              submitBtn.disabled = false;
+              submitBtn.textContent = 'Reset Password';
+            }
+          });
+        </script>
+      </body>
+      </html>
+    `);
+  } catch (error) {
+    console.error('Reset password GET error:', error);
+    res.status(500).send('Internal server error');
   }
 });
 
