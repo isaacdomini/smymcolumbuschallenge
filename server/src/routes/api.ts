@@ -233,7 +233,7 @@ router.get('/verify-email', async (req: Request, res: Response) => {
     const user = result.rows[0];
     await pool.query('UPDATE users SET is_verified = true, verification_token = NULL WHERE id = $1', [user.id]);
 
-    const frontendUrl = process.env.APP_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5173' : '/');
+    const frontendUrl = 'https://smymverify.columbuschurch.org/' //|| (process.env.NODE_ENV === 'development' ? 'http://localhost:5173' : '/');
     return res.redirect(`${frontendUrl}?verified=true`);
   } catch (error) {
     console.error('Email verification error:', error);
