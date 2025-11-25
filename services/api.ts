@@ -712,10 +712,38 @@ export const getLogs = async (userId: string, limit = 100, offset = 0): Promise<
     return await response.json();
 };
 
+export const getGames = async (userId: string, challengeId: string): Promise<Game[]> => {
+    if (USE_MOCK_DATA || isTestUser()) return []; // Not implemented for mock
+    const response = await fetch(`${API_BASE_URL}/admin/games?challengeId=${challengeId}`, {
+        headers: getAuthHeaders(userId)
+    });
+    if (!response.ok) throw new Error('Failed to fetch games');
+    return await response.json();
+};
+
+export const deleteGame = async (userId: string, gameId: string): Promise<void> => {
+    if (USE_MOCK_DATA || isTestUser()) return; // Not implemented for mock
+    const response = await fetch(`${API_BASE_URL}/admin/games/${gameId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(userId)
+    });
+    if (!response.ok) throw new Error('Failed to delete game');
+};
+
+
+
 export const getScoringCriteria = async (): Promise<any[]> => {
     return [
         {
-            title: 'Connect the Words',
+            title: 'Wordle',
+            description: 'Your score is based solely on the number of guesses used.',
+            points: [
+                'Guess Score: Up to 60 points (10 points for every unused guess remaining).',
+                'Losing (6 incorrect guesses) results in a score of 0.'
+            ]
+        },
+        {
+            title: 'Connections',
             description: 'Solve the puzzle by grouping words into categories.',
             points: [
                 'Category Score: 20 points for each correct category found.',
@@ -730,24 +758,15 @@ export const getScoringCriteria = async (): Promise<any[]> => {
                 'Time Bonus: Up to 30 points for a fast completion time.'
             ]
         },
-        ... !(USE_MOCK_DATA || isTestUser()) ? [
-            {
-                title: 'Word of the Day',
-                description: 'Your score is based solely on the number of guesses used.',
-                points: [
-                    'Guess Score: Up to 60 points (10 points for every unused guess remaining).',
-                    'Losing (6 incorrect guesses) results in a score of 0.'
-                ]
-            }] :
-            [{
-                title: 'Match the Word',
-                description: 'Your score is based on how quickly and accurately you match the words.',
-                points: [
-                    'Match Score: 10 points for each correct match.',
-                    'Time Bonus: Up to 30 points for a fast completion time.',
-                    'Mistake Penalty: -5 points for each incorrect match.'
-                ]
-            }]
-    ];
+        {
+            title: 'Match the Word',
+            description: 'Your score is based on how quickly and accurately you match the words.',
+            points: [
+                'Match Score: 10 points for each correct match.',
+                'Time Bonus: Up to 30 points for a fast completion time.',
+                'Mistake Penalty: -5 points for each incorrect match.'
+            ]
+        }
+    ]
 
 };

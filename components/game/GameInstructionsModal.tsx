@@ -26,7 +26,7 @@ const GameInstructionsModal: React.FC<GameInstructionsModalProps> = ({ gameType,
           <div className="w-10 h-10 border-2 border-gray-600 flex items-center justify-center font-bold">Y</div>
         </div>
         <p className="text-sm mb-4"><span className="font-bold text-green-400">W</span> is in the word and in the correct spot.</p>
-        
+
         <div className="flex gap-2 mb-2">
           <div className="w-10 h-10 border-2 border-gray-600 flex items-center justify-center font-bold">P</div>
           <div className="w-10 h-10 bg-yellow-500 border-2 border-yellow-500 flex items-center justify-center font-bold text-black">I</div>
@@ -59,17 +59,17 @@ const GameInstructionsModal: React.FC<GameInstructionsModalProps> = ({ gameType,
       <div className="my-4 p-4 bg-gray-900/50 rounded-lg">
         <h4 className="font-bold mb-2">Category Examples</h4>
         <ul className="text-sm space-y-2">
-            <li><span className="font-bold text-yellow-400">FISH:</span> Bass, Flounder, Salmon, Trout</li>
-            <li><span className="font-bold text-yellow-400">FIRE ___:</span> Ant, Drill, Island, Opal</li>
+          <li><span className="font-bold text-yellow-400">FISH:</span> Bass, Flounder, Salmon, Trout</li>
+          <li><span className="font-bold text-yellow-400">FIRE ___:</span> Ant, Drill, Island, Opal</li>
         </ul>
         <div className="mt-4 grid grid-cols-4 gap-2 opacity-75 pointer-events-none" aria-hidden="true">
-            {/* Visual filler for grid */}
-            {['BASS', 'FLOUNDER', 'SALMON', 'TROUT'].map((w, i) => (
-                <div key={i} className="bg-green-800 text-xs p-1 rounded text-center flex items-center justify-center h-8">{w}</div>
-            ))}
-             {['ANT', 'DRILL', 'ISLAND', 'OPAL'].map((w, i) => (
-                <div key={i} className="bg-yellow-600 text-xs p-1 rounded text-center flex items-center justify-center h-8">{w}</div>
-            ))}
+          {/* Visual filler for grid */}
+          {['BASS', 'FLOUNDER', 'SALMON', 'TROUT'].map((w, i) => (
+            <div key={i} className="bg-green-800 text-xs p-1 rounded text-center flex items-center justify-center h-8">{w}</div>
+          ))}
+          {['ANT', 'DRILL', 'ISLAND', 'OPAL'].map((w, i) => (
+            <div key={i} className="bg-yellow-600 text-xs p-1 rounded text-center flex items-center justify-center h-8">{w}</div>
+          ))}
         </div>
       </div>
     </div>
@@ -85,21 +85,21 @@ const GameInstructionsModal: React.FC<GameInstructionsModalProps> = ({ gameType,
         <li>Your score is based on accuracy and completion time.</li>
       </ul>
       <div className="my-4 flex justify-center">
-          {/* Simple SVG Diagram for Crossword interaction */}
-          <svg width="120" height="120" viewBox="0 0 120 120" className="bg-gray-900 rounded-lg">
-              <rect x="10" y="10" width="30" height="30" fill="#3F3F46" stroke="#52525B" />
-              <text x="25" y="35" textAnchor="middle" fill="white" fontSize="20" fontWeight="bold">C</text>
-              <rect x="45" y="10" width="30" height="30" fill="#EAB308" stroke="#EAB308" />
-              <text x="60" y="35" textAnchor="middle" fill="black" fontSize="20" fontWeight="bold">A</text>
-              <rect x="80" y="10" width="30" height="30" fill="#3F3F46" stroke="#52525B" />
-              <text x="95" y="35" textAnchor="middle" fill="white" fontSize="20" fontWeight="bold">T</text>
-              
-              <rect x="45" y="45" width="30" height="30" fill="#3F3F46" stroke="#52525B" />
-              <rect x="45" y="80" width="30" height="30" fill="#3F3F46" stroke="#52525B" />
-              
-              {/* Highlight indicator */}
-              <rect x="43" y="8" width="34" height="34" fill="none" stroke="#EAB308" strokeWidth="2" className="animate-pulse"/>
-          </svg>
+        {/* Simple SVG Diagram for Crossword interaction */}
+        <svg width="120" height="120" viewBox="0 0 120 120" className="bg-gray-900 rounded-lg">
+          <rect x="10" y="10" width="30" height="30" fill="#3F3F46" stroke="#52525B" />
+          <text x="25" y="35" textAnchor="middle" fill="white" fontSize="20" fontWeight="bold">C</text>
+          <rect x="45" y="10" width="30" height="30" fill="#EAB308" stroke="#EAB308" />
+          <text x="60" y="35" textAnchor="middle" fill="black" fontSize="20" fontWeight="bold">A</text>
+          <rect x="80" y="10" width="30" height="30" fill="#3F3F46" stroke="#52525B" />
+          <text x="95" y="35" textAnchor="middle" fill="white" fontSize="20" fontWeight="bold">T</text>
+
+          <rect x="45" y="45" width="30" height="30" fill="#3F3F46" stroke="#52525B" />
+          <rect x="45" y="80" width="30" height="30" fill="#3F3F46" stroke="#52525B" />
+
+          {/* Highlight indicator */}
+          <rect x="43" y="8" width="34" height="34" fill="none" stroke="#EAB308" strokeWidth="2" className="animate-pulse" />
+        </svg>
       </div>
     </div>
   );
@@ -118,7 +118,7 @@ const GameInstructionsModal: React.FC<GameInstructionsModalProps> = ({ gameType,
 
   const getTitle = () => {
     switch (gameType) {
-      case GameType.WORDLE: return 'How to Play Word of the Day';
+      case GameType.WORDLE: return 'How to Play Wordle';
       case GameType.CONNECTIONS: return 'How to Play Connect the Words';
       case GameType.CROSSWORD: return 'How to Play Crossword';
       case GameType.MATCH_THE_WORD: return 'How to Play Match the Word';
@@ -138,15 +138,15 @@ const GameInstructionsModal: React.FC<GameInstructionsModalProps> = ({ gameType,
 
   return (
     <Modal onClose={onClose} title={getTitle()}>
-       <div className="mb-6 max-h-[60vh] overflow-y-auto pr-2">
-         {getContent()}
-       </div>
-       <button 
-         onClick={onStart}
-         className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg text-lg transition-transform transform hover:scale-105"
-       >
-         Start Game
-       </button>
+      <div className="mb-6 max-h-[60vh] overflow-y-auto pr-2">
+        {getContent()}
+      </div>
+      <button
+        onClick={onStart}
+        className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg text-lg transition-transform transform hover:scale-105"
+      >
+        Start Game
+      </button>
     </Modal>
   );
 };

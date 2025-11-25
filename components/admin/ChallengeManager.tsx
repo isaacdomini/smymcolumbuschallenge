@@ -1,227 +1,249 @@
 import React, { useState, useEffect } from 'react';
-import { Challenge } from '../../types';
-import { getChallenges, createChallenge, updateChallenge, deleteChallenge } from '../../services/api';
-import { useAuth } from '../../hooks/useAuth';
+import { Challenge, Game, GameType } from '../../types';
+import { getChallenges, getGames, createGame, deleteGame } from '../../services/api';
 
-const ChallengeManager: React.FC = () => {
-    const { user } = useAuth();
+interface ChallengeManagerProps {
+    user: any;
+}
+
+export const ChallengeManager: React.FC<ChallengeManagerProps> = ({ user }) => {
     const [challenges, setChallenges] = useState<Challenge[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
-    const [message, setMessage] = useState({ text: '', type: '' });
-    const [isEditing, setIsEditing] = useState(false);
-
-    // Form State
-    const [formId, setFormId] = useState('');
-    const [formName, setFormName] = useState('');
-    const [formStartDate, setFormStartDate] = useState('');
-    const [formEndDate, setFormEndDate] = useState('');
-
-    const fetchChallenges = () => {
-        if (user?.id) {
-            getChallenges(user.id).then(setChallenges).catch(err => console.error("Failed to load challenges", err));
-        }
-    };
+    const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null);
+    const [games, setGames] = useState<Game[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [editingGame, setEditingGame] = useState<Partial<Game> | null>(null);
 
     useEffect(() => {
-        fetchChallenges();
-    }, [user]);
+        loadChallenges();
+    }, []);
 
-    const resetForm = () => {
-        setFormId('');
-        setFormName('');
-        setFormStartDate('');
-        setFormEndDate('');
-        setIsEditing(false);
-        setMessage({ text: '', type: '' });
-    };
+    useEffect(() => {
+        if (selectedChallenge) {
+            loadGames(selectedChallenge.id);
+        } else {
+            setGames([]);
+        }
+    }, [selectedChallenge]);
 
-    const handleEdit = (challenge: Challenge) => {
-        setFormId(challenge.id);
-        setFormName(challenge.name);
-        setFormStartDate(new Date(challenge.startDate).toISOString().split('T')[0]);
-        setFormEndDate(new Date(challenge.endDate).toISOString().split('T')[0]);
-        setIsEditing(true);
-        setMessage({ text: '', type: '' });
-        // Scroll to top of form
-        document.getElementById('challenge-form')?.scrollIntoView({ behavior: 'smooth' });
-    };
-
-    const handleDelete = async (id: string) => {
-        if (!user?.id || !window.confirm("Are you sure? You can't delete a challenge if it has games associated with it.")) return;
-        
-        setIsLoading(true);
+    const loadChallenges = async () => {
         try {
-            await deleteChallenge(user.id, id);
-            setMessage({ text: 'Challenge deleted successfully', type: 'success' });
-            fetchChallenges();
-        } catch (error: any) {
-            setMessage({ text: error.message || 'Failed to delete challenge', type: 'error' });
+            setLoading(true);
+            const data = await getChallenges(user.id);
+            setChallenges(data);
+        } catch (err) {
+            setError('Failed to load challenges');
         } finally {
-            setIsLoading(false);
+            setLoading(false);
         }
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const loadGames = async (challengeId: string) => {
+        try {
+            setLoading(true);
+            const data = await getGames(user.id, challengeId);
+            setGames(data);
+        } catch (err) {
+            setError('Failed to load games');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleDeleteGame = async (gameId: string) => {
+        if (!confirm('Are you sure you want to delete this game?')) return;
+        try {
+            await deleteGame(user.id, gameId);
+            if (selectedChallenge) loadGames(selectedChallenge.id);
+        } catch (err) {
+            alert('Failed to delete game');
+        }
+    };
+
+    const handleSaveGame = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!user?.id) return;
-        setIsLoading(true);
-        setMessage({ text: '', type: '' });
+        if (!editingGame || !selectedChallenge) return;
 
         try {
-            // Ensure dates are full ISO strings for consistency with DB expectation if needed, 
-            // though standard 'YYYY-MM-DD' usually works fine with Postgres TIMESTAMP.
-            // Let's append T00:00:00Z and T23:59:59Z for start/end to be precise.
-            const startISO = new Date(formStartDate).toISOString(); 
-            // For end date, we want the end of that day
-            const endDateObj = new Date(formEndDate);
-            endDateObj.setUTCHours(23, 59, 59, 999);
-            const endISO = endDateObj.toISOString();
-
-            const challengeData = {
-                name: formName,
-                startDate: startISO,
-                endDate: endISO
-            };
-
-            if (isEditing) {
-                await updateChallenge(user.id, formId, challengeData);
-                setMessage({ text: 'Challenge updated successfully', type: 'success' });
-            } else {
-                // Auto-generate ID if creating new
-                const id = formId || `challenge-${formName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${new Date().getFullYear()}`;
-                await createChallenge(user.id, { ...challengeData, id });
-                setMessage({ text: 'Challenge created successfully', type: 'success' });
+            // Parse data if it's a string (from textarea)
+            let gameData = editingGame.data;
+            if (typeof gameData === 'string') {
+                try {
+                    gameData = JSON.parse(gameData);
+                } catch (e) {
+                    alert('Invalid JSON data');
+                    return;
+                }
             }
-            resetForm();
-            fetchChallenges();
-        } catch (error: any) {
-             setMessage({ text: error.message || 'Operation failed', type: 'error' });
-        } finally {
-            setIsLoading(false);
+
+            await createGame(user.id, {
+                ...editingGame,
+                challengeId: selectedChallenge.id,
+                data: gameData
+            });
+            setEditingGame(null);
+            loadGames(selectedChallenge.id);
+        } catch (err) {
+            alert('Failed to save game');
         }
+    };
+
+    const getDatesInRange = (startDate: string, endDate: string) => {
+        const dates = [];
+        const current = new Date(startDate);
+        const end = new Date(endDate);
+        // Add 12 hours to avoid timezone issues when just using date part
+        current.setUTCHours(12, 0, 0, 0);
+        end.setUTCHours(12, 0, 0, 0);
+
+        while (current <= end) {
+            dates.push(new Date(current).toISOString().split('T')[0]);
+            current.setDate(current.getDate() + 1);
+        }
+        return dates;
     };
 
     return (
-        <div className="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700" id="challenge-form">
-            <h2 className="text-2xl font-bold text-yellow-400 mb-6">Manage Challenges</h2>
+        <div className="space-y-6">
+            <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold text-white">Challenge Manager</h2>
+            </div>
 
-            {message.text && (
-                <div className={`p-4 mb-6 rounded-lg ${message.type === 'success' ? 'bg-green-900/50 text-green-400' : 'bg-red-900/50 text-red-400'}`}>
-                    {message.text}
+            {error && (
+                <div className="bg-red-900/50 border border-red-500 text-red-200 p-4 rounded-lg">
+                    {error}
                 </div>
             )}
 
-            <form onSubmit={handleSubmit} className="mb-8 space-y-4 bg-gray-900/50 p-4 rounded-lg border border-gray-700">
-                <h3 className="text-lg font-semibold text-gray-300 mb-4">{isEditing ? 'Edit Challenge' : 'Create New Challenge'}</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {!isEditing && (
-                        <div className="md:col-span-2">
-                            <label className="block text-sm font-medium text-gray-400 mb-1">Challenge ID (Optional - Auto-generated if blank)</label>
-                            <input
-                                type="text"
-                                value={formId}
-                                onChange={e => setFormId(e.target.value)}
-                                placeholder="e.g., lent-2025"
-                                className="w-full p-2 bg-gray-800 border border-gray-600 rounded text-white"
-                            />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Challenge List */}
+                <div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
+                    <h3 className="text-xl font-bold text-white mb-4">Challenges</h3>
+                    <div className="space-y-2">
+                        {challenges.map(challenge => (
+                            <button
+                                key={challenge.id}
+                                onClick={() => setSelectedChallenge(challenge)}
+                                className={`w-full text-left p-3 rounded-lg transition-colors ${selectedChallenge?.id === challenge.id
+                                        ? 'bg-yellow-500 text-gray-900 font-bold'
+                                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                    }`}
+                            >
+                                <div className="font-bold">{challenge.name}</div>
+                                <div className="text-sm opacity-75">
+                                    {new Date(challenge.startDate).toLocaleDateString()} - {new Date(challenge.endDate).toLocaleDateString()}
+                                </div>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Game List / Calendar */}
+                <div className="md:col-span-2 bg-gray-800 p-4 rounded-lg border border-gray-700">
+                    {selectedChallenge ? (
+                        <>
+                            <h3 className="text-xl font-bold text-white mb-4">Games for {selectedChallenge.name}</h3>
+                            <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
+                                {getDatesInRange(selectedChallenge.startDate, selectedChallenge.endDate).map(date => {
+                                    const game = games.find(g => g.date.startsWith(date));
+                                    return (
+                                        <div key={date} className="bg-gray-700 p-4 rounded-lg border border-gray-600 flex justify-between items-center">
+                                            <div>
+                                                <div className="font-bold text-white">
+                                                    {new Date(date + 'T12:00:00Z').toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
+                                                </div>
+                                                <div className="text-sm text-gray-400">
+                                                    {game ? (
+                                                        <span className="text-green-400 font-bold uppercase">{game.type}</span>
+                                                    ) : (
+                                                        <span className="text-gray-500 italic">No game scheduled</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={() => setEditingGame({
+                                                        challengeId: selectedChallenge.id,
+                                                        date: date,
+                                                        type: game?.type || GameType.WORDLE,
+                                                        data: game?.data ? JSON.stringify(game.data, null, 2) : '{}'
+                                                    })}
+                                                    className="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded text-sm"
+                                                >
+                                                    {game ? 'Edit' : 'Create'}
+                                                </button>
+                                                {game && (
+                                                    <button
+                                                        onClick={() => handleDeleteGame(game.id)}
+                                                        className="px-3 py-1 bg-red-600 hover:bg-red-500 text-white rounded text-sm"
+                                                    >
+                                                        Delete
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </>
+                    ) : (
+                        <div className="text-center text-gray-500 py-12">
+                            Select a challenge to view games
                         </div>
                     )}
-                    <div className="md:col-span-2">
-                         <label className="block text-sm font-medium text-gray-400 mb-1">Challenge Name</label>
-                         <input
-                            type="text"
-                            value={formName}
-                            onChange={e => setFormName(e.target.value)}
-                            required
-                            placeholder="e.g., November 2025 Challenge"
-                            className="w-full p-2 bg-gray-800 border border-gray-600 rounded text-white"
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-400 mb-1">Start Date</label>
-                        <input
-                            type="date"
-                            value={formStartDate}
-                            onChange={e => setFormStartDate(e.target.value)}
-                            required
-                            className="w-full p-2 bg-gray-800 border border-gray-600 rounded text-white"
-                        />
-                    </div>
-                     <div>
-                        <label className="block text-sm font-medium text-gray-400 mb-1">End Date</label>
-                        <input
-                            type="date"
-                            value={formEndDate}
-                            onChange={e => setFormEndDate(e.target.value)}
-                            required
-                            className="w-full p-2 bg-gray-800 border border-gray-600 rounded text-white"
-                        />
-                    </div>
                 </div>
-                <div className="flex space-x-3">
-                    <button
-                        type="submit"
-                        disabled={isLoading}
-                        className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-colors disabled:bg-gray-600"
-                    >
-                        {isLoading ? 'Saving...' : (isEditing ? 'Update Challenge' : 'Create Challenge')}
-                    </button>
-                    {isEditing && (
-                        <button
-                            type="button"
-                            onClick={resetForm}
-                            className="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded transition-colors"
-                        >
-                            Cancel Edit
-                        </button>
-                    )}
-                </div>
-            </form>
-
-            <div className="overflow-x-auto">
-                <table className="w-full text-left text-gray-300">
-                    <thead className="text-xs uppercase bg-gray-700/50 text-gray-400">
-                        <tr>
-                            <th className="px-4 py-3">Name</th>
-                            <th className="px-4 py-3">Start Date</th>
-                            <th className="px-4 py-3">End Date</th>
-                            <th className="px-4 py-3 text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-700">
-                        {challenges.map(challenge => (
-                            <tr key={challenge.id} className="hover:bg-gray-700/30">
-                                <td className="px-4 py-3 font-medium text-white">{challenge.name}</td>
-                                <td className="px-4 py-3">{new Date(challenge.startDate).toLocaleDateString()}</td>
-                                <td className="px-4 py-3">{new Date(challenge.endDate).toLocaleDateString()}</td>
-                                <td className="px-4 py-3 text-right space-x-2">
-                                    <button 
-                                        onClick={() => handleEdit(challenge)}
-                                        className="text-blue-400 hover:text-blue-300 text-sm"
-                                    >
-                                        Edit
-                                    </button>
-                                    <button 
-                                        onClick={() => handleDelete(challenge.id)}
-                                        className="text-red-400 hover:text-red-300 text-sm"
-                                    >
-                                        Delete
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                        {challenges.length === 0 && (
-                            <tr>
-                                <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
-                                    No challenges found. Create one above.
-                                </td>
-                            </tr>
-                        )}
-                    </tbody>
-                </table>
             </div>
+
+            {/* Edit Modal */}
+            {editingGame && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-gray-800 p-6 rounded-xl max-w-2xl w-full border border-gray-700 max-h-[90vh] overflow-y-auto">
+                        <h3 className="text-xl font-bold text-white mb-4">
+                            {games.find(g => g.date.startsWith(editingGame.date!)) ? 'Edit Game' : 'Create Game'} - {editingGame.date}
+                        </h3>
+                        <form onSubmit={handleSaveGame} className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-1">Game Type</label>
+                                <select
+                                    value={editingGame.type}
+                                    onChange={e => setEditingGame({ ...editingGame, type: e.target.value as GameType })}
+                                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                                >
+                                    {Object.values(GameType).map(type => (
+                                        <option key={type} value={type}>{type}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-1">Game Data (JSON)</label>
+                                <textarea
+                                    value={typeof editingGame.data === 'string' ? editingGame.data : JSON.stringify(editingGame.data, null, 2)}
+                                    onChange={e => setEditingGame({ ...editingGame, data: e.target.value })}
+                                    className="w-full h-64 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white font-mono text-sm"
+                                />
+                                <p className="text-xs text-gray-400 mt-1">
+                                    Enter the JSON configuration for the game.
+                                </p>
+                            </div>
+                            <div className="flex justify-end gap-3 pt-4">
+                                <button
+                                    type="button"
+                                    onClick={() => setEditingGame(null)}
+                                    className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="px-4 py-2 bg-yellow-500 hover:bg-yellow-400 text-gray-900 font-bold rounded-lg"
+                                >
+                                    Save Game
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
-
-export default ChallengeManager;
