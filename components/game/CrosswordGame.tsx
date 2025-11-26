@@ -10,6 +10,7 @@ interface CrosswordGameProps {
     gameData: CrosswordData;
     submission?: GameSubmission | null;
     onComplete: () => void;
+    isPreview?: boolean;
 }
 
 const SAMPLE_DATA: CrosswordData = {
@@ -25,7 +26,7 @@ const SAMPLE_DATA: CrosswordData = {
     ],
 };
 
-const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submission, onComplete }) => {
+const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submission, onComplete, isPreview = false }) => {
     const { user } = useAuth();
     const isSample = gameId.startsWith('sample-');
     const isReadOnly = !!submission;
@@ -38,7 +39,7 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
     );
     const [isSubmitted, setIsSubmitted] = useState(!!submission);
     const [startTime, setStartTime] = useState<number | null>(null);
-    const [showInstructions, setShowInstructions] = useState(!isReadOnly);
+    const [showInstructions, setShowInstructions] = useState(!isReadOnly && !isPreview);
 
     const solutionGrid = useMemo(() => {
         const dataToUse = isSample ? SAMPLE_DATA : gameData;
@@ -64,7 +65,7 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
             setShowInstructions(false);
             return;
         }
-        if (!user || isSample) return;
+        if (!user || isSample || isPreview) return;
 
         const loadState = async () => {
             const savedProgress = await getGameState(user.id, gameId);
@@ -84,10 +85,10 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
             }
         };
         loadState();
-    }, [gameId, isReadOnly, submission, gameData.rows, gameData.cols, user, solutionGrid]);
+    }, [gameId, isReadOnly, submission, gameData.rows, gameData.cols, user, solutionGrid, isSample, isPreview]);
 
     useEffect(() => {
-        if (isReadOnly || isSubmitted || !user || startTime === null || isSample) return;
+        if (isReadOnly || isSubmitted || !user || startTime === null || isSample || isPreview) return;
         const stateToSave = {
             grid: userGrid,
             startTime,
@@ -98,12 +99,12 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
         }, 1000);
 
         return () => clearTimeout(handler);
-    }, [userGrid, startTime, isReadOnly, isSubmitted, user, gameId]);
+    }, [userGrid, startTime, isReadOnly, isSubmitted, user, gameId, isPreview]);
 
     const handleSubmit = useCallback(async () => {
         if (!user || isReadOnly || isSubmitted || startTime === null) return;
 
-        if (isSample) {
+        if (isSample || isPreview) {
             setIsSubmitted(true);
             setTimeout(onComplete, 2000);
             return;
@@ -149,7 +150,7 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
         setIsSubmitted(true);
         await clearGameState(user.id, gameId);
         setTimeout(onComplete, 3000);
-    }, [user, isReadOnly, isSubmitted, startTime, gameData.rows, gameData.cols, userGrid, solutionGrid, gameId, onComplete]);
+    }, [user, isReadOnly, isSubmitted, startTime, gameData.rows, gameData.cols, userGrid, solutionGrid, gameId, onComplete, isSample, isPreview]);
 
     const handleCellChange = useCallback((row: number, col: number, char: string | null) => {
         if (isSubmitted) return;
@@ -174,7 +175,11 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
     return (
         <div className="w-full max-w-5xl mx-auto flex flex-col items-center pb-8">
             <div className="flex items-center justify-between w-full max-w-md mb-4">
-                <h2 className="text-2xl font-bold text-yellow-400">Crossword {isSample && <span className="text-sm bg-blue-600 px-2 py-1 rounded ml-2 text-white">Sample</span>}</h2>
+                <h2 className="text-2xl font-bold text-yellow-400">
+                    Crossword
+                    {isSample && <span className="text-sm bg-blue-600 px-2 py-1 rounded ml-2 text-white">Sample</span>}
+                    {isPreview && <span className="text-sm bg-purple-600 px-2 py-1 rounded ml-2 text-white">Preview</span>}
+                </h2>
                 <div className="flex space-x-2">
                     {!isReadOnly && !isSubmitted && (
                         <button
