@@ -1,14 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { Challenge, GameType } from '../../types';
-import { createGame, getChallenges } from '../../services/api';
 import { useAuth } from '../../hooks/useAuth';
 
-const GameBuilder: React.FC = () => {
+interface GameBuilderProps {
+    initialData?: any;
+    challengeId?: string;
+    date?: string;
+    onSave: (gameData: any) => Promise<void>;
+    onCancel: () => void;
+    onPreview: (type: GameType, data: any) => void;
+    challenges?: Challenge[]; // Optional, if passed from parent
+}
+
+const GameBuilder: React.FC<GameBuilderProps> = ({
+    initialData,
+    challengeId: initialChallengeId = '',
+    date: initialDate = '',
+    onSave,
+    onCancel,
+    onPreview,
+    challenges = []
+}) => {
     const { user } = useAuth();
-    const [challenges, setChallenges] = useState<Challenge[]>([]);
-    const [selectedChallenge, setSelectedChallenge] = useState('');
-    const [date, setDate] = useState('');
-    const [gameType, setGameType] = useState<GameType>(GameType.WORDLE);
+    const [selectedChallenge, setSelectedChallenge] = useState(initialChallengeId);
+    const [date, setDate] = useState(initialDate);
+    const [gameType, setGameType] = useState<GameType>(initialData?.type || GameType.WORDLE);
     const [isLoading, setIsLoading] = useState(false);
     const [message, setMessage] = useState({ text: '', type: '' });
 
@@ -26,11 +42,51 @@ const GameBuilder: React.FC = () => {
     // Crossword State
     const [crosswordJson, setCrosswordJson] = useState('');
 
+    // Initialize state from initialData
     useEffect(() => {
-        if (user?.id) {
-            getChallenges(user.id).then(setChallenges).catch(console.error);
+        if (initialData) {
+            setGameType(initialData.type);
+            if (initialData.type === GameType.WORDLE && initialData.data?.solution) {
+                setWordleSolution(initialData.data.solution);
+            } else if (initialData.type === GameType.CONNECTIONS && initialData.data?.categories) {
+                setConnectionsCategories(initialData.data.categories);
+            } else if (initialData.type === GameType.CROSSWORD && initialData.data) {
+                setCrosswordJson(JSON.stringify(initialData.data, null, 2));
+            }
         }
-    }, [user]);
+    }, [initialData]);
+
+    // Update local state if props change (e.g. switching between games)
+    useEffect(() => {
+        setSelectedChallenge(initialChallengeId);
+        setDate(initialDate);
+    }, [initialChallengeId, initialDate]);
+
+
+    const getGameData = () => {
+        let gameData: any = {};
+        if (gameType === GameType.WORDLE) {
+            gameData = { solution: wordleSolution.toUpperCase() };
+        } else if (gameType === GameType.CONNECTIONS) {
+            gameData = {
+                categories: connectionsCategories.map(c => ({
+                    name: c.name.toUpperCase(),
+                    words: c.words.map(w => w.toUpperCase())
+                })),
+                words: connectionsCategories.flatMap(c => c.words).map(w => w.toUpperCase())
+            };
+        } else if (gameType === GameType.CROSSWORD) {
+            try {
+                gameData = JSON.parse(crosswordJson);
+                if (!gameData.rows || !gameData.cols) {
+                    throw new Error("Crossword JSON must include 'rows' and 'cols'.");
+                }
+            } catch (err: any) {
+                throw new Error("Invalid Crossword JSON: " + err.message);
+            }
+        }
+        return gameData;
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -39,41 +95,29 @@ const GameBuilder: React.FC = () => {
         setMessage({ text: '', type: '' });
 
         try {
-            let gameData: any = {};
-            if (gameType === GameType.WORDLE) {
-                gameData = { solution: wordleSolution.toUpperCase() };
-            } else if (gameType === GameType.CONNECTIONS) {
-                gameData = {
-                    categories: connectionsCategories.map(c => ({
-                        name: c.name.toUpperCase(),
-                        words: c.words.map(w => w.toUpperCase())
-                    })),
-                    words: connectionsCategories.flatMap(c => c.words).map(w => w.toUpperCase())
-                };
-            } else if (gameType === GameType.CROSSWORD) {
-                try {
-                    gameData = JSON.parse(crosswordJson);
-                    if (!gameData.rows || !gameData.cols) {
-                        throw new Error("Crossword JSON must include 'rows' and 'cols'.");
-                    }
-                } catch (err: any) {
-                    throw new Error("Invalid Crossword JSON: " + err.message);
-                }
-            }
+            const gameData = getGameData();
 
-            await createGame(user.id, {
+            await onSave({
                 challengeId: selectedChallenge,
                 date,
                 type: gameType,
                 data: gameData
             });
 
-            setMessage({ text: 'Game created successfully!', type: 'success' });
-            if (gameType === GameType.WORDLE) setWordleSolution('');
+            setMessage({ text: 'Game saved successfully!', type: 'success' });
         } catch (error: any) {
-            setMessage({ text: error.message || 'Failed to create game', type: 'error' });
+            setMessage({ text: error.message || 'Failed to save game', type: 'error' });
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const handlePreviewClick = () => {
+        try {
+            const gameData = getGameData();
+            onPreview(gameType, gameData);
+        } catch (error: any) {
+            setMessage({ text: error.message || 'Failed to preview game', type: 'error' });
         }
     };
 
@@ -89,7 +133,9 @@ const GameBuilder: React.FC = () => {
 
     return (
         <div className="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700">
-            <h2 className="text-2xl font-bold text-yellow-400 mb-6">Game Builder</h2>
+            <h2 className="text-2xl font-bold text-yellow-400 mb-6">
+                {initialData ? 'Edit Game' : 'Create Game'}
+            </h2>
 
             {message.text && (
                 <div className={`p-4 mb-6 rounded-lg ${message.type === 'success' ? 'bg-green-900/50 text-green-400' : 'bg-red-900/50 text-red-400'}`}>
@@ -105,7 +151,8 @@ const GameBuilder: React.FC = () => {
                             value={selectedChallenge}
                             onChange={e => setSelectedChallenge(e.target.value)}
                             required
-                            className="w-full p-2 bg-gray-900 border border-gray-700 rounded focus:ring-yellow-500 focus:border-yellow-500 text-white"
+                            disabled={!!initialChallengeId} // Disable if passed from parent
+                            className="w-full p-2 bg-gray-900 border border-gray-700 rounded focus:ring-yellow-500 focus:border-yellow-500 text-white disabled:opacity-50"
                         >
                             <option value="">Select Challenge</option>
                             {challenges.map(c => (
@@ -120,7 +167,8 @@ const GameBuilder: React.FC = () => {
                             value={date}
                             onChange={e => setDate(e.target.value)}
                             required
-                            className="w-full p-2 bg-gray-900 border border-gray-700 rounded focus:ring-yellow-500 focus:border-yellow-500 text-white"
+                            disabled={!!initialDate} // Disable if passed from parent
+                            className="w-full p-2 bg-gray-900 border border-gray-700 rounded focus:ring-yellow-500 focus:border-yellow-500 text-white disabled:opacity-50"
                         />
                     </div>
                     <div>
@@ -199,13 +247,29 @@ const GameBuilder: React.FC = () => {
                     )}
                 </div>
 
-                <button
-                    type="submit"
-                    disabled={isLoading}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-colors disabled:bg-gray-600"
-                >
-                    {isLoading ? 'Creating...' : 'Create Game'}
-                </button>
+                <div className="flex gap-4 pt-4">
+                    <button
+                        type="button"
+                        onClick={onCancel}
+                        className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-4 rounded-lg transition-colors"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="button"
+                        onClick={handlePreviewClick}
+                        className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-lg transition-colors"
+                    >
+                        Preview
+                    </button>
+                    <button
+                        type="submit"
+                        disabled={isLoading}
+                        className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-colors disabled:bg-gray-600"
+                    >
+                        {isLoading ? 'Saving...' : 'Save Game'}
+                    </button>
+                </div>
             </form>
         </div>
     );

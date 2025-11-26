@@ -9,9 +9,10 @@ interface WordleGameProps {
   gameData: WordleData;
   submission?: GameSubmission | null;
   onComplete: () => void;
+  isPreview?: boolean;
 }
 
-const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, onComplete }) => {
+const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, onComplete, isPreview = false }) => {
   const { user } = useAuth();
   const isSample = gameId.startsWith('sample-');
   const solution = useMemo(() => isSample ? 'FAITH' : gameData.solution.toUpperCase(), [gameData.solution, isSample]);
@@ -28,10 +29,10 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
   const [startTime, setStartTime] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [showInstructions, setShowInstructions] = useState(!isReadOnly);
+  const [showInstructions, setShowInstructions] = useState(!isReadOnly && !isPreview);
 
   useEffect(() => {
-    if (isReadOnly || !user || isSample) return;
+    if (isReadOnly || !user || isSample || isPreview) return;
 
     const loadState = async () => {
       const savedProgress = await getGameState(user.id, gameId);
@@ -57,11 +58,11 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
       }
     };
     loadState();
-  }, [gameId, isReadOnly, user, maxGuesses]);
+  }, [gameId, isReadOnly, user, maxGuesses, isSample, isPreview]);
 
   useEffect(() => {
     // Only save state if the game has actually started (startTime is set)
-    if (isReadOnly || gameState !== 'playing' || !user || startTime === null || isSample) return;
+    if (isReadOnly || gameState !== 'playing' || !user || startTime === null || isSample || isPreview) return;
 
     const stateToSave = {
       guesses,
@@ -75,7 +76,7 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
     }, 1000);
 
     return () => clearTimeout(handler);
-  }, [guesses, activeGuessIndex, gameState, startTime, isReadOnly, user, gameId]);
+  }, [guesses, activeGuessIndex, gameState, startTime, isReadOnly, user, gameId, isPreview]);
 
 
   useEffect(() => {
@@ -175,7 +176,7 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
   useEffect(() => {
     const saveResult = async () => {
       // Ensure startTime is present before submitting
-      if ((gameState === 'won' || gameState === 'lost') && !isReadOnly && startTime !== null && !isSample) {
+      if ((gameState === 'won' || gameState === 'lost') && !isReadOnly && startTime !== null && !isSample && !isPreview) {
         if (!user) return;
         await clearGameState(user.id, gameId);
         const timeTaken = Math.round((Date.now() - startTime) / 1000);
@@ -192,7 +193,7 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
       }
     }
     saveResult();
-  }, [gameState, user, isReadOnly, startTime, activeGuessIndex, gameId, guesses, onComplete, maxGuesses]);
+  }, [gameState, user, isReadOnly, startTime, activeGuessIndex, gameId, guesses, onComplete, maxGuesses, isSample, isPreview]);
 
   const handleInstructionsClose = () => {
     // Only set start time if it hasn't been set yet AND it's not read-only mode
@@ -229,7 +230,11 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
   return (
     <div className="w-full max-w-md mx-auto flex flex-col items-center">
       <div className="flex items-center justify-between w-full mb-4">
-        <h2 className="text-2xl font-bold">Wordle {isSample && <span className="text-sm bg-blue-600 px-2 py-1 rounded ml-2">Sample</span>}</h2>
+        <h2 className="text-2xl font-bold">
+          Wordle
+          {isSample && <span className="text-sm bg-blue-600 px-2 py-1 rounded ml-2">Sample</span>}
+          {isPreview && <span className="text-sm bg-purple-600 px-2 py-1 rounded ml-2">Preview</span>}
+        </h2>
         <button onClick={() => setShowInstructions(true)} className="text-gray-400 hover:text-white" title="Show Instructions">
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
         </button>

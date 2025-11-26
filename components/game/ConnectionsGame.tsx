@@ -9,9 +9,10 @@ interface ConnectionsGameProps {
   gameData: ConnectionsData;
   submission?: GameSubmission | null;
   onComplete: () => void;
+  isPreview?: boolean;
 }
 
-const ConnectionsGame: React.FC<ConnectionsGameProps> = ({ gameId, gameData, submission, onComplete }) => {
+const ConnectionsGame: React.FC<ConnectionsGameProps> = ({ gameId, gameData, submission, onComplete, isPreview = false }) => {
   const { user } = useAuth();
   const isSample = gameId.startsWith('sample-');
   const isReadOnly = !!submission;
@@ -21,7 +22,7 @@ const ConnectionsGame: React.FC<ConnectionsGameProps> = ({ gameId, gameData, sub
   const [mistakes, setMistakes] = useState(0);
   const [gameState, setGameState] = useState<'playing' | 'won' | 'lost'>('playing');
   const [startTime, setStartTime] = useState<number | null>(null);
-  const [showInstructions, setShowInstructions] = useState(!isReadOnly);
+  const [showInstructions, setShowInstructions] = useState(!isReadOnly && !isPreview);
 
   // Animation and feedback states
   const [isShaking, setIsShaking] = useState(false);
@@ -69,7 +70,7 @@ const ConnectionsGame: React.FC<ConnectionsGameProps> = ({ gameId, gameData, sub
         setMistakes(submission.mistakes);
         setGameState(submission.mistakes >= 4 ? 'lost' : 'won');
         setShowInstructions(false);
-      } else if (isSample) {
+      } else if (isSample || isPreview) {
         setWords(generateShuffledWords());
       } else if (user) {
         const savedProgress = await getGameState(user.id, gameId);
@@ -94,10 +95,10 @@ const ConnectionsGame: React.FC<ConnectionsGameProps> = ({ gameId, gameData, sub
       }
     };
     loadState();
-  }, [gameData, isReadOnly, submission, gameId, user, generateShuffledWords]);
+  }, [gameData, isReadOnly, submission, gameId, user, generateShuffledWords, isSample, isPreview]);
 
   useEffect(() => {
-    if (isReadOnly || gameState !== 'playing' || !user || !words.length || startTime === null || isSample) return;
+    if (isReadOnly || gameState !== 'playing' || !user || !words.length || startTime === null || isSample || isPreview) return;
     const stateToSave = {
       words,
       foundGroups,
@@ -111,7 +112,7 @@ const ConnectionsGame: React.FC<ConnectionsGameProps> = ({ gameId, gameData, sub
     }, 1000);
 
     return () => clearTimeout(handler);
-  }, [words, foundGroups, mistakes, gameState, startTime, isReadOnly, user, gameId]);
+  }, [words, foundGroups, mistakes, gameState, startTime, isReadOnly, user, gameId, isPreview]);
 
   const handleWordClick = (word: string) => {
     if (gameState !== 'playing' || isReadOnly || showInstructions || isShaking || foundGroups.flatMap(g => g.words).includes(word)) return;
@@ -179,7 +180,7 @@ const ConnectionsGame: React.FC<ConnectionsGameProps> = ({ gameId, gameData, sub
 
   useEffect(() => {
     const saveResult = async () => {
-      if ((gameState === 'won' || gameState === 'lost') && !isReadOnly && startTime !== null && !isSample) {
+      if ((gameState === 'won' || gameState === 'lost') && !isReadOnly && startTime !== null && !isSample && !isPreview) {
         if (!user) return;
         await clearGameState(user.id, gameId);
         const timeTaken = Math.round((Date.now() - startTime) / 1000);
@@ -198,7 +199,7 @@ const ConnectionsGame: React.FC<ConnectionsGameProps> = ({ gameId, gameData, sub
       }
     }
     saveResult();
-  }, [gameState, user, isReadOnly, gameId, mistakes, onComplete, startTime, foundGroups]);
+  }, [gameState, user, isReadOnly, gameId, mistakes, onComplete, startTime, foundGroups, isSample, isPreview]);
 
   const handleStartGame = () => {
     setStartTime(Date.now());
@@ -235,7 +236,11 @@ const ConnectionsGame: React.FC<ConnectionsGameProps> = ({ gameId, gameData, sub
       )}
 
       <div className="flex items-center justify-between w-full mb-2">
-        <h2 className="text-2xl font-bold">Connections {isSample && <span className="text-sm bg-blue-600 px-2 py-1 rounded ml-2">Sample</span>}</h2>
+        <h2 className="text-2xl font-bold">
+          Connections
+          {isSample && <span className="text-sm bg-blue-600 px-2 py-1 rounded ml-2">Sample</span>}
+          {isPreview && <span className="text-sm bg-purple-600 px-2 py-1 rounded ml-2">Preview</span>}
+        </h2>
         <button onClick={() => setShowInstructions(true)} className="text-gray-400 hover:text-white" title="Show Instructions">
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
         </button>

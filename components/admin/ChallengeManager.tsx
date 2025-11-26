@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Challenge, Game, GameType } from '../../types';
 import { getChallenges, getGames, createGame, deleteGame } from '../../services/api';
+import GameBuilder from './GameBuilder';
+import WordleGame from '../game/WordleGame';
+import ConnectionsGame from '../game/ConnectionsGame';
+import CrosswordGame from '../game/CrosswordGame';
 
 interface ChallengeManagerProps {
     user: any;
@@ -13,6 +17,7 @@ export const ChallengeManager: React.FC<ChallengeManagerProps> = ({ user }) => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [editingGame, setEditingGame] = useState<Partial<Game> | null>(null);
+    const [previewGame, setPreviewGame] = useState<{ type: GameType, data: any } | null>(null);
 
     useEffect(() => {
         loadChallenges();
@@ -60,32 +65,23 @@ export const ChallengeManager: React.FC<ChallengeManagerProps> = ({ user }) => {
         }
     };
 
-    const handleSaveGame = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!editingGame || !selectedChallenge) return;
+    const handleSaveGame = async (gameData: any) => {
+        if (!selectedChallenge) return;
 
         try {
-            // Parse data if it's a string (from textarea)
-            let gameData = editingGame.data;
-            if (typeof gameData === 'string') {
-                try {
-                    gameData = JSON.parse(gameData);
-                } catch (e) {
-                    alert('Invalid JSON data');
-                    return;
-                }
-            }
-
             await createGame(user.id, {
-                ...editingGame,
-                challengeId: selectedChallenge.id,
-                data: gameData
+                ...gameData,
+                challengeId: selectedChallenge.id
             });
             setEditingGame(null);
             loadGames(selectedChallenge.id);
         } catch (err) {
-            alert('Failed to save game');
+            throw err; // Let GameBuilder handle the error display
         }
+    };
+
+    const handlePreview = (type: GameType, data: any) => {
+        setPreviewGame({ type, data });
     };
 
     const getDatesInRange = (startDate: string, endDate: string) => {
@@ -125,8 +121,8 @@ export const ChallengeManager: React.FC<ChallengeManagerProps> = ({ user }) => {
                                 key={challenge.id}
                                 onClick={() => setSelectedChallenge(challenge)}
                                 className={`w-full text-left p-3 rounded-lg transition-colors ${selectedChallenge?.id === challenge.id
-                                        ? 'bg-yellow-500 text-gray-900 font-bold'
-                                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                    ? 'bg-yellow-500 text-gray-900 font-bold'
+                                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                                     }`}
                             >
                                 <div className="font-bold">{challenge.name}</div>
@@ -166,7 +162,7 @@ export const ChallengeManager: React.FC<ChallengeManagerProps> = ({ user }) => {
                                                         challengeId: selectedChallenge.id,
                                                         date: date,
                                                         type: game?.type || GameType.WORDLE,
-                                                        data: game?.data ? JSON.stringify(game.data, null, 2) : '{}'
+                                                        data: game?.data
                                                     })}
                                                     className="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded text-sm"
                                                 >
@@ -197,50 +193,57 @@ export const ChallengeManager: React.FC<ChallengeManagerProps> = ({ user }) => {
             {/* Edit Modal */}
             {editingGame && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-                    <div className="bg-gray-800 p-6 rounded-xl max-w-2xl w-full border border-gray-700 max-h-[90vh] overflow-y-auto">
-                        <h3 className="text-xl font-bold text-white mb-4">
-                            {games.find(g => g.date.startsWith(editingGame.date!)) ? 'Edit Game' : 'Create Game'} - {editingGame.date}
-                        </h3>
-                        <form onSubmit={handleSaveGame} className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-1">Game Type</label>
-                                <select
-                                    value={editingGame.type}
-                                    onChange={e => setEditingGame({ ...editingGame, type: e.target.value as GameType })}
-                                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-                                >
-                                    {Object.values(GameType).map(type => (
-                                        <option key={type} value={type}>{type}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-1">Game Data (JSON)</label>
-                                <textarea
-                                    value={typeof editingGame.data === 'string' ? editingGame.data : JSON.stringify(editingGame.data, null, 2)}
-                                    onChange={e => setEditingGame({ ...editingGame, data: e.target.value })}
-                                    className="w-full h-64 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white font-mono text-sm"
+                    <div className="bg-gray-800 rounded-xl max-w-4xl w-full border border-gray-700 max-h-[90vh] overflow-y-auto">
+                        <GameBuilder
+                            initialData={editingGame}
+                            challengeId={editingGame.challengeId}
+                            date={editingGame.date}
+                            challenges={challenges}
+                            onSave={handleSaveGame}
+                            onCancel={() => setEditingGame(null)}
+                            onPreview={handlePreview}
+                        />
+                    </div>
+                </div>
+            )}
+
+            {/* Preview Modal */}
+            {previewGame && (
+                <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[60]">
+                    <div className="bg-gray-900 p-6 rounded-xl max-w-4xl w-full border border-gray-700 max-h-[90vh] overflow-y-auto relative">
+                        <button
+                            onClick={() => setPreviewGame(null)}
+                            className="absolute top-4 right-4 text-gray-400 hover:text-white"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        </button>
+
+                        <div className="mt-4">
+                            {previewGame.type === GameType.WORDLE && (
+                                <WordleGame
+                                    gameId="preview-wordle"
+                                    gameData={previewGame.data}
+                                    onComplete={() => setPreviewGame(null)}
+                                    isPreview={true}
                                 />
-                                <p className="text-xs text-gray-400 mt-1">
-                                    Enter the JSON configuration for the game.
-                                </p>
-                            </div>
-                            <div className="flex justify-end gap-3 pt-4">
-                                <button
-                                    type="button"
-                                    onClick={() => setEditingGame(null)}
-                                    className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    className="px-4 py-2 bg-yellow-500 hover:bg-yellow-400 text-gray-900 font-bold rounded-lg"
-                                >
-                                    Save Game
-                                </button>
-                            </div>
-                        </form>
+                            )}
+                            {previewGame.type === GameType.CONNECTIONS && (
+                                <ConnectionsGame
+                                    gameId="preview-connections"
+                                    gameData={previewGame.data}
+                                    onComplete={() => setPreviewGame(null)}
+                                    isPreview={true}
+                                />
+                            )}
+                            {previewGame.type === GameType.CROSSWORD && (
+                                <CrosswordGame
+                                    gameId="preview-crossword"
+                                    gameData={previewGame.data}
+                                    onComplete={() => setPreviewGame(null)}
+                                    isPreview={true}
+                                />
+                            )}
+                        </div>
                     </div>
                 </div>
             )}
