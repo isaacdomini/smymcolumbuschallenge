@@ -13,6 +13,7 @@
     "migrate": "node server/dist/migrate.js",
     "seed": "node server/dist/seed.js",
     "test:push": "node server/dist/test-push.js",
+    "resend-verification": "node server/dist/scripts/resend-verification.js",
     "generate-vapid": "node -e \"console.log(require('web-push').generateVAPIDKeys())\""
   },
   "dependencies": {
