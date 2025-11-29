@@ -36,11 +36,31 @@ const GameBuilder: React.FC<GameBuilderProps> = ({
         { name: '', words: ['', '', '', ''] },
         { name: '', words: ['', '', '', ''] },
         { name: '', words: ['', '', '', ''] },
-        { name: '', words: ['', '', '', ''] },
     ]);
 
     // Crossword State
     const [crosswordJson, setCrosswordJson] = useState('');
+
+    // Match The Word State
+    const [matchPairs, setMatchPairs] = useState<{ word: string, match: string }[]>([
+        { word: '', match: '' },
+        { word: '', match: '' },
+        { word: '', match: '' },
+        { word: '', match: '' },
+        { word: '', match: '' }
+    ]);
+
+    // Verse Scramble State
+    const [verseScrambleVerse, setVerseScrambleVerse] = useState('');
+    const [verseScrambleReference, setVerseScrambleReference] = useState('');
+
+    // Who Am I State
+    const [whoAmIAnswer, setWhoAmIAnswer] = useState('');
+    const [whoAmIHint, setWhoAmIHint] = useState('');
+
+    // Word Search State
+    const [wordSearchWords, setWordSearchWords] = useState<string[]>(['', '', '', '', '']);
+    const [wordSearchGridSize, setWordSearchGridSize] = useState(10);
 
     // Initialize state from initialData
     useEffect(() => {
@@ -52,6 +72,17 @@ const GameBuilder: React.FC<GameBuilderProps> = ({
                 setConnectionsCategories(initialData.data.categories);
             } else if (initialData.type === GameType.CROSSWORD && initialData.data) {
                 setCrosswordJson(JSON.stringify(initialData.data, null, 2));
+            } else if (initialData.type === GameType.MATCH_THE_WORD && initialData.data) {
+                setMatchPairs(initialData.data.pairs);
+            } else if (initialData.type === GameType.VERSE_SCRAMBLE && initialData.data) {
+                setVerseScrambleVerse(initialData.data.verse);
+                setVerseScrambleReference(initialData.data.reference);
+            } else if (initialData.type === GameType.WHO_AM_I && initialData.data) {
+                setWhoAmIAnswer(initialData.data.answer);
+                setWhoAmIHint(initialData.data.hint || '');
+            } else if (initialData.type === GameType.WORD_SEARCH && initialData.data) {
+                setWordSearchWords(initialData.data.words);
+                setWordSearchGridSize(initialData.data.grid.length);
             }
         }
     }, [initialData]);
@@ -84,6 +115,29 @@ const GameBuilder: React.FC<GameBuilderProps> = ({
             } catch (err: any) {
                 throw new Error("Invalid Crossword JSON: " + err.message);
             }
+        } else if (gameType === GameType.MATCH_THE_WORD) {
+            gameData = {
+                pairs: matchPairs.filter(p => p.word && p.match).map(p => ({
+                    word: p.word,
+                    match: p.match
+                }))
+            };
+        } else if (gameType === GameType.VERSE_SCRAMBLE) {
+            gameData = {
+                verse: verseScrambleVerse,
+                reference: verseScrambleReference
+            };
+        } else if (gameType === GameType.WHO_AM_I) {
+            gameData = {
+                answer: whoAmIAnswer,
+                hint: whoAmIHint
+            };
+        } else if (gameType === GameType.WORD_SEARCH) {
+            const grid = Array(wordSearchGridSize).fill(null).map(() => Array(wordSearchGridSize).fill(''));
+            gameData = {
+                words: wordSearchWords.filter(w => w.trim() !== '').map(w => w.toUpperCase()),
+                grid: grid
+            };
         }
         return gameData;
     };
@@ -129,6 +183,18 @@ const GameBuilder: React.FC<GameBuilderProps> = ({
             newCats[catIndex].words[wordIndex] = value;
         }
         setConnectionsCategories(newCats);
+    };
+
+    const handleMatchPairChange = (index: number, field: 'word' | 'match', value: string) => {
+        const newPairs = [...matchPairs];
+        newPairs[index][field] = value;
+        setMatchPairs(newPairs);
+    };
+
+    const handleWordSearchWordChange = (index: number, value: string) => {
+        const newWords = [...wordSearchWords];
+        newWords[index] = value;
+        setWordSearchWords(newWords);
     };
 
     return (
@@ -181,8 +247,195 @@ const GameBuilder: React.FC<GameBuilderProps> = ({
                             <option value={GameType.WORDLE}>Wordle</option>
                             <option value={GameType.CONNECTIONS}>Connect the Words</option>
                             <option value={GameType.CROSSWORD}>Crossword (JSON)</option>
+                            <option value={GameType.MATCH_THE_WORD}>Match the Word</option>
+                            <option value={GameType.VERSE_SCRAMBLE}>Verse Scramble</option>
+                            <option value={GameType.WHO_AM_I}>Who Am I?</option>
+                            <option value={GameType.WORD_SEARCH}>Word Search</option>
                         </select>
                     </div>
+                </div>
+
+                <div className="border-t border-gray-700 pt-6">
+                    {gameType === GameType.WORDLE && (
+                        <div>
+                            <label className="block text-sm font-medium text-gray-300 mb-1">Solution Word (5-letters standard)</label>
+                            <input
+                                type="text"
+                                value={wordleSolution}
+                                onChange={e => setWordleSolution(e.target.value)}
+                                required
+                                className="w-full p-2 bg-gray-900 border border-gray-700 rounded focus:ring-yellow-500 focus:border-yellow-500 text-white uppercase"
+                                placeholder="FAITH"
+                            />
+                        </div>
+                    )}
+
+                    {gameType === GameType.CONNECTIONS && (
+                        <div className="space-y-4">
+                            <p className="text-sm text-gray-400 mb-2">Enter 4 categories with 4 words each. Order them by difficulty if desired (e.g., Yellow, Green, Blue, Purple).</p>
+                            {connectionsCategories.map((cat, catIdx) => (
+                                <div key={catIdx} className="p-4 bg-gray-900/50 rounded border border-gray-700">
+                                    <input
+                                        type="text"
+                                        value={cat.name}
+                                        onChange={e => handleConnectionChange(catIdx, null, e.target.value)}
+                                        placeholder={`Category ${catIdx + 1} Name`}
+                                        required
+                                        className="w-full p-2 mb-2 bg-gray-800 border border-gray-600 rounded text-yellow-400 font-bold"
+                                    />
+                                    <div className="grid grid-cols-4 gap-2">
+                                        {cat.words.map((word, wordIdx) => (
+                                            <input
+                                                key={wordIdx}
+                                                type="text"
+                                                value={word}
+                                                onChange={e => handleConnectionChange(catIdx, wordIdx, e.target.value)}
+                                                placeholder={`Word ${wordIdx + 1}`}
+                                                required
+                                                className="w-full p-2 bg-gray-800 border border-gray-600 rounded text-white text-sm"
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {gameType === GameType.CROSSWORD && (
+                        <div>
+                            <label className="block text-sm font-medium text-gray-300 mb-1">Crossword JSON Data</label>
+                            <textarea
+                                value={crosswordJson}
+                                onChange={e => setCrosswordJson(e.target.value)}
+                                required
+                                rows={10}
+                                className="w-full p-2 bg-gray-900 border border-gray-700 rounded focus:ring-yellow-500 focus:border-yellow-500 text-white font-mono text-sm"
+                                placeholder='{"rows": 6, "cols": 5, "acrossClues": [...], "downClues": [...] }'
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Paste the full JSON object for the crossword structure here. Must include 'rows' and 'cols'.</p>
+                        </div>
+                    )}
+
+                    {gameType === GameType.MATCH_THE_WORD && (
+                        <div className="space-y-4">
+                            <p className="text-sm text-gray-400 mb-2">Enter pairs of words to match.</p>
+                            {matchPairs.map((pair, idx) => (
+                                <div key={idx} className="flex gap-4">
+                                    <input
+                                        type="text"
+                                        value={pair.word}
+                                        onChange={e => handleMatchPairChange(idx, 'word', e.target.value)}
+                                        placeholder="Word"
+                                        className="flex-1 p-2 bg-gray-900 border border-gray-700 rounded focus:ring-yellow-500 focus:border-yellow-500 text-white"
+                                    />
+                                    <input
+                                        type="text"
+                                        value={pair.match}
+                                        onChange={e => handleMatchPairChange(idx, 'match', e.target.value)}
+                                        placeholder="Match"
+                                        className="flex-1 p-2 bg-gray-900 border border-gray-700 rounded focus:ring-yellow-500 focus:border-yellow-500 text-white"
+                                    />
+                                </div>
+                            ))}
+                            <button
+                                type="button"
+                                onClick={() => setMatchPairs([...matchPairs, { word: '', match: '' }])}
+                                className="text-sm text-yellow-400 hover:text-yellow-300"
+                            >
+                                + Add Pair
+                            </button>
+                        </div>
+                    )}
+
+                    {gameType === GameType.VERSE_SCRAMBLE && (
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-1">Verse Text</label>
+                                <textarea
+                                    value={verseScrambleVerse}
+                                    onChange={e => setVerseScrambleVerse(e.target.value)}
+                                    required
+                                    rows={3}
+                                    className="w-full p-2 bg-gray-900 border border-gray-700 rounded focus:ring-yellow-500 focus:border-yellow-500 text-white"
+                                    placeholder="For God so loved the world..."
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-1">Reference</label>
+                                <input
+                                    type="text"
+                                    value={verseScrambleReference}
+                                    onChange={e => setVerseScrambleReference(e.target.value)}
+                                    required
+                                    className="w-full p-2 bg-gray-900 border border-gray-700 rounded focus:ring-yellow-500 focus:border-yellow-500 text-white"
+                                    placeholder="John 3:16"
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    {gameType === GameType.WHO_AM_I && (
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-1">Answer (Person's Name)</label>
+                                <input
+                                    type="text"
+                                    value={whoAmIAnswer}
+                                    onChange={e => setWhoAmIAnswer(e.target.value)}
+                                    required
+                                    className="w-full p-2 bg-gray-900 border border-gray-700 rounded focus:ring-yellow-500 focus:border-yellow-500 text-white"
+                                    placeholder="MOSES"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-1">Hint (Optional)</label>
+                                <input
+                                    type="text"
+                                    value={whoAmIHint}
+                                    onChange={e => setWhoAmIHint(e.target.value)}
+                                    className="w-full p-2 bg-gray-900 border border-gray-700 rounded focus:ring-yellow-500 focus:border-yellow-500 text-white"
+                                    placeholder="Led the Israelites out of Egypt"
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    {gameType === GameType.WORD_SEARCH && (
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-1">Grid Size</label>
+                                <input
+                                    type="number"
+                                    value={wordSearchGridSize}
+                                    onChange={e => setWordSearchGridSize(parseInt(e.target.value))}
+                                    required
+                                    min={5}
+                                    max={20}
+                                    className="w-full p-2 bg-gray-900 border border-gray-700 rounded focus:ring-yellow-500 focus:border-yellow-500 text-white"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-1">Words to Find</label>
+                                {wordSearchWords.map((word, idx) => (
+                                    <input
+                                        key={idx}
+                                        type="text"
+                                        value={word}
+                                        onChange={e => handleWordSearchWordChange(idx, e.target.value)}
+                                        placeholder={`Word ${idx + 1}`}
+                                        className="w-full p-2 mb-2 bg-gray-900 border border-gray-700 rounded focus:ring-yellow-500 focus:border-yellow-500 text-white uppercase"
+                                    />
+                                ))}
+                                <button
+                                    type="button"
+                                    onClick={() => setWordSearchWords([...wordSearchWords, ''])}
+                                    className="text-sm text-yellow-400 hover:text-yellow-300"
+                                >
+                                    + Add Word
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 <div className="border-t border-gray-700 pt-6">

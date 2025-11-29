@@ -429,6 +429,51 @@ const calculateScore = (payload: SubmitGamePayload, game: Game): number => {
             return Math.max(0, pairScore - mistakePenalty);
         }
 
+        case GameType.VERSE_SCRAMBLE: {
+            // Max Score: 100
+            // Completion: 50
+            // Accuracy: 30 (deduct 5 per mistake, though mistakes might not be tracked heavily in UI yet)
+            // Time: 20
+            if (!submissionData?.completed) return 0;
+
+            const completionScore = 50;
+            const accuracyScore = Math.max(0, 30 - (mistakes * 5));
+            const timeBonus = Math.max(0, 20 - Math.floor(timeTaken / 10)); // Lose 1 pt every 10s after base time? Or just simple decay
+
+            return completionScore + accuracyScore + timeBonus;
+        }
+
+        case GameType.WHO_AM_I: {
+            // Max Score: 100
+            // Win: 50
+            // Guesses Remaining: 5 pts each (max 6 guesses allowed -> 5 * 6 = 30)
+            // Time: 20
+            if (!submissionData?.solved) return 0;
+
+            const winScore = 50;
+            const maxMistakes = 6;
+            const remainingGuesses = Math.max(0, maxMistakes - mistakes);
+            const guessBonus = remainingGuesses * 5;
+            const timeBonus = Math.max(0, 20 - Math.floor(timeTaken / 15));
+
+            return winScore + guessBonus + timeBonus;
+        }
+
+        case GameType.WORD_SEARCH: {
+            // Max Score: 100 (assuming ~5 words)
+            // Words: 10 pts each
+            // Completion: 20 pts
+            // Time: 30 pts
+            const wordsFound = submissionData?.wordsFound ?? 0;
+            const totalWords = submissionData?.totalWords ?? 5; // Default to 5 if unknown
+
+            const wordScore = wordsFound * 10;
+            const completionBonus = (wordsFound === totalWords) ? 20 : 0;
+            const timeBonus = Math.max(0, 30 - Math.floor(timeTaken / 20));
+
+            return wordScore + completionBonus + timeBonus;
+        }
+
         default: {
             const timePenalty = Math.floor(timeTaken / 15);
             const mistakePenalty = mistakes * 10;
@@ -766,7 +811,33 @@ export const getScoringCriteria = async (): Promise<any[]> => {
                 'Time Bonus: Up to 30 points for a fast completion time.',
                 'Mistake Penalty: -5 points for each incorrect match.'
             ]
+        },
+        {
+            title: 'Verse Scramble',
+            description: 'Unscramble the Bible verse by dragging words into the correct order.',
+            points: [
+                'Completion Score: 50 points for completing the verse.',
+                'Accuracy Bonus: Up to 30 points for minimal mistakes.',
+                'Time Bonus: Up to 20 points for fast completion.'
+            ]
+        },
+        {
+            title: 'Who Am I?',
+            description: 'Guess the biblical figure before running out of guesses (Hangman style).',
+            points: [
+                'Win Score: 50 points for guessing the correct answer.',
+                'Guess Bonus: 5 points for each remaining incorrect guess allowed.',
+                'Time Bonus: Up to 20 points for fast completion.'
+            ]
+        },
+        {
+            title: 'Word Search',
+            description: 'Find all the hidden words in the grid.',
+            points: [
+                'Word Score: 10 points for each word found.',
+                'Time Bonus: Up to 30 points for fast completion.',
+                'Completion Bonus: 20 points for finding all words.'
+            ]
         }
-    ]
-
+    ];
 };

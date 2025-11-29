@@ -45,6 +45,46 @@ const calculateScore = (game: any, submissionData: any, timeTaken: number, mista
       }
       break;
     }
+    case 'match_the_word': {
+      const foundPairsCount = submissionData?.foundPairsCount ?? 0;
+      const pairScore = foundPairsCount * 20;
+      const mistakePenalty = mistakes * 10;
+      baseScore = Math.max(0, pairScore - mistakePenalty);
+      break;
+    }
+    case 'verse_scramble': {
+      if (!submissionData?.completed) {
+        baseScore = 0;
+      } else {
+        const completionScore = 50;
+        const accuracyScore = Math.max(0, 30 - (mistakes * 5));
+        const timeBonus = Math.max(0, 20 - Math.floor(timeTaken / 10));
+        baseScore = completionScore + accuracyScore + timeBonus;
+      }
+      break;
+    }
+    case 'who_am_i': {
+      if (!submissionData?.solved) {
+        baseScore = 0;
+      } else {
+        const winScore = 50;
+        const maxMistakes = 6;
+        const remainingGuesses = Math.max(0, maxMistakes - mistakes);
+        const guessBonus = remainingGuesses * 5;
+        const timeBonus = Math.max(0, 20 - Math.floor(timeTaken / 15));
+        baseScore = winScore + guessBonus + timeBonus;
+      }
+      break;
+    }
+    case 'word_search': {
+      const wordsFound = submissionData?.wordsFound ?? 0;
+      const totalWords = submissionData?.totalWords ?? 5;
+      const wordScore = wordsFound * 10;
+      const completionBonus = (wordsFound === totalWords) ? 20 : 0;
+      const timeBonus = Math.max(0, 30 - Math.floor(timeTaken / 20));
+      baseScore = wordScore + completionBonus + timeBonus;
+      break;
+    }
     default: {
       const timePenalty = Math.floor(timeTaken / 15);
       const mistakePenalty = mistakes * 10;
