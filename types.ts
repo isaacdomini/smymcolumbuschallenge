@@ -12,6 +12,9 @@ export enum GameType {
   CONNECTIONS = 'connections',
   CROSSWORD = 'crossword',
   MATCH_THE_WORD = 'match_the_word',
+  VERSE_SCRAMBLE = 'verse_scramble',
+  WHO_AM_I = 'who_am_i',
+  WORD_SEARCH = 'word_search',
 }
 
 export interface WordleData {
@@ -51,28 +54,55 @@ export interface MatchTheWordData {
   }[];
 }
 
+export interface VerseScrambleData {
+  verse: string;
+  reference: string;
+}
+
+export interface WhoAmIData {
+  answer: string;
+  hint?: string;
+}
+
+export interface WordSearchData {
+  grid: string[][];
+  words: string[];
+}
+
 export type Game = {
   id: string;
   challengeId: string;
   date: string; // ISO string
 } & (
-  | {
+    | {
       type: GameType.WORDLE;
       data: WordleData;
     }
-  | {
+    | {
       type: GameType.CONNECTIONS;
       data: ConnectionsData;
     }
-  | {
+    | {
       type: GameType.CROSSWORD;
       data: CrosswordData;
     }
-  | {
+    | {
       type: GameType.MATCH_THE_WORD;
       data: MatchTheWordData;
     }
-);
+    | {
+      type: GameType.VERSE_SCRAMBLE;
+      data: VerseScrambleData;
+    }
+    | {
+      type: GameType.WHO_AM_I;
+      data: WhoAmIData;
+    }
+    | {
+      type: GameType.WORD_SEARCH;
+      data: WordSearchData;
+    }
+  );
 
 export interface Challenge {
   id: string;
@@ -82,25 +112,25 @@ export interface Challenge {
 }
 
 export interface GameSubmission {
-  id:string;
+  id: string;
   userId: string;
   gameId: string;
   challengeId: string;
-  startedAt: string; 
-  completedAt: string; 
-  timeTaken: number; 
+  startedAt: string;
+  completedAt: string;
+  timeTaken: number;
   mistakes: number;
   score: number;
-  submissionData?: any; 
+  submissionData?: any;
 }
 
 export interface SubmitGamePayload {
-    userId: string;
-    gameId: string;
-    startedAt: string; 
-    timeTaken: number;
-    mistakes: number;
-    submissionData?: any;
+  userId: string;
+  gameId: string;
+  startedAt: string;
+  timeTaken: number;
+  mistakes: number;
+  submissionData?: any;
 }
 
 export interface GameProgress {
@@ -112,25 +142,24 @@ export interface GameProgress {
 }
 
 export interface AdminStats {
-    totalUsers: number;
-    playsToday: number;
-    totalPlays: number;
-    upcomingGames: number;
+  totalUsers: number;
+  playsToday: number;
+  totalPlays: number;
+  upcomingGames: number;
 }
 
 export interface LogEntry {
-    id: number;
-    ip_address: string;
-    user_agent: string | null;
-        path: string;
-        method: string;
-        user_id: string | null;
-        created_at: string;
-    }
-    
-    export interface ScoringCriterion {
-      title: string;
-      description: string;
-      points: string[];
-    }
-    
+  id: number;
+  ip_address: string;
+  user_agent: string | null;
+  path: string;
+  method: string;
+  user_id: string | null;
+  created_at: string;
+}
+
+export interface ScoringCriterion {
+  title: string;
+  description: string;
+  points: string[];
+}

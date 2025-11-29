@@ -9,6 +9,9 @@ const WordleGame = lazy(() => import('./components/game/WordleGame'));
 const ConnectionsGame = lazy(() => import('./components/game/ConnectionsGame'));
 const CrosswordGame = lazy(() => import('./components/game/CrosswordGame'));
 const MatchTheWordGame = lazy(() => import('./components/game/MatchTheWordGame'));
+const VerseScrambleGame = lazy(() => import('./components/game/VerseScrambleGame'));
+const WhoAmIGame = lazy(() => import('./components/game/WhoAmIGame'));
+const WordSearchGame = lazy(() => import('./components/game/WordSearchGame'));
 const ChallengeHistory = lazy(() => import('./components/dashboard/ChallengeHistory'));
 const ResetPassword = lazy(() => import('./components/auth/ResetPassword'));
 const AdminDashboard = lazy(() => import('./components/admin/AdminDashboard'));
@@ -334,6 +337,12 @@ const MainContent: React.FC = () => {
           return <CrosswordGame gameData={gameToPlay.data as any} onComplete={onComplete} submission={activeSubmission} gameId={gameToPlay.id} />;
         case GameType.MATCH_THE_WORD:
           return <MatchTheWordGame gameData={gameToPlay.data as any} onComplete={onComplete} submission={activeSubmission} gameId={gameToPlay.id} />;
+        case GameType.VERSE_SCRAMBLE:
+          return <VerseScrambleGame gameData={gameToPlay.data as any} onComplete={onComplete} submission={activeSubmission} gameId={gameToPlay.id} />;
+        case GameType.WHO_AM_I:
+          return <WhoAmIGame gameData={gameToPlay.data as any} onComplete={onComplete} submission={activeSubmission} gameId={gameToPlay.id} />;
+        case GameType.WORD_SEARCH:
+          return <WordSearchGame gameData={gameToPlay.data as any} onComplete={onComplete} submission={activeSubmission} gameId={gameToPlay.id} />;
         default: return <p>Unknown game type.</p>;
       }
     }
@@ -391,12 +400,28 @@ const MainContent: React.FC = () => {
 
   return (
     <IonApp>
-      <Header challengeName={challenge?.name} onLogoClick={() => navigate('/')} navigate={navigate} />
+      {locationPath.startsWith('/game/') ? (
+        <header className="bg-gray-800 shadow-md relative z-20 pt-safe-top">
+          <div className="container mx-auto px-4 py-3 flex items-center">
+            <button onClick={() => navigate('/')} className="flex items-center text-gray-300 hover:text-white transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 18 9 12 15 6"></polyline>
+              </svg>
+              <span className="ml-1 font-medium">Back</span>
+            </button>
+          </div>
+        </header>
+      ) : (
+        <Header challengeName={challenge?.name} onLogoClick={() => navigate('/')} navigate={navigate} />
+      )}
+
       <IonContent className="text-gray-100 font-sans">
 
-        <IonRefresher slot="fixed" onIonRefresh={handleRefresh}>
-          <IonRefresherContent></IonRefresherContent>
-        </IonRefresher>
+        {!locationPath.startsWith('/game/') && (
+          <IonRefresher slot="fixed" onIonRefresh={handleRefresh}>
+            <IonRefresherContent></IonRefresherContent>
+          </IonRefresher>
+        )}
 
         <main className="container mx-auto p-4 md:p-6 pt-safe-top pb-safe-bottom">
           {globalMessage && (

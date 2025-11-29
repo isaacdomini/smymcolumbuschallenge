@@ -116,12 +116,50 @@ const GameInstructionsModal: React.FC<GameInstructionsModalProps> = ({ gameType,
     </div>
   );
 
+  const renderVerseScrambleInstructions = () => (
+    <div className="space-y-4">
+      <p>Rearrange the scrambled words to form the correct Bible verse.</p>
+      <ul className="list-disc pl-5 space-y-2 text-gray-300">
+        <li>Tap on a word to select it.</li>
+        <li>Tap on another word to swap their positions.</li>
+        <li>Continue swapping until the verse is in the correct order.</li>
+        <li>The game will automatically complete when the order is correct.</li>
+      </ul>
+    </div>
+  );
+
+  const renderWhoAmIInstructions = () => (
+    <div className="space-y-4">
+      <p>Guess the biblical figure or term by suggesting letters.</p>
+      <ul className="list-disc pl-5 space-y-2 text-gray-300">
+        <li>Use the on-screen keyboard or your physical keyboard to guess letters.</li>
+        <li>Each incorrect guess adds to your mistake count.</li>
+        <li>You have 6 allowed mistakes before the game is over.</li>
+        <li>Use the hint if you get stuck!</li>
+      </ul>
+    </div>
+  );
+
+  const renderWordSearchInstructions = () => (
+    <div className="space-y-4">
+      <p>Find all the hidden words in the grid.</p>
+      <ul className="list-disc pl-5 space-y-2 text-gray-300">
+        <li>Words can be horizontal, vertical, or diagonal.</li>
+        <li>Click and drag (or tap start and end) to select a word.</li>
+        <li>Find all the words listed on the side to win.</li>
+      </ul>
+    </div>
+  );
+
   const getTitle = () => {
     switch (gameType) {
       case GameType.WORDLE: return 'How to Play Wordle';
       case GameType.CONNECTIONS: return 'How to Play Connect the Words';
       case GameType.CROSSWORD: return 'How to Play Crossword';
       case GameType.MATCH_THE_WORD: return 'How to Play Match the Word';
+      case GameType.VERSE_SCRAMBLE: return 'How to Play Verse Scramble';
+      case GameType.WHO_AM_I: return 'How to Play Who Am I?';
+      case GameType.WORD_SEARCH: return 'How to Play Word Search';
       default: return 'Instructions';
     }
   };
@@ -132,6 +170,9 @@ const GameInstructionsModal: React.FC<GameInstructionsModalProps> = ({ gameType,
       case GameType.CONNECTIONS: return renderConnectionsInstructions();
       case GameType.CROSSWORD: return renderCrosswordInstructions();
       case GameType.MATCH_THE_WORD: return renderMatchTheWordInstructions();
+      case GameType.VERSE_SCRAMBLE: return renderVerseScrambleInstructions();
+      case GameType.WHO_AM_I: return renderWhoAmIInstructions();
+      case GameType.WORD_SEARCH: return renderWordSearchInstructions();
       default: return null;
     }
   };

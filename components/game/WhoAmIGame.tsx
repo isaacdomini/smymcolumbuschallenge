@@ -1,0 +1,250 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { WhoAmIData, GameSubmission, GameType } from '../../types';
+import { useAuth } from '../../hooks/useAuth';
+import { submitGame, getGameState, saveGameState, clearGameState } from '../../services/api';
+import GameInstructionsModal from './GameInstructionsModal';
+
+interface WhoAmIGameProps {
+  gameId: string;
+  gameData: WhoAmIData;
+  submission?: GameSubmission | null;
+  onComplete: () => void;
+}
+
+const SAMPLE_DATA: WhoAmIData = {
+  answer: "DAVID",
+  hint: "A man after God's own heart"
+};
+
+const KEYBOARD_ROWS = [
+  ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
+  ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
+  ['Z', 'X', 'C', 'V', 'B', 'N', 'M']
+];
+
+const WhoAmIGame: React.FC<WhoAmIGameProps> = ({ gameId, gameData, submission, onComplete }) => {
+  const { user } = useAuth();
+  const isSample = gameId.startsWith('sample-');
+  const isReadOnly = !!submission;
+  const maxMistakes = 6;
+
+  const [guessedLetters, setGuessedLetters] = useState<string[]>([]);
+  const [mistakes, setMistakes] = useState(0);
+  const [gameState, setGameState] = useState<'playing' | 'won' | 'lost'>('playing');
+  const [startTime, setStartTime] = useState<number | null>(null);
+  const [showInstructions, setShowInstructions] = useState(!isReadOnly);
+
+  const dataToUse = isSample ? SAMPLE_DATA : gameData;
+  const answer = dataToUse.answer.toUpperCase();
+
+  useEffect(() => {
+    const loadState = async () => {
+      if (isReadOnly && submission) {
+        setGuessedLetters(answer.split('')); // Reveal all
+        setMistakes(submission.mistakes);
+        setGameState(submission.mistakes >= maxMistakes ? 'lost' : 'won');
+        setShowInstructions(false);
+      } else if (isSample) {
+        // Reset for sample
+        setGuessedLetters([]);
+        setMistakes(0);
+        setGameState('playing');
+      } else if (user) {
+        const savedProgress = await getGameState(user.id, gameId);
+        if (savedProgress?.gameState) {
+          setGuessedLetters(savedProgress.gameState.guessedLetters || []);
+          setMistakes(savedProgress.gameState.mistakes || 0);
+          setGameState(savedProgress.gameState.gameState || 'playing');
+          if (savedProgress.gameState.startTime) {
+            setStartTime(savedProgress.gameState.startTime);
+            setShowInstructions(false);
+          }
+        }
+      }
+    };
+    loadState();
+  }, [gameData, isReadOnly, submission, gameId, user, isSample, answer]);
+
+  useEffect(() => {
+    if (isReadOnly || gameState !== 'playing' || !user || startTime === null || isSample) return;
+    const stateToSave = { guessedLetters, mistakes, gameState, startTime };
+    const handler = setTimeout(() => saveGameState(user.id, gameId, stateToSave), 1000);
+    return () => clearTimeout(handler);
+  }, [guessedLetters, mistakes, gameState, startTime, isReadOnly, user, gameId]);
+
+  const handleGuess = useCallback((letter: string) => {
+    if (gameState !== 'playing' || isReadOnly || guessedLetters.includes(letter)) return;
+
+    const newGuessed = [...guessedLetters, letter];
+    setGuessedLetters(newGuessed);
+
+    if (!answer.includes(letter)) {
+      const newMistakes = mistakes + 1;
+      setMistakes(newMistakes);
+      if (newMistakes >= maxMistakes) {
+        setGameState('lost');
+      }
+    } else {
+      // Check win condition
+      const isWon = answer.split('').every(char => char === ' ' || newGuessed.includes(char));
+      if (isWon) {
+        setGameState('won');
+      }
+    }
+  }, [gameState, isReadOnly, guessedLetters, answer, mistakes]);
+
+  // Handle physical keyboard
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (gameState !== 'playing' || isReadOnly || showInstructions) return;
+      const char = e.key.toUpperCase();
+      if (/^[A-Z]$/.test(char)) {
+        handleGuess(char);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleGuess, gameState, isReadOnly, showInstructions]);
+
+  useEffect(() => {
+    const saveResult = async () => {
+      if ((gameState === 'won' || gameState === 'lost') && !isReadOnly && startTime !== null && !isSample) {
+        if (!user) return;
+        await clearGameState(user.id, gameId);
+        const timeTaken = Math.round((Date.now() - startTime) / 1000);
+        await submitGame({
+          userId: user.id,
+          gameId,
+          startedAt: new Date(startTime).toISOString(),
+          timeTaken,
+          mistakes,
+          submissionData: { solved: gameState === 'won' }
+        });
+        setTimeout(onComplete, 3000);
+      }
+    };
+    saveResult();
+  }, [gameState, user, isReadOnly, gameId, mistakes, onComplete, startTime]);
+
+  const handleStartGame = () => {
+    setStartTime(Date.now());
+    setShowInstructions(false);
+  };
+
+  if (showInstructions) {
+    return <GameInstructionsModal gameType={GameType.WHO_AM_I} onStart={handleStartGame} onClose={handleStartGame} />;
+  }
+
+  return (
+    <div className="w-full max-w-2xl mx-auto flex flex-col items-center p-4">
+      <div className="flex items-center justify-between w-full mb-6">
+        <h2 className="text-2xl font-bold text-yellow-400">Who Am I? {isSample && <span className="text-sm bg-blue-600 text-white px-2 py-1 rounded ml-2">Sample</span>}</h2>
+        <button onClick={() => setShowInstructions(true)} className="text-gray-400 hover:text-white" title="Show Instructions">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+        </button>
+      </div>
+
+      {dataToUse.hint && (
+        <div className="mb-8 p-4 bg-gray-800 rounded-lg border border-gray-700 text-center w-full">
+          <span className="text-gray-400 text-sm uppercase tracking-wider block mb-1">Hint</span>
+          <p className="text-lg text-gray-200 italic">"{dataToUse.hint}"</p>
+        </div>
+      )}
+
+      {/* Word Display */}
+      <div className="flex flex-wrap justify-center gap-2 mb-10">
+        {answer.split('').map((char, i) => (
+          <div key={i} className={`w-10 h-12 flex items-end justify-center border-b-4 ${char === ' ' ? 'border-transparent' : 'border-gray-500'} mx-1`}>
+            <span className={`text-3xl font-bold ${guessedLetters.includes(char) || gameState !== 'playing' ? 'visible' : 'invisible'}`}>
+              {char}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {/* Hangman Visual & Mistakes */}
+      <div className="flex flex-col items-center mb-8">
+        <div className="mb-4">
+          <svg width="120" height="150" viewBox="0 0 120 150" className="stroke-gray-300" fill="none" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+            {/* Base */}
+            <line x1="10" y1="140" x2="110" y2="140" />
+            <line x1="60" y1="140" x2="60" y2="10" />
+            <line x1="60" y1="10" x2="100" y2="10" />
+            <line x1="100" y1="10" x2="100" y2="30" />
+
+            {/* Head */}
+            {mistakes >= 1 && <circle cx="100" cy="45" r="15" />}
+
+            {/* Body */}
+            {mistakes >= 2 && <line x1="100" y1="60" x2="100" y2="100" />}
+
+            {/* Left Arm */}
+            {mistakes >= 3 && <line x1="100" y1="70" x2="80" y2="90" />}
+
+            {/* Right Arm */}
+            {mistakes >= 4 && <line x1="100" y1="70" x2="120" y2="90" />}
+
+            {/* Left Leg */}
+            {mistakes >= 5 && <line x1="100" y1="100" x2="80" y2="130" />}
+
+            {/* Right Leg */}
+            {mistakes >= 6 && <line x1="100" y1="100" x2="120" y2="130" />}
+          </svg>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <span className="text-gray-400">Mistakes:</span>
+          <div className="flex space-x-1">
+            {Array.from({ length: maxMistakes }).map((_, i) => (
+              <div key={i} className={`w-3 h-3 rounded-full ${i < mistakes ? 'bg-red-500' : 'bg-gray-700'}`} />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Keyboard */}
+      <div className="w-full max-w-lg">
+        {KEYBOARD_ROWS.map((row, i) => (
+          <div key={i} className="flex justify-center gap-1 mb-2">
+            {row.map(char => {
+              const isGuessed = guessedLetters.includes(char);
+              const isCorrect = answer.includes(char);
+              let bgColor = 'bg-gray-700 hover:bg-gray-600';
+              if (isGuessed) {
+                bgColor = isCorrect ? 'bg-green-600' : 'bg-gray-800 text-gray-500';
+              }
+
+              return (
+                <button
+                  key={char}
+                  onClick={() => handleGuess(char)}
+                  disabled={isGuessed || gameState !== 'playing' || isReadOnly}
+                  className={`w-8 h-10 sm:w-10 sm:h-12 rounded font-bold transition-colors ${bgColor} ${isGuessed ? 'cursor-default' : ''}`}
+                >
+                  {char}
+                </button>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+
+      {(gameState !== 'playing' || isReadOnly) && (
+        <div className="mt-8 text-center animate-fade-in">
+          {gameState === 'won' && <p className="text-2xl text-green-400 font-bold mb-4">You got it!</p>}
+          {gameState === 'lost' && (
+            <div className="mb-4">
+              <p className="text-xl text-red-400 font-bold mb-2">Game Over</p>
+              <p className="text-gray-300">The answer was: <span className="font-bold text-white">{answer}</span></p>
+            </div>
+          )}
+          <button onClick={onComplete} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-full transition-transform hover:scale-105">
+            Continue
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default WhoAmIGame;
