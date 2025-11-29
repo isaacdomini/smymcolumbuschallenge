@@ -782,6 +782,7 @@ export const getScoringCriteria = async (): Promise<any[]> => {
         {
             title: 'Wordle',
             description: 'Your score is based solely on the number of guesses used.',
+            hidden: false,
             points: [
                 'Guess Score: Up to 60 points (10 points for every unused guess remaining).',
                 'Losing (6 incorrect guesses) results in a score of 0.'
@@ -790,6 +791,7 @@ export const getScoringCriteria = async (): Promise<any[]> => {
         {
             title: 'Connections',
             description: 'Solve the puzzle by grouping words into categories.',
+            hidden: false,
             points: [
                 'Category Score: 20 points for each correct category found.',
                 'Mistake Penalty: -5 points for each incorrect guess.'
@@ -798,6 +800,7 @@ export const getScoringCriteria = async (): Promise<any[]> => {
         {
             title: 'Crossword',
             description: 'Complete the crossword by solving the clues.',
+            hidden: false,
             points: [
                 'Accuracy Score: Up to 70 points based on the percentage of correctly filled cells.',
                 'Time Bonus: Up to 30 points for a fast completion time.'
@@ -806,6 +809,7 @@ export const getScoringCriteria = async (): Promise<any[]> => {
         {
             title: 'Match the Word',
             description: 'Your score is based on how quickly and accurately you match the words.',
+            hidden: false,
             points: [
                 'Match Score: 10 points for each correct match.',
                 'Time Bonus: Up to 30 points for a fast completion time.',
@@ -815,6 +819,7 @@ export const getScoringCriteria = async (): Promise<any[]> => {
         {
             title: 'Verse Scramble',
             description: 'Unscramble the Bible verse by dragging words into the correct order.',
+            hidden: true,
             points: [
                 'Completion Score: 50 points for completing the verse.',
                 'Accuracy Bonus: Up to 30 points for minimal mistakes.',
@@ -824,6 +829,7 @@ export const getScoringCriteria = async (): Promise<any[]> => {
         {
             title: 'Who Am I?',
             description: 'Guess the biblical figure before running out of guesses (Hangman style).',
+            hidden: true,
             points: [
                 'Win Score: 50 points for guessing the correct answer.',
                 'Guess Bonus: 5 points for each remaining incorrect guess allowed.',
@@ -833,10 +839,11 @@ export const getScoringCriteria = async (): Promise<any[]> => {
         {
             title: 'Word Search',
             description: 'Find all the hidden words in the grid.',
+            hidden: true,
             points: [
                 'Word Score: 10 points for each word found.',
-                'Time Bonus: Up to 30 points for fast completion.',
-                'Completion Bonus: 20 points for finding all words.'
+                'Completion Bonus: 20 points for finding all words.',
+                'Time Bonus: Up to 30 points for speed.'
             ]
         }
     ];
