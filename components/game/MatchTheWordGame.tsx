@@ -13,6 +13,16 @@ interface MatchTheWordGameProps {
 
 const COLORS = ['#4ade80', '#60a5fa', '#f87171', '#fbbf24', '#a78bfa', '#f472b6'];
 
+const SAMPLE_DATA: MatchTheWordData = {
+  pairs: [
+    { word: 'David', match: 'Shepherd King' },
+    { word: 'Moses', match: 'Lawgiver' },
+    { word: 'Abraham', match: 'Father of Nations' },
+    { word: 'Paul', match: 'Apostle to the Gentiles' },
+    { word: 'Esther', match: 'Queen of Persia' }
+  ]
+};
+
 const MatchTheWordGame: React.FC<MatchTheWordGameProps> = ({ gameId, gameData, submission, onComplete }) => {
   const { user } = useAuth();
   const isSample = gameId.startsWith('sample-');
@@ -38,31 +48,13 @@ const MatchTheWordGame: React.FC<MatchTheWordGameProps> = ({ gameId, gameData, s
   const containerRef = useRef<HTMLDivElement>(null);
 
   const shuffledWords = useMemo(() => {
-    const sampleData: MatchTheWordData = {
-      pairs: [
-        { word: 'David', match: 'Shepherd King' },
-        { word: 'Moses', match: 'Lawgiver' },
-        { word: 'Abraham', match: 'Father of Nations' },
-        { word: 'Paul', match: 'Apostle to the Gentiles' },
-        { word: 'Esther', match: 'Queen of Persia' }
-      ]
-    };
-    const dataToUse = isSample ? sampleData : gameData;
+    const dataToUse = isSample ? SAMPLE_DATA : gameData;
     const allWords = dataToUse.pairs.map(p => p.word);
     return allWords.sort(() => Math.random() - 0.5);
   }, [gameData.pairs, isSample]);
 
   const shuffledMatches = useMemo(() => {
-    const sampleData: MatchTheWordData = {
-      pairs: [
-        { word: 'David', match: 'Shepherd King' },
-        { word: 'Moses', match: 'Lawgiver' },
-        { word: 'Abraham', match: 'Father of Nations' },
-        { word: 'Paul', match: 'Apostle to the Gentiles' },
-        { word: 'Esther', match: 'Queen of Persia' }
-      ]
-    };
-    const dataToUse = isSample ? sampleData : gameData;
+    const dataToUse = isSample ? SAMPLE_DATA : gameData;
     const allMatches = dataToUse.pairs.map(p => p.match);
     return allMatches.sort(() => Math.random() - 0.5);
   }, [gameData.pairs, isSample]);
@@ -130,23 +122,15 @@ const MatchTheWordGame: React.FC<MatchTheWordGameProps> = ({ gameId, gameData, s
 
   const handleMatchClick = (match: string) => {
     if (gameState !== 'playing' || isReadOnly || showInstructions) return;
-    const isAlreadyMatched = gameData.pairs.some(p => foundPairs.includes(p.word) && p.match === match);
+    const dataToUse = isSample ? SAMPLE_DATA : gameData;
+    const isAlreadyMatched = dataToUse.pairs.some(p => foundPairs.includes(p.word) && p.match === match);
     if (isAlreadyMatched) return;
     setSelectedMatch(match);
   };
 
   useEffect(() => {
     if (selectedWord && selectedMatch) {
-      const sampleData: MatchTheWordData = {
-        pairs: [
-          { word: 'David', match: 'Shepherd King' },
-          { word: 'Moses', match: 'Lawgiver' },
-          { word: 'Abraham', match: 'Father of Nations' },
-          { word: 'Paul', match: 'Apostle to the Gentiles' },
-          { word: 'Esther', match: 'Queen of Persia' }
-        ]
-      };
-      const dataToUse = isSample ? sampleData : gameData;
+      const dataToUse = isSample ? SAMPLE_DATA : gameData;
       const correctPair = dataToUse.pairs.find(p => p.word === selectedWord && p.match === selectedMatch);
       if (correctPair) {
         const newFoundPairs = [...foundPairs, selectedWord];
@@ -260,10 +244,10 @@ const MatchTheWordGame: React.FC<MatchTheWordGameProps> = ({ gameId, gameData, s
                 onClick={() => handleWordClick(word)}
                 disabled={isFound || isReadOnly}
                 className={`p-4 rounded-md font-semibold text-center transition-all duration-200 ${isFound
-                    ? 'text-white'
-                    : selectedWord === word
-                      ? 'bg-blue-600 text-white scale-105'
-                      : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-100'
+                  ? 'text-white'
+                  : selectedWord === word
+                    ? 'bg-blue-600 text-white scale-105'
+                    : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-100'
                   }`}
                 style={{ backgroundColor: isFound ? pairColors[word] : undefined }}
               >
@@ -274,16 +258,7 @@ const MatchTheWordGame: React.FC<MatchTheWordGameProps> = ({ gameId, gameData, s
         </div>
         <div className="flex flex-col space-y-2">
           {matches.map(match => {
-            const sampleData: MatchTheWordData = {
-              pairs: [
-                { word: 'David', match: 'Shepherd King' },
-                { word: 'Moses', match: 'Lawgiver' },
-                { word: 'Abraham', match: 'Father of Nations' },
-                { word: 'Paul', match: 'Apostle to the Gentiles' },
-                { word: 'Esther', match: 'Queen of Persia' }
-              ]
-            };
-            const dataToUse = isSample ? sampleData : gameData;
+            const dataToUse = isSample ? SAMPLE_DATA : gameData;
             const pair = dataToUse.pairs.find(p => p.match === match);
             const isFound = pair ? foundPairs.includes(pair.word) : false;
             return (
@@ -293,10 +268,10 @@ const MatchTheWordGame: React.FC<MatchTheWordGameProps> = ({ gameId, gameData, s
                 onClick={() => handleMatchClick(match)}
                 disabled={isFound || isReadOnly}
                 className={`p-4 rounded-md font-semibold text-center transition-all duration-200 ${isFound
-                    ? 'text-white'
-                    : selectedMatch === match
-                      ? 'bg-blue-600 text-white scale-105'
-                      : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-100'
+                  ? 'text-white'
+                  : selectedMatch === match
+                    ? 'bg-blue-600 text-white scale-105'
+                    : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-100'
                   }`}
                 style={{ backgroundColor: isFound && pair && pairColors[pair.word] ? pairColors[pair.word] : undefined }}
               >
