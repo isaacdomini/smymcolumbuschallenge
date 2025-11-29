@@ -127,6 +127,17 @@ const Header: React.FC<HeaderProps> = ({ challengeName, onLogoClick, navigate })
                                             >
                                                 Profile
                                             </button>
+                                            {user.isAdmin && (
+                                                <button
+                                                    onClick={() => {
+                                                        navigate('/admin');
+                                                        setProfileMenuOpen(false);
+                                                    }}
+                                                    className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-600"
+                                                >
+                                                    Admin Dashboard
+                                                </button>
+                                            )}
                                             <button
                                                 onClick={logout}
                                                 className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-600"
