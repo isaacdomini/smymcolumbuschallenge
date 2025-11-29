@@ -5,6 +5,7 @@ interface Criteria {
   title: string;
   description: string;
   points: string[];
+  hidden?: boolean;
 }
 
 const ScoringCriteria: React.FC = () => {
@@ -45,7 +46,7 @@ const ScoringCriteria: React.FC = () => {
             </p>
           </div>
           <div className="grid md:grid-cols-3 gap-6">
-            {criteria.map((item) => {
+            {criteria.filter(c => !c.hidden).map((item) => {
               let sampleUrl = '';
               if (item.title === 'Wordle') sampleUrl = '/game/sample-wordle';
               else if (item.title === 'Connections') sampleUrl = '/game/sample-connections';
