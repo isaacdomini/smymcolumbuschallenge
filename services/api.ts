@@ -776,7 +776,59 @@ export const deleteGame = async (userId: string, gameId: string): Promise<void> 
 };
 
 
+// --- DAILY MESSAGES ---
 
+export interface DailyMessage {
+    id: string;
+    date: string;
+    title: string;
+    content: string;
+    createdAt?: string;
+}
+
+export const getDailyMessage = async (date?: string): Promise<DailyMessage | null> => {
+    if (USE_MOCK_DATA || isTestUser()) {
+        // Mock data
+        return {
+            id: 'msg-mock',
+            date: date || new Date().toISOString().split('T')[0],
+            title: 'Daily Inspiration',
+            content: 'This is a mock daily message for testing purposes.'
+        };
+    }
+    const query = date ? `?date=${date}` : '';
+    const response = await fetch(`${API_BASE_URL}/daily-message${query}`);
+    if (!response.ok) throw new Error('Failed to fetch daily message');
+    return await response.json();
+};
+
+export const getAllDailyMessages = async (userId: string, limit = 50, offset = 0): Promise<DailyMessage[]> => {
+    if (USE_MOCK_DATA || isTestUser()) return [];
+    const response = await fetch(`${API_BASE_URL}/admin/daily-messages?limit=${limit}&offset=${offset}`, {
+        headers: getAuthHeaders(userId)
+    });
+    if (!response.ok) throw new Error('Failed to fetch daily messages');
+    return await response.json();
+};
+
+export const saveDailyMessage = async (userId: string, message: { date: string, title: string, content: string }): Promise<void> => {
+    if (USE_MOCK_DATA || isTestUser()) return;
+    const response = await fetch(`${API_BASE_URL}/admin/daily-messages`, {
+        method: 'POST',
+        headers: getAuthHeaders(userId),
+        body: JSON.stringify(message)
+    });
+    if (!response.ok) throw new Error('Failed to save daily message');
+};
+
+export const deleteDailyMessage = async (userId: string, messageId: string): Promise<void> => {
+    if (USE_MOCK_DATA || isTestUser()) return;
+    const response = await fetch(`${API_BASE_URL}/admin/daily-messages/${messageId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(userId)
+    });
+    if (!response.ok) throw new Error('Failed to delete daily message');
+};
 export const getScoringCriteria = async (): Promise<any[]> => {
     return [
         {
