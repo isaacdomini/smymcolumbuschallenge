@@ -18,7 +18,7 @@ const DailyMessage: React.FC<DailyMessageProps> = ({ message, isBlurred }) => {
         <div className={`text-gray-300 text-lg leading-relaxed ${isBlurred ? 'blur-md select-none pointer-events-none' : ''}`}>
           {(() => {
             try {
-              const blocks = JSON.parse(message.content);
+              const blocks = typeof message.content === 'string' ? JSON.parse(message.content) : message.content;
               if (Array.isArray(blocks)) {
                 return blocks.map((block: any, i: number) => {
                   if (block.type === 'verse') {
@@ -33,10 +33,12 @@ const DailyMessage: React.FC<DailyMessageProps> = ({ message, isBlurred }) => {
                   }
                 });
               }
-              throw new Error('Not a block array');
+              // If it's not an array, maybe it's old text content that got json-encoded as a string?
+              // Or just fallback to displaying it.
+              return <p className="mb-4 text-gray-300">{String(message.content)}</p>;
             } catch (e) {
               // Fallback for old plain text format
-              return message.content.split('\n').map((line, i) => (
+              return String(message.content).split('\n').map((line, i) => (
                 <p key={i} className="mb-2">{line}</p>
               ));
             }

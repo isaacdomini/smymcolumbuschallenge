@@ -118,9 +118,12 @@ const migrations = [
     id VARCHAR(255) PRIMARY KEY,
     date VARCHAR(10) NOT NULL UNIQUE,
     title VARCHAR(255) NOT NULL,
-    content TEXT NOT NULL,
+    content JSONB NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-  )`
+  )`,
+
+  // Convert daily_messages content to JSONB
+  `ALTER TABLE daily_messages ALTER COLUMN content TYPE JSONB USING content::jsonb`
 ];
 
 async function runMigrations() {
