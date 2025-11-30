@@ -125,7 +125,22 @@ const migrations = [
   `ALTER TABLE daily_messages ALTER COLUMN content TYPE JSONB USING content::jsonb`,
 
   // Remove title column
-  `ALTER TABLE daily_messages DROP COLUMN IF EXISTS title`
+  `ALTER TABLE daily_messages DROP COLUMN IF EXISTS title`,
+
+  // notification_logs table
+  `CREATE TABLE IF NOT EXISTS notification_logs (
+    id SERIAL PRIMARY KEY,
+    user_id VARCHAR(255) REFERENCES users(id) ON DELETE SET NULL,
+    type VARCHAR(50) NOT NULL,
+    recipient TEXT NOT NULL,
+    content JSONB NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    error TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_notification_logs_user_id ON notification_logs(user_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_notification_logs_type ON notification_logs(type)`,
+  `CREATE INDEX IF NOT EXISTS idx_notification_logs_created_at ON notification_logs(created_at)`
 ];
 
 async function runMigrations() {

@@ -95,6 +95,17 @@ export const saveSubscription = async (userId: string, subscriptionOrToken: any,
     }
 };
 
+const logNotification = async (userId: string | null, type: string, recipient: string, content: any, status: string, error?: string) => {
+    try {
+        await pool.query(
+            'INSERT INTO notification_logs (user_id, type, recipient, content, status, error) VALUES ($1, $2, $3, $4, $5, $6)',
+            [userId, type, recipient, JSON.stringify(content), status, error]
+        );
+    } catch (err) {
+        console.error('Failed to log notification:', err);
+    }
+};
+
 // --- Helper Functions for Sending ---
 
 async function sendWebPush(subscriptions: any[], payload: { title: string, body: string, url?: string }) {
@@ -102,12 +113,15 @@ async function sendWebPush(subscriptions: any[], payload: { title: string, body:
         const pushSubscription = { endpoint: sub.endpoint, keys: sub.keys };
         try {
             await webpush.sendNotification(pushSubscription, JSON.stringify(payload));
+            await logNotification(sub.user_id, 'push_web', sub.endpoint, payload, 'sent');
         } catch (error: any) {
             if (error.statusCode === 410 || error.statusCode === 404) {
                 console.log(`Web subscription expired for ${sub.user_id}, deleting...`);
                 await pool.query('DELETE FROM push_subscriptions WHERE id = $1', [sub.id]);
+                await logNotification(sub.user_id, 'push_web', sub.endpoint, payload, 'failed', 'Subscription expired/not found');
             } else {
                 console.error(`Error sending web push to user ${sub.user_id}:`, error.body);
+                await logNotification(sub.user_id, 'push_web', sub.endpoint, payload, 'failed', error.body || error.message);
             }
         }
     });
@@ -135,7 +149,7 @@ async function sendFirebasePush(tokens: string[], payload: { title: string, body
         const response = await admin.messaging().sendEachForMulticast(message);
         if (response.failureCount > 0) {
             const tokensToDelete: string[] = [];
-            response.responses.forEach((resp, idx) => {
+            const logPromises = response.responses.map(async (resp, idx) => {
                 if (!resp.success) {
                     const errorCode = resp.error?.code;
                     // Check for errors indicating an invalid or unregistered token
@@ -145,9 +159,13 @@ async function sendFirebasePush(tokens: string[], payload: { title: string, body
                         tokensToDelete.push(tokens[idx]);
                     } else {
                         console.error(`Failed to send FCM to token ${tokens[idx]}:`, resp.error);
+                        await logNotification(null, 'push_android', tokens[idx], payload, 'failed', resp.error?.message);
                     }
+                } else {
+                    await logNotification(null, 'push_android', tokens[idx], payload, 'sent');
                 }
             });
+            await Promise.all(logPromises);
 
             if (tokensToDelete.length > 0) {
                 await pool.query('DELETE FROM push_subscriptions WHERE device_token = ANY($1::text[]) AND platform = $2', [tokensToDelete, 'android']);
@@ -183,12 +201,18 @@ async function sendApplePush(tokens: string[], payload: { title: string, body: s
     try {
         const response = await apnProvider.send(notification, tokens);
 
+        const sentPromises = response.sent.map(async (device) => {
+            await logNotification(null, 'push_ios', device.device, payload, 'sent');
+        });
+        await Promise.all(sentPromises);
+
         if (response.failed.length > 0) {
             const tokensToDelete: string[] = [];
-            response.failed.forEach((failure) => {
+            const failedPromises = response.failed.map(async (failure) => {
                 const reason = failure.response?.reason || failure.error?.message || 'Unknown Reason';
                 console.error(`APN Error: ${failure.status} ${reason} for token ${failure.device}`);
-                
+                await logNotification(null, 'push_ios', failure.device, payload, 'failed', `${failure.status} ${reason}`);
+
                 // --- FIX ---
                 // 'Unregistered' (410) means the user uninstalled the app
                 // 'BadDeviceToken' (400) means the token is invalid for this environment
@@ -196,13 +220,14 @@ async function sendApplePush(tokens: string[], payload: { title: string, body: s
                     tokensToDelete.push(failure.device);
                 }
             });
+            await Promise.all(failedPromises);
 
             if (tokensToDelete.length > 0) {
                 await pool.query('DELETE FROM push_subscriptions WHERE device_token = ANY($1::text[]) AND platform = $2', [tokensToDelete, 'ios']);
             }
         }
     } catch (error) {
-         console.error('Error sending APN notifications:', error);
+        console.error('Error sending APN notifications:', error);
     }
 }
 
@@ -219,7 +244,7 @@ export const sendPushNotification = async (userId: string, payload: { title: str
         if (subscriptions.length === 0) return;
 
         console.log(`Sending push notification to ${subscriptions.length} devices for user ${userId}`);
-        
+
         // Filter subscriptions by platform
         const webSubscriptions = subscriptions.filter(s => s.platform === 'web' && s.endpoint);
         const androidTokens = subscriptions.filter(s => s.platform === 'android' && s.device_token).map(s => s.device_token);
