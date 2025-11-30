@@ -6,8 +6,8 @@ import { sendPushNotification } from './services/push.js';
 export const initScheduler = () => {
     console.log('Initializing daily reminder scheduler...');
 
-    // Schedule task to run every day at 10:00 AM Eastern Time
-    cron.schedule('0 10 * * *', async () => {
+    // Schedule task to run every day at 7:00 AM and 6:00 PM Eastern Time
+    cron.schedule('0 7,18 * * *', async () => {
         console.log('Running daily reminder job...');
         try {
             const now = new Date();
@@ -31,8 +31,8 @@ export const initScheduler = () => {
             );
 
             if (gameResult.rows.length === 0) {
-                 console.log('No game scheduled for today, skipping reminders.');
-                 return;
+                console.log('No game scheduled for today, skipping reminders.');
+                return;
             }
             const game = gameResult.rows[0];
             const gameType = game.type.charAt(0).toUpperCase() + game.type.slice(1);
