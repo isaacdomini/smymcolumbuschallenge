@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
+import pool from '../db/pool.js';
 
 dotenv.config();
 
@@ -19,6 +20,17 @@ const transporter = nodemailer.createTransport({
     pass: process.env.EMAIL_PASS,
   },
 });
+
+const logNotification = async (userId: string | null, type: string, recipient: string, content: any, status: string, error?: string) => {
+  try {
+    await pool.query(
+      'INSERT INTO notification_logs (user_id, type, recipient, content, status, error) VALUES ($1, $2, $3, $4, $5, $6)',
+      [userId, type, recipient, JSON.stringify(content), status, error]
+    );
+  } catch (err) {
+    console.error('Failed to log notification:', err);
+  }
+};
 
 export const sendVerificationEmail = async (email: string, token: string, host?: string) => {
   const baseUrl = getAppUrl(host);
@@ -47,8 +59,10 @@ export const sendVerificationEmail = async (email: string, token: string, host?:
       `,
     });
     console.log(`Verification email sent to ${email}`);
-  } catch (error) {
+    await logNotification(null, 'email_verification', email, { subject: 'Verify Your Email for SMYM Bible Games', body: 'HTML content omitted' }, 'sent');
+  } catch (error: any) {
     console.error(`Failed to send verification email to ${email}:`, error);
+    await logNotification(null, 'email_verification', email, { subject: 'Verify Your Email for SMYM Bible Games' }, 'failed', error.message);
   }
 };
 
@@ -76,8 +90,10 @@ export const sendDailyReminder = async (email: string, name: string, gameType: s
             `,
     });
     console.log(`Reminder email sent to ${email} for ${gameType}`);
-  } catch (error) {
+    await logNotification(null, 'email_reminder', email, { subject: `Daily Challenge Reminder: Time for ${gameType}!`, gameType }, 'sent');
+  } catch (error: any) {
     console.error(`Failed to send reminder email to ${email}:`, error);
+    await logNotification(null, 'email_reminder', email, { subject: `Daily Challenge Reminder: Time for ${gameType}!`, gameType }, 'failed', error.message);
   }
 };
 
@@ -107,8 +123,10 @@ export const sendPasswordResetEmail = async (email: string, token: string, host?
         `,
     });
     console.log(`Password reset email sent to ${email}`);
-  } catch (error) {
+    await logNotification(null, 'email_password_reset', email, { subject: 'Password Reset Request for SMYM Bible Games' }, 'sent');
+  } catch (error: any) {
     console.error(`Failed to send password reset email to ${email}:`, error);
+    await logNotification(null, 'email_password_reset', email, { subject: 'Password Reset Request for SMYM Bible Games' }, 'failed', error.message);
   }
 };
 
@@ -138,7 +156,9 @@ export const sendAccountDeletionRequestEmail = async (userEmail: string, userId:
         `,
     });
     console.log(`Account deletion request sent to admin for user ${userEmail}`);
-  } catch (error) {
+    await logNotification(userId, 'email_account_deletion_request', adminEmail, { subject: '[ACTION REQUIRED] Account Deletion Request', userEmail, userName }, 'sent');
+  } catch (error: any) {
     console.error(`Failed to send account deletion email to admin for user ${userEmail}:`, error);
+    await logNotification(userId, 'email_account_deletion_request', adminEmail, { subject: '[ACTION REQUIRED] Account Deletion Request', userEmail, userName }, 'failed', error.message);
   }
 };
