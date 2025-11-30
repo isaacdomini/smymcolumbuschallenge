@@ -342,19 +342,19 @@ router.get('/daily-messages', async (req: Request, res: Response) => {
 // Create or update a daily message
 router.post('/daily-messages', async (req: Request, res: Response) => {
     try {
-        const { date, title, content } = req.body;
+        const { date, content } = req.body;
 
-        if (!date || !title || !content) {
-            return res.status(400).json({ error: 'Date, title, and content are required' });
+        if (!date || !content) {
+            return res.status(400).json({ error: 'Date and content are required' });
         }
 
         const id = `msg-${date}`;
 
         await pool.query(
-            `INSERT INTO daily_messages (id, date, title, content) 
-             VALUES ($1, $2, $3, $4) 
-             ON CONFLICT (date) DO UPDATE SET title = EXCLUDED.title, content = EXCLUDED.content`,
-            [id, date, title, content]
+            `INSERT INTO daily_messages (id, date, content) 
+             VALUES ($1, $2, $3) 
+             ON CONFLICT (date) DO UPDATE SET content = EXCLUDED.content`,
+            [id, date, content]
         );
 
         res.json({ message: 'Daily message saved successfully', id });

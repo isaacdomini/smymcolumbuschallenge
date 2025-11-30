@@ -111,6 +111,13 @@ export interface Challenge {
   endDate: string; // ISO string
 }
 
+export interface DailyMessage {
+  id: string;
+  date: string;
+  content: string;
+  createdAt?: string;
+} // ISO string
+
 export interface GameSubmission {
   id: string;
   userId: string;

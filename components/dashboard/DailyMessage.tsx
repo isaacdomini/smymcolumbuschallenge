@@ -12,9 +12,6 @@ const DailyMessage: React.FC<DailyMessageProps> = ({ message, isBlurred }) => {
   return (
     <div className="mb-8 bg-gray-800 rounded-lg shadow-lg overflow-hidden border border-gray-700 relative">
       <div className="p-6 text-center">
-        <h2 className={`text-2xl font-bold text-yellow-400 mb-4 ${isBlurred ? 'blur-sm select-none' : ''}`}>
-          {message.title}
-        </h2>
         <div className={`text-gray-300 text-lg leading-relaxed ${isBlurred ? 'blur-md select-none pointer-events-none' : ''}`}>
           {(() => {
             try {
@@ -23,9 +20,19 @@ const DailyMessage: React.FC<DailyMessageProps> = ({ message, isBlurred }) => {
                 return blocks.map((block: any, i: number) => {
                   if (block.type === 'verse') {
                     return (
-                      <div key={i} className="mb-4 px-4 border-l-4 border-yellow-500/50 bg-gray-900/30 py-2 rounded-r">
-                        <p className="font-serif italic text-xl text-yellow-100 mb-1">"{block.text}"</p>
-                        <p className="text-sm text-yellow-500 font-bold text-right">— {block.reference}</p>
+                      <div key={i}>
+                        <div className="relative z-10">
+                          <div className="flex justify-between items-start mb-4">
+                            <h2 className="text-2xl font-bold text-white font-serif">Daily Message</h2>
+                            <span className="bg-yellow-500/20 text-yellow-500 text-xs px-2 py-1 rounded font-mono border border-yellow-500/30">
+                              {message.date}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="mb-4 px-4 border-l-4 border-yellow-500/50 bg-gray-900/30 py-2 rounded-r">
+                          <p className="font-serif italic text-xl text-yellow-100 mb-1">"{block.text}"</p>
+                          <p className="text-sm text-yellow-500 font-bold text-right">— {block.reference}</p>
+                        </div>
                       </div>
                     );
                   } else {
