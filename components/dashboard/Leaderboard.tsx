@@ -23,7 +23,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data }) => {
   const currentUserRankIndex = currentUser
     ? sortedData.findIndex(entry => entry.userId === currentUser.id)
     : -1;
-  
+
   // Get the top 5 entries
   const top5Data = sortedData.slice(0, 5);
 
@@ -35,12 +35,12 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data }) => {
   // Helper function to render a single leaderboard row
   const renderRow = (entry: GameSubmission & { user: User }, index: number) => {
     const isCurrentUser = entry.userId === currentUser?.id;
-    // Use the actual rank (index + 1) for display
-    const rank = index + 1; 
+    // Use standard competition ranking (1224)
+    const rank = sortedData.findIndex(e => e.score === entry.score) + 1;
 
     return (
-      <div 
-        key={entry.id} 
+      <div
+        key={entry.id}
         className={`flex items-center justify-between p-3 rounded-lg bg-gray-700/50 border-l-4 
           ${isCurrentUser ? 'border-blue-400 bg-gray-700' : getRankColor(index)}
         `}
@@ -67,16 +67,16 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data }) => {
       <div className="flex items-center justify-center mb-6">
         <h2 className="text-2xl sm:text-3xl font-bold text-center text-yellow-400">Leaderboard</h2>
         <div className="ml-2 text-gray-400">
-            <Tooltip text="This is the total score for all completed games in the challenge.">
-              {ICONS.info}
-            </Tooltip>
+          <Tooltip text="This is the total score for all completed games in the challenge.">
+            {ICONS.info}
+          </Tooltip>
         </div>
       </div>
       <div className="space-y-3">
         {sortedData.length > 0 ? (
           <>
             {top5Data.map((entry, index) => renderRow(entry, index))}
-            
+
             {currentUserEntry && (
               <>
                 <div className="flex items-center justify-center py-2">
@@ -90,7 +90,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data }) => {
             )}
           </>
         ) : (
-            <p className="text-center text-gray-400 py-4">No submissions yet. Be the first to play!</p>
+          <p className="text-center text-gray-400 py-4">No submissions yet. Be the first to play!</p>
         )}
       </div>
     </div>
