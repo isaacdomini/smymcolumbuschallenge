@@ -10,6 +10,7 @@ interface LeaderboardProps {
 
 const Leaderboard: React.FC<LeaderboardProps> = ({ data }) => {
   const { user: currentUser } = useAuth(); // Get the current user
+  const [showAll, setShowAll] = React.useState(false);
   const sortedData = [...data].sort((a, b) => b.score - a.score);
 
   const getRankColor = (rank: number) => {
@@ -24,11 +25,16 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data }) => {
     ? sortedData.findIndex(entry => entry.userId === currentUser.id)
     : -1;
 
-  // Get the top 5 entries
-  const top5Data = sortedData.slice(0, 5);
+  // Calculate cutoff: show at least 5, but include all ties for 1st place
+  const firstPlaceScore = sortedData.length > 0 ? sortedData[0].score : null;
+  const firstPlaceCount = sortedData.filter(e => e.score === firstPlaceScore).length;
+  const cutoffIndex = Math.max(5, firstPlaceCount);
 
-  // Get the current user's entry if they exist and are not in the top 5
-  const currentUserEntry = (currentUserRankIndex !== -1 && currentUserRankIndex >= 5)
+  // Determine which data to display
+  const displayedData = showAll ? sortedData : sortedData.slice(0, cutoffIndex);
+
+  // Get the current user's entry if they exist and are not in the displayed list
+  const currentUserEntry = (!showAll && currentUserRankIndex !== -1 && currentUserRankIndex >= cutoffIndex)
     ? sortedData[currentUserRankIndex]
     : null;
 
@@ -41,7 +47,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data }) => {
     return (
       <div
         key={entry.id}
-        className={`flex items-center justify-between p-3 rounded-lg bg-gray-700/50 border-l-4 
+        className={`flex items-center justify-between p-3 rounded-lg bg-gray-700/50 border-l-4
           ${isCurrentUser ? 'border-blue-400 bg-gray-700' : getRankColor(index)}
         `}
       >
@@ -75,7 +81,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data }) => {
       <div className="space-y-3">
         {sortedData.length > 0 ? (
           <>
-            {top5Data.map((entry, index) => renderRow(entry, index))}
+            {displayedData.map((entry, index) => renderRow(entry, index))}
 
             {currentUserEntry && (
               <>
@@ -87,6 +93,23 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data }) => {
                 {/* Pass the user's actual rank index here */}
                 {renderRow(currentUserEntry, currentUserRankIndex)}
               </>
+            )}
+
+            {sortedData.length > cutoffIndex && (
+              <button
+                onClick={() => setShowAll(!showAll)}
+                className="w-full py-2 mt-4 text-sm text-gray-400 hover:text-white hover:bg-gray-700/50 rounded transition-colors flex items-center justify-center"
+              >
+                {showAll ? (
+                  <>
+                    Show Less <span className="ml-1">↑</span>
+                  </>
+                ) : (
+                  <>
+                    Show More ({sortedData.length - cutoffIndex} others) <span className="ml-1">↓</span>
+                  </>
+                )}
+              </button>
             )}
           </>
         ) : (
