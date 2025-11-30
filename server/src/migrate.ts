@@ -117,13 +117,15 @@ const migrations = [
   `CREATE TABLE IF NOT EXISTS daily_messages (
     id VARCHAR(255) PRIMARY KEY,
     date VARCHAR(10) NOT NULL UNIQUE,
-    title VARCHAR(255) NOT NULL,
     content JSONB NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )`,
 
   // Convert daily_messages content to JSONB
-  `ALTER TABLE daily_messages ALTER COLUMN content TYPE JSONB USING content::jsonb`
+  `ALTER TABLE daily_messages ALTER COLUMN content TYPE JSONB USING content::jsonb`,
+
+  // Remove title column
+  `ALTER TABLE daily_messages DROP COLUMN IF EXISTS title`
 ];
 
 async function runMigrations() {

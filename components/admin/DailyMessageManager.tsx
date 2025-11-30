@@ -12,7 +12,6 @@ const DailyMessageManager: React.FC = () => {
 
   // Form state
   const [date, setDate] = useState('');
-  const [title, setTitle] = useState('');
   const [blocks, setBlocks] = useState<DailyMessageContent>([]);
   const [isEditing, setIsEditing] = useState(false);
 
@@ -42,7 +41,7 @@ const DailyMessageManager: React.FC = () => {
     setSuccess(null);
 
     try {
-      await saveDailyMessage(user.id, { date, title, content: JSON.stringify(blocks) });
+      await saveDailyMessage(user.id, { date, content: JSON.stringify(blocks) });
       setSuccess('Message saved successfully');
       fetchMessages();
       resetForm();
@@ -67,7 +66,6 @@ const DailyMessageManager: React.FC = () => {
 
   const handleEdit = (msg: DailyMessage) => {
     setDate(msg.date);
-    setTitle(msg.title);
     try {
       const parsed = typeof msg.content === 'string' ? JSON.parse(msg.content) : msg.content;
       if (Array.isArray(parsed)) {
@@ -84,7 +82,6 @@ const DailyMessageManager: React.FC = () => {
 
   const resetForm = () => {
     setDate('');
-    setTitle('');
     setBlocks([]);
     setIsEditing(false);
   };
@@ -108,17 +105,6 @@ const DailyMessageManager: React.FC = () => {
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 required
-                className="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white focus:border-yellow-500 focus:outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-gray-400 mb-1 text-sm">Title</label>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                required
-                placeholder="e.g. Verse of the Day"
                 className="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white focus:border-yellow-500 focus:outline-none"
               />
             </div>
@@ -279,14 +265,13 @@ const DailyMessageManager: React.FC = () => {
                     <span className="bg-blue-900 text-blue-200 text-xs px-2 py-1 rounded font-mono">
                       {msg.date}
                     </span>
-                    <h3 className="font-bold text-white">{msg.title}</h3>
                   </div>
                   <div className="text-gray-300 text-sm line-clamp-2">
                     {(() => {
                       try {
                         const parsed = typeof msg.content === 'string' ? JSON.parse(msg.content) : msg.content;
                         if (Array.isArray(parsed)) {
-                          return parsed.map((b: any) => b.text).join(' ');
+                          return parsed.map(b => b.text).join(' ');
                         }
                         return String(msg.content);
                       } catch {

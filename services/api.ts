@@ -781,7 +781,6 @@ export const deleteGame = async (userId: string, gameId: string): Promise<void> 
 export interface DailyMessage {
     id: string;
     date: string;
-    title: string;
     content: string;
     createdAt?: string;
 }
@@ -792,7 +791,6 @@ export const getDailyMessage = async (date?: string): Promise<DailyMessage | nul
         return {
             id: 'msg-mock',
             date: date || new Date().toISOString().split('T')[0],
-            title: 'Daily Inspiration',
             content: 'This is a mock daily message for testing purposes.'
         };
     }
@@ -811,7 +809,7 @@ export const getAllDailyMessages = async (userId: string, limit = 50, offset = 0
     return await response.json();
 };
 
-export const saveDailyMessage = async (userId: string, message: { date: string, title: string, content: string }): Promise<void> => {
+export const saveDailyMessage = async (userId: string, message: { date: string, content: string }): Promise<void> => {
     if (USE_MOCK_DATA || isTestUser()) return;
     const response = await fetch(`${API_BASE_URL}/admin/daily-messages`, {
         method: 'POST',
