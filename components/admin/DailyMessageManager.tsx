@@ -69,14 +69,14 @@ const DailyMessageManager: React.FC = () => {
     setDate(msg.date);
     setTitle(msg.title);
     try {
-      const parsed = JSON.parse(msg.content);
+      const parsed = typeof msg.content === 'string' ? JSON.parse(msg.content) : msg.content;
       if (Array.isArray(parsed)) {
         setBlocks(parsed);
       } else {
-        setBlocks([{ type: 'paragraph', text: msg.content }]);
+        setBlocks([{ type: 'paragraph', text: String(msg.content) }]);
       }
     } catch (e) {
-      setBlocks([{ type: 'paragraph', text: msg.content }]);
+      setBlocks([{ type: 'paragraph', text: String(msg.content) }]);
     }
     setIsEditing(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -284,13 +284,13 @@ const DailyMessageManager: React.FC = () => {
                   <div className="text-gray-300 text-sm line-clamp-2">
                     {(() => {
                       try {
-                        const parsed = JSON.parse(msg.content);
+                        const parsed = typeof msg.content === 'string' ? JSON.parse(msg.content) : msg.content;
                         if (Array.isArray(parsed)) {
-                          return parsed.map(b => b.text).join(' ');
+                          return parsed.map((b: any) => b.text).join(' ');
                         }
-                        return msg.content;
+                        return String(msg.content);
                       } catch {
-                        return msg.content;
+                        return String(msg.content);
                       }
                     })()}
                   </div>
