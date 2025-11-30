@@ -19,7 +19,7 @@ const migrations = [
 
   // ADDED: Admin flag
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT false`,
-  
+
   // Challenges table
   `CREATE TABLE IF NOT EXISTS challenges (
     id VARCHAR(255) PRIMARY KEY,
@@ -28,7 +28,7 @@ const migrations = [
     end_date TIMESTAMP NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )`,
-  
+
   // Games table
   `CREATE TABLE IF NOT EXISTS games (
     id VARCHAR(255) PRIMARY KEY,
@@ -38,7 +38,7 @@ const migrations = [
     data JSONB NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )`,
-  
+
   // Game submissions table
   `CREATE TABLE IF NOT EXISTS game_submissions (
     id VARCHAR(255) PRIMARY KEY,
@@ -101,7 +101,7 @@ const migrations = [
   `ALTER TABLE push_subscriptions DROP CONSTRAINT IF EXISTS unique_device_token`,
   `ALTER TABLE push_subscriptions ADD CONSTRAINT unique_device_token UNIQUE (device_token)`,
 
-  
+
   // Indexes
   `CREATE INDEX IF NOT EXISTS idx_games_challenge_id ON games(challenge_id)`,
   `CREATE INDEX IF NOT EXISTS idx_games_date ON games(date)`,
@@ -111,7 +111,16 @@ const migrations = [
   `CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user_id ON push_subscriptions(user_id)`,
   `CREATE INDEX IF NOT EXISTS idx_visit_logs_created_at ON visit_logs(created_at)`,
   `CREATE INDEX IF NOT EXISTS idx_visit_logs_ip_address ON visit_logs(ip_address)`,
-  `CREATE INDEX IF NOT EXISTS idx_visit_logs_path ON visit_logs(path)`
+  `CREATE INDEX IF NOT EXISTS idx_visit_logs_path ON visit_logs(path)`,
+
+  // Daily Messages table
+  `CREATE TABLE IF NOT EXISTS daily_messages (
+    id VARCHAR(255) PRIMARY KEY,
+    date VARCHAR(10) NOT NULL UNIQUE,
+    title VARCHAR(255) NOT NULL,
+    content TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`
 ];
 
 async function runMigrations() {

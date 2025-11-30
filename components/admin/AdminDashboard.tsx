@@ -6,8 +6,9 @@ import GameBuilder from './GameBuilder';
 import { ChallengeManager } from './ChallengeManager';
 import UserManager from './UserManager';
 import LogViewer from './LogViewer';
+import DailyMessageManager from './DailyMessageManager';
 
-type Tab = 'challenges' | 'games' | 'users' | 'logs';
+type Tab = 'challenges' | 'games' | 'users' | 'logs' | 'messages';
 
 const AdminDashboard: React.FC = () => {
     const { user } = useAuth();
@@ -27,6 +28,7 @@ const AdminDashboard: React.FC = () => {
     const tabs: { id: Tab; label: string }[] = [
         { id: 'challenges', label: 'Challenges' },
         { id: 'games', label: 'Game Builder' },
+        { id: 'messages', label: 'Daily Messages' },
         { id: 'users', label: 'Users' },
         { id: 'logs', label: 'Logs' },
     ];
@@ -50,8 +52,8 @@ const AdminDashboard: React.FC = () => {
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id)}
                         className={`px-4 py-2 rounded-md font-medium transition-colors whitespace-nowrap ${activeTab === tab.id
-                                ? 'bg-yellow-500 text-gray-900'
-                                : 'text-gray-400 hover:text-white hover:bg-gray-700'
+                            ? 'bg-yellow-500 text-gray-900'
+                            : 'text-gray-400 hover:text-white hover:bg-gray-700'
                             }`}
                     >
                         {tab.label}
@@ -63,6 +65,7 @@ const AdminDashboard: React.FC = () => {
             <div className="animate-fade-in">
                 {activeTab === 'challenges' && <ChallengeManager user={user} />}
                 {activeTab === 'games' && <GameBuilder />}
+                {activeTab === 'messages' && <DailyMessageManager />}
                 {activeTab === 'users' && <UserManager />}
                 {activeTab === 'logs' && <LogViewer />}
             </div>

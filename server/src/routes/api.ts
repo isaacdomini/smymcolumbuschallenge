@@ -130,6 +130,24 @@ router.post('/log', async (req: Request, res: Response) => {
   }
 });
 
+// --- DAILY MESSAGE ENDPOINT ---
+router.get('/daily-message', async (req: Request, res: Response) => {
+  try {
+    const date = (req.query.date as string) || getTodayEST();
+
+    const result = await pool.query('SELECT * FROM daily_messages WHERE date = $1', [date]);
+
+    if (result.rows.length === 0) {
+      return res.json(null);
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error fetching daily message:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // --- EXTERNAL LOGGING ENDPOINT ---
 router.post('/log-visit', async (req: Request, res: Response) => {
   try {

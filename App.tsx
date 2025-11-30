@@ -20,9 +20,10 @@ const DeleteAccount = lazy(() => import('./components/auth/DeleteAccount'));
 const Profile = lazy(() => import('./components/Profile'));
 import ChallengeIntro from './components/dashboard/ChallengeIntro';
 import { Game, GameType, Challenge, GameSubmission, User } from './types';
-import { getChallenge, getDailyGame, getLeaderboard, getSubmissionForToday, getGamesForChallenge, getSubmissionsForUser, getGameState } from './services/api';
+import { getChallenge, getDailyGame, getLeaderboard, getSubmissionForToday, getGamesForChallenge, getSubmissionsForUser, getGameState, getDailyMessage, DailyMessage as DailyMessageType } from './services/api';
 import ScoringCriteria from './components/dashboard/ScoringCriteria';
 import AddToHomeScreen from './components/ui/AddToHomeScreen';
+import DailyMessage from './components/dashboard/DailyMessage';
 import { Capacitor } from '@capacitor/core';
 // Import Style enum along with StatusBar
 import { StatusBar, Style } from '@capacitor/status-bar';
@@ -53,6 +54,7 @@ const MainContent: React.FC = () => {
   const [todaysGame, setTodaysGame] = useState<Game | null>(null);
   const [todaysSubmission, setTodaysSubmission] = useState<GameSubmission | null>(null);
   const [todaysProgress, setTodaysProgress] = useState<any | null>(null);
+  const [dailyMessage, setDailyMessage] = useState<DailyMessageType | null>(null);
 
   const [allChallengeGames, setAllChallengeGames] = useState<Game[]>([]);
   const [allUserSubmissions, setAllUserSubmissions] = useState<GameSubmission[]>([]);
@@ -234,6 +236,14 @@ const MainContent: React.FC = () => {
             setTodaysProgress(null);
           }
         }
+
+        // Fetch daily message
+        try {
+          const message = await getDailyMessage();
+          setDailyMessage(message);
+        } catch (e) {
+          console.error("Failed to fetch daily message", e);
+        }
       }
     } catch (err) {
       if (window.location.pathname === '/') {
@@ -384,7 +394,10 @@ const MainContent: React.FC = () => {
           </div>
         )}
         {challengeStarted && challenge ? (
-          <LeaderboardWrapper challengeId={challenge.id} />
+          <>
+            <DailyMessage message={dailyMessage} isBlurred={!todaysSubmission && !!todaysGame} />
+            <LeaderboardWrapper challengeId={challenge.id} />
+          </>
         ) : null}
         {user?.isAdmin && (
           <div className="mt-8 text-center">
