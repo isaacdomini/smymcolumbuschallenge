@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { getAllDailyMessages, saveDailyMessage, deleteDailyMessage, DailyMessage } from '../../services/api';
+import { DailyMessageBlock, DailyMessageContent } from '../../types';
 
 const DailyMessageManager: React.FC = () => {
   const { user } = useAuth();
@@ -12,7 +13,7 @@ const DailyMessageManager: React.FC = () => {
   // Form state
   const [date, setDate] = useState('');
   const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
+  const [blocks, setBlocks] = useState<DailyMessageContent>([]);
   const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
@@ -41,7 +42,7 @@ const DailyMessageManager: React.FC = () => {
     setSuccess(null);
 
     try {
-      await saveDailyMessage(user.id, { date, title, content });
+      await saveDailyMessage(user.id, { date, title, content: JSON.stringify(blocks) });
       setSuccess('Message saved successfully');
       fetchMessages();
       resetForm();
@@ -67,7 +68,16 @@ const DailyMessageManager: React.FC = () => {
   const handleEdit = (msg: DailyMessage) => {
     setDate(msg.date);
     setTitle(msg.title);
-    setContent(msg.content);
+    try {
+      const parsed = JSON.parse(msg.content);
+      if (Array.isArray(parsed)) {
+        setBlocks(parsed);
+      } else {
+        setBlocks([{ type: 'paragraph', text: msg.content }]);
+      }
+    } catch (e) {
+      setBlocks([{ type: 'paragraph', text: msg.content }]);
+    }
     setIsEditing(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -75,7 +85,7 @@ const DailyMessageManager: React.FC = () => {
   const resetForm = () => {
     setDate('');
     setTitle('');
-    setContent('');
+    setBlocks([]);
     setIsEditing(false);
   };
 
@@ -113,17 +123,126 @@ const DailyMessageManager: React.FC = () => {
               />
             </div>
           </div>
-          <div>
-            <label className="block text-gray-400 mb-1 text-sm">Content</label>
-            <textarea
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              required
-              rows={4}
-              placeholder="Enter the message content here..."
-              className="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white focus:border-yellow-500 focus:outline-none"
-            />
+
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <label className="block text-gray-400 text-sm">Content Blocks</label>
+              <div className="space-x-2">
+                <button
+                  type="button"
+                  onClick={() => setBlocks([...blocks, { type: 'paragraph', text: '' }])}
+                  className="bg-gray-700 hover:bg-gray-600 text-xs text-white px-3 py-1 rounded"
+                >
+                  + Paragraph
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBlocks([...blocks, { type: 'verse', text: '', reference: '' }])}
+                  className="bg-gray-700 hover:bg-gray-600 text-xs text-white px-3 py-1 rounded"
+                >
+                  + Verse
+                </button>
+              </div>
+            </div>
+
+            {blocks.map((block, index) => (
+              <div key={index} className="bg-gray-900/50 p-4 rounded border border-gray-700 relative group">
+                <div className="absolute top-2 right-2 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (index > 0) {
+                        const newBlocks = [...blocks];
+                        [newBlocks[index - 1], newBlocks[index]] = [newBlocks[index], newBlocks[index - 1]];
+                        setBlocks(newBlocks);
+                      }
+                    }}
+                    disabled={index === 0}
+                    className="text-gray-400 hover:text-white p-1 disabled:opacity-30"
+                  >
+                    ↑
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (index < blocks.length - 1) {
+                        const newBlocks = [...blocks];
+                        [newBlocks[index + 1], newBlocks[index]] = [newBlocks[index], newBlocks[index + 1]];
+                        setBlocks(newBlocks);
+                      }
+                    }}
+                    disabled={index === blocks.length - 1}
+                    className="text-gray-400 hover:text-white p-1 disabled:opacity-30"
+                  >
+                    ↓
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBlocks(blocks.filter((_, i) => i !== index))}
+                    className="text-red-400 hover:text-red-300 p-1"
+                  >
+                    ×
+                  </button>
+                </div>
+
+                {block.type === 'paragraph' ? (
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block">Paragraph</label>
+                    <textarea
+                      value={block.text}
+                      onChange={(e) => {
+                        const newBlocks = [...blocks];
+                        if (newBlocks[index].type === 'paragraph') {
+                          newBlocks[index].text = e.target.value;
+                          setBlocks(newBlocks);
+                        }
+                      }}
+                      rows={3}
+                      className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white focus:border-yellow-500 focus:outline-none"
+                      placeholder="Enter paragraph text..."
+                    />
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <label className="text-xs text-yellow-500/70 mb-1 block">Verse</label>
+                    <textarea
+                      value={block.text}
+                      onChange={(e) => {
+                        const newBlocks = [...blocks];
+                        if (newBlocks[index].type === 'verse') {
+                          newBlocks[index].text = e.target.value;
+                          setBlocks(newBlocks);
+                        }
+                      }}
+                      rows={2}
+                      className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white italic focus:border-yellow-500 focus:outline-none"
+                      placeholder="Enter verse text..."
+                    />
+                    <input
+                      type="text"
+                      value={block.reference}
+                      onChange={(e) => {
+                        const newBlocks = [...blocks];
+                        if (newBlocks[index].type === 'verse') {
+                          newBlocks[index].reference = e.target.value;
+                          setBlocks(newBlocks);
+                        }
+                      }}
+                      className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white text-sm focus:border-yellow-500 focus:outline-none"
+                      placeholder="Reference (e.g. John 3:16)"
+                    />
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {blocks.length === 0 && (
+              <div className="text-center py-8 border-2 border-dashed border-gray-700 rounded-lg text-gray-500">
+                No content blocks. Add a paragraph or verse to start.
+              </div>
+            )}
           </div>
+
           <div className="flex space-x-3">
             <button
               type="submit"
@@ -162,7 +281,19 @@ const DailyMessageManager: React.FC = () => {
                     </span>
                     <h3 className="font-bold text-white">{msg.title}</h3>
                   </div>
-                  <p className="text-gray-300 text-sm whitespace-pre-wrap">{msg.content}</p>
+                  <div className="text-gray-300 text-sm line-clamp-2">
+                    {(() => {
+                      try {
+                        const parsed = JSON.parse(msg.content);
+                        if (Array.isArray(parsed)) {
+                          return parsed.map(b => b.text).join(' ');
+                        }
+                        return msg.content;
+                      } catch {
+                        return msg.content;
+                      }
+                    })()}
+                  </div>
                 </div>
                 <div className="flex space-x-2 ml-4">
                   <button

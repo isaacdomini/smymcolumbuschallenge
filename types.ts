@@ -163,3 +163,9 @@ export interface ScoringCriterion {
   description: string;
   points: string[];
 }
+
+export type DailyMessageBlock =
+  | { type: 'verse'; text: string; reference: string }
+  | { type: 'paragraph'; text: string };
+
+export type DailyMessageContent = DailyMessageBlock[];

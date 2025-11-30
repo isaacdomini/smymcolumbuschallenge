@@ -16,9 +16,31 @@ const DailyMessage: React.FC<DailyMessageProps> = ({ message, isBlurred }) => {
           {message.title}
         </h2>
         <div className={`text-gray-300 text-lg leading-relaxed ${isBlurred ? 'blur-md select-none pointer-events-none' : ''}`}>
-          {message.content.split('\n').map((line, i) => (
-            <p key={i} className="mb-2">{line}</p>
-          ))}
+          {(() => {
+            try {
+              const blocks = JSON.parse(message.content);
+              if (Array.isArray(blocks)) {
+                return blocks.map((block: any, i: number) => {
+                  if (block.type === 'verse') {
+                    return (
+                      <div key={i} className="mb-4 px-4 border-l-4 border-yellow-500/50 bg-gray-900/30 py-2 rounded-r">
+                        <p className="font-serif italic text-xl text-yellow-100 mb-1">"{block.text}"</p>
+                        <p className="text-sm text-yellow-500 font-bold text-right">— {block.reference}</p>
+                      </div>
+                    );
+                  } else {
+                    return <p key={i} className="mb-4 text-gray-300">{block.text}</p>;
+                  }
+                });
+              }
+              throw new Error('Not a block array');
+            } catch (e) {
+              // Fallback for old plain text format
+              return message.content.split('\n').map((line, i) => (
+                <p key={i} className="mb-2">{line}</p>
+              ));
+            }
+          })()}
         </div>
       </div>
 
