@@ -27,7 +27,7 @@ const DailyMessage: React.FC<DailyMessageProps> = ({ message, isBlurred }) => {
           <div className="bg-gray-800 p-4 rounded-lg shadow-xl border border-gray-600 max-w-xs text-center">
             <span className="text-3xl mb-2 block">🔒</span>
             <p className="text-gray-300 font-medium">
-              Complete today's game to unlock this message!
+              Complete today's game to unlock today's message!
             </p>
           </div>
         </div>
