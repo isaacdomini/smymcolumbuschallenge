@@ -14,7 +14,7 @@
     "seed": "node server/dist/seed.js",
     "test:push": "node server/dist/test-push.js",
     "resend-verification": "node server/dist/scripts/resend-verification.js",
-    "send-reminders": "tsx server/src/scripts/send-reminders.ts",
+    "send-reminders": "node server/dist/scripts/send-reminders.js",
     "generate-vapid": "node -e \"console.log(require('web-push').generateVAPIDKeys())\""
   },
   "dependencies": {
