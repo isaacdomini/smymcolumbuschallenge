@@ -379,4 +379,88 @@ router.delete('/daily-messages/:id', async (req: Request, res: Response) => {
         console.error('Error deleting daily message:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
+} catch (error) {
+    console.error('Error deleting daily message:', error);
+    res.status(500).json({ error: 'Internal server error' });
+}
 });
+
+// --- SUPPORT TICKETS ---
+
+// Get all tickets
+router.get('/support/tickets', async (req: Request, res: Response) => {
+    try {
+        const limit = parseInt(req.query.limit as string) || 50;
+        const offset = parseInt(req.query.offset as string) || 0;
+        const status = req.query.status as string;
+
+        let query = 'SELECT * FROM support_tickets';
+        const params: any[] = [];
+
+        if (status) {
+            query += ' WHERE status = $1';
+            params.push(status);
+        }
+
+        query += ` ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+        params.push(limit, offset);
+
+        const result = await pool.query(query, params);
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching tickets:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Add note to ticket
+router.post('/support/tickets/:id/notes', async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { note, userId } = req.body; // userId of the admin adding the note
+
+        if (!note) {
+            return res.status(400).json({ error: 'Note content is required' });
+        }
+
+        const noteId = `note-${Date.now()}`;
+
+        await pool.query(
+            'INSERT INTO ticket_notes (id, ticket_id, user_id, note) VALUES ($1, $2, $3, $4)',
+            [noteId, id, userId, note]
+        );
+
+        res.status(201).json({ message: 'Note added successfully', noteId });
+    } catch (error) {
+        console.error('Error adding ticket note:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Update ticket status
+router.patch('/support/tickets/:id/status', async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body;
+
+        if (!['open', 'resolved', 'closed'].includes(status)) {
+            return res.status(400).json({ error: 'Invalid status' });
+        }
+
+        const result = await pool.query(
+            'UPDATE support_tickets SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *',
+            [status, id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Ticket not found' });
+        }
+
+        res.json({ message: 'Ticket status updated', ticket: result.rows[0] });
+    } catch (error) {
+        console.error('Error updating ticket status:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+export default router;
