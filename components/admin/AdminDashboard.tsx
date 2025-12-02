@@ -32,6 +32,7 @@ const AdminDashboard: React.FC = () => {
         { id: 'messages', label: 'Daily Messages' },
         { id: 'users', label: 'Users' },
         { id: 'logs', label: 'Logs' },
+        { id: 'support', label: 'Support' },
     ];
 
     return (
