@@ -14,9 +14,9 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data }) => {
   const sortedData = [...data].sort((a, b) => b.score - a.score);
 
   const getRankColor = (rank: number) => {
-    if (rank === 0) return 'text-yellow-400 border-yellow-400';
-    if (rank === 1) return 'text-gray-300 border-gray-300';
-    if (rank === 2) return 'text-yellow-600 border-yellow-600';
+    if (rank === 1) return 'text-yellow-400 border-yellow-400';
+    if (rank === 2) return 'text-gray-300 border-gray-300';
+    if (rank === 3) return 'text-yellow-600 border-yellow-600';
     return 'text-gray-400 border-gray-700';
   };
 
@@ -48,11 +48,11 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ data }) => {
       <div
         key={entry.id}
         className={`flex items-center justify-between p-3 rounded-lg bg-gray-700/50 border-l-4
-          ${isCurrentUser ? 'border-blue-400 bg-gray-700' : getRankColor(index)}
+          ${isCurrentUser ? 'border-blue-400 bg-gray-700' : getRankColor(rank)}
         `}
       >
         <div className="flex items-center min-w-0 flex-1 mr-2">
-          <span className={`font-bold w-8 text-lg ${isCurrentUser ? 'text-blue-400' : getRankColor(index)} flex-shrink-0`}>
+          <span className={`font-bold w-8 text-lg ${isCurrentUser ? 'text-blue-400' : getRankColor(rank)} flex-shrink-0`}>
             {rank}
           </span>
           <span className={`font-semibold truncate ${isCurrentUser ? 'text-blue-300' : 'text-white'}`}>

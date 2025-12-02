@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { User } from '@/types';
 import * as api from '@/services/api';
+import { Preferences } from '@capacitor/preferences';
 
 interface AuthContextType {
   user: User | null;
@@ -19,16 +20,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    try {
-      const storedUser = localStorage.getItem('smym-user');
-      if (storedUser) {
-        setUser(JSON.parse(storedUser));
+    const loadUser = async () => {
+      try {
+        const { value } = await Preferences.get({ key: 'smym-user' });
+        if (value) {
+          setUser(JSON.parse(value));
+        }
+      } catch (error) {
+        console.error("Failed to parse user from Preferences", error);
+        await Preferences.remove({ key: 'smym-user' });
+      } finally {
+        setIsLoading(false);
       }
-    } catch (error) {
-      console.error("Failed to parse user from localStorage", error);
-      localStorage.removeItem('smym-user');
-    }
-    setIsLoading(false);
+    };
+    loadUser();
   }, []);
 
   const login = async (email: string, pass: string) => {
@@ -38,16 +43,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     // Map to our frontend User type (camelCase)
     const userToSave: User = {
-        id: rawUser.id,
-        name: rawUser.name,
-        email: rawUser.email,
-        // IMPORTANT: Map is_admin from DB to isAdmin for frontend
-        isAdmin: rawUser.is_admin === true 
+      id: rawUser.id,
+      name: rawUser.name,
+      email: rawUser.email,
+      // IMPORTANT: Map is_admin from DB to isAdmin for frontend
+      isAdmin: rawUser.is_admin === true
     };
     console.log("MAPPED USER TO SAVE:", userToSave); // DEBUG LOG
-    
+
     setUser(userToSave);
-    localStorage.setItem('smym-user', JSON.stringify(userToSave));
+    await Preferences.set({ key: 'smym-user', value: JSON.stringify(userToSave) });
   };
 
   const signup = async (name: string, email: string, pass: string, emailNotifications: boolean): Promise<{ message: string }> => {
@@ -55,18 +60,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return response;
   };
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
     api.logout();
     setUser(null);
-    localStorage.removeItem('smym-user');
+    await Preferences.remove({ key: 'smym-user' });
   }, []);
 
   const forgotPassword = async (email: string) => {
-      return await api.forgotPassword(email);
+    return await api.forgotPassword(email);
   }
 
   const resetPassword = async (token: string, pass: string) => {
-      return await api.resetPassword(token, pass);
+    return await api.resetPassword(token, pass);
   }
 
   return (

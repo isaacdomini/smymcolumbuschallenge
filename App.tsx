@@ -208,9 +208,10 @@ const MainContent: React.FC = () => {
         const games = await getGamesForChallenge(currentChallenge.id);
         setAllChallengeGames(games);
 
+        let currentSubmissions: GameSubmission[] = [];
         if (user) {
-          const userSubmissions = await getSubmissionsForUser(user.id, currentChallenge.id);
-          setAllUserSubmissions(userSubmissions);
+          currentSubmissions = await getSubmissionsForUser(user.id, currentChallenge.id);
+          setAllUserSubmissions(currentSubmissions);
         }
 
         if (now >= challengeStartDate) {
@@ -218,8 +219,7 @@ const MainContent: React.FC = () => {
           setTodaysGame(game);
 
           if (user && game) {
-            const submissions = allUserSubmissions.length > 0 ? allUserSubmissions : (user ? await getSubmissionsForUser(user.id, currentChallenge.id) : []);
-            const todaySub = submissions.find(s => s.gameId === game.id) ?? null;
+            const todaySub = currentSubmissions.find(s => s.gameId === game.id) ?? null;
             setTodaysSubmission(todaySub);
             if (!todaySub) {
               try {
@@ -385,7 +385,7 @@ const MainContent: React.FC = () => {
                     : "No Game Today"}
                 </button>
                 <button onClick={() => navigate('/history')} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg text-xl shadow-lg transition-transform transform hover:scale-105">
-                  View Challenge History
+                  View Challenge Roadmap
                 </button>
               </>
             ) : (
