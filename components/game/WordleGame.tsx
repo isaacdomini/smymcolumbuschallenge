@@ -99,19 +99,48 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
     }
   }, [isReadOnly, submission, solution, maxGuesses]);
 
+  const [extraWords, setExtraWords] = useState<Set<string> | null>(null);
+
   const checkWordValidity = async (word: string): Promise<boolean> => {
     setIsLoading(true);
     setError(null);
     try {
       const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word.toLowerCase()}`);
-      setIsLoading(false);
+
       if (response.ok) {
+        setIsLoading(false);
         return true;
       }
+
       if (response.status === 404) {
+        // Fallback: Check local list
+        let currentExtraWords = extraWords;
+        if (!currentExtraWords) {
+          try {
+            const res = await fetch('/valid_words.txt');
+            if (res.ok) {
+              const text = await res.text();
+              // Split by newlines, trim, and convert to uppercase for set
+              const words = text.split(/\r?\n/).map(w => w.trim().toUpperCase()).filter(w => w.length > 0);
+              currentExtraWords = new Set(words);
+              setExtraWords(currentExtraWords);
+            }
+          } catch (e) {
+            console.error("Failed to load extra words list", e);
+          }
+        }
+
+        if (currentExtraWords && currentExtraWords.has(word.toUpperCase())) {
+          setIsLoading(false);
+          return true;
+        }
+
+        setIsLoading(false);
         setError("Not in word list");
         return false;
       }
+
+      setIsLoading(false);
       setError("Error checking word");
       return false;
     } catch (err) {
