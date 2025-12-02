@@ -7,8 +7,9 @@ import { ChallengeManager } from './ChallengeManager';
 import UserManager from './UserManager';
 import LogViewer from './LogViewer';
 import DailyMessageManager from './DailyMessageManager';
+import SupportManager from './SupportManager';
 
-type Tab = 'challenges' | 'games' | 'users' | 'logs' | 'messages';
+type Tab = 'challenges' | 'games' | 'users' | 'logs' | 'messages' | 'support';
 
 const AdminDashboard: React.FC = () => {
     const { user } = useAuth();
@@ -68,6 +69,7 @@ const AdminDashboard: React.FC = () => {
                 {activeTab === 'messages' && <DailyMessageManager />}
                 {activeTab === 'users' && <UserManager />}
                 {activeTab === 'logs' && <LogViewer />}
+                {activeTab === 'support' && <SupportManager />}
             </div>
         </div>
     );
