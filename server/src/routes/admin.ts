@@ -317,7 +317,7 @@ router.delete('/challenges/:id', async (req: Request, res: Response) => {
     }
 });
 
-export default router;
+
 
 // --- DAILY MESSAGES ---
 
@@ -379,11 +379,8 @@ router.delete('/daily-messages/:id', async (req: Request, res: Response) => {
         console.error('Error deleting daily message:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
-} catch (error) {
-    console.error('Error deleting daily message:', error);
-    res.status(500).json({ error: 'Internal server error' });
-}
 });
+
 
 // --- SUPPORT TICKETS ---
 
