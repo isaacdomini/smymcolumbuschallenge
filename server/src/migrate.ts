@@ -140,7 +140,32 @@ const migrations = [
   )`,
   `CREATE INDEX IF NOT EXISTS idx_notification_logs_user_id ON notification_logs(user_id)`,
   `CREATE INDEX IF NOT EXISTS idx_notification_logs_type ON notification_logs(type)`,
-  `CREATE INDEX IF NOT EXISTS idx_notification_logs_created_at ON notification_logs(created_at)`
+  `CREATE INDEX IF NOT EXISTS idx_notification_logs_created_at ON notification_logs(created_at)`,
+
+  // Support Tickets table
+  `CREATE TABLE IF NOT EXISTS support_tickets (
+    id VARCHAR(255) PRIMARY KEY,
+    user_id VARCHAR(255) REFERENCES users(id) ON DELETE SET NULL,
+    email VARCHAR(255) NOT NULL,
+    issue TEXT NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'open',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_support_tickets_user_id ON support_tickets(user_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_support_tickets_email ON support_tickets(email)`,
+  `CREATE INDEX IF NOT EXISTS idx_support_tickets_status ON support_tickets(status)`,
+  `CREATE INDEX IF NOT EXISTS idx_support_tickets_created_at ON support_tickets(created_at)`,
+
+  // Ticket Notes table
+  `CREATE TABLE IF NOT EXISTS ticket_notes (
+    id VARCHAR(255) PRIMARY KEY,
+    ticket_id VARCHAR(255) NOT NULL REFERENCES support_tickets(id) ON DELETE CASCADE,
+    user_id VARCHAR(255) REFERENCES users(id) ON DELETE SET NULL,
+    note TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_ticket_notes_ticket_id ON ticket_notes(ticket_id)`
 ];
 
 async function runMigrations() {

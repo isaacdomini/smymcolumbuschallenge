@@ -800,6 +800,86 @@ export const getDailyMessage = async (date?: string): Promise<DailyMessage | nul
     return await response.json();
 };
 
+// --- SUPPORT TICKETS ---
+
+export const createTicket = async (email: string, issue: string, userId?: string): Promise<{ ticketId: string }> => {
+    if (USE_MOCK_DATA || isTestUser()) {
+        await simulateDelay(500);
+        return { ticketId: `ticket-${Date.now()}` };
+    }
+    const response = await fetch(`${API_BASE_URL}/support/ticket`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, issue, userId }),
+    });
+    if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to create ticket');
+    }
+    return await response.json();
+};
+
+export const getTicket = async (ticketId: string): Promise<{ ticket: any, notes: any[] }> => {
+    if (USE_MOCK_DATA || isTestUser()) {
+        await simulateDelay(300);
+        return {
+            ticket: {
+                id: ticketId,
+                email: 'mock@example.com',
+                issue: 'This is a mock issue description.',
+                status: 'open',
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            },
+            notes: []
+        };
+    }
+    const response = await fetch(`${API_BASE_URL}/support/ticket/${ticketId}`);
+    if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to fetch ticket');
+    }
+    return await response.json();
+};
+
+// Admin Support Functions
+
+export const getAdminTickets = async (userId: string, limit = 50, offset = 0, status?: string): Promise<any[]> => {
+    if (USE_MOCK_DATA || isTestUser()) {
+        return [];
+    }
+    let url = `${API_BASE_URL}/admin/support/tickets?limit=${limit}&offset=${offset}`;
+    if (status) url += `&status=${status}`;
+
+    const response = await fetch(url, {
+        headers: getAuthHeaders(userId)
+    });
+    if (!response.ok) throw new Error('Failed to fetch tickets');
+    return await response.json();
+};
+
+export const addTicketNote = async (userId: string, ticketId: string, note: string): Promise<void> => {
+    if (USE_MOCK_DATA || isTestUser()) return;
+
+    const response = await fetch(`${API_BASE_URL}/admin/support/tickets/${ticketId}/notes`, {
+        method: 'POST',
+        headers: getAuthHeaders(userId),
+        body: JSON.stringify({ note, userId }) // API expects userId in body currently
+    });
+    if (!response.ok) throw new Error('Failed to add note');
+};
+
+export const updateTicketStatus = async (userId: string, ticketId: string, status: string): Promise<void> => {
+    if (USE_MOCK_DATA || isTestUser()) return;
+
+    const response = await fetch(`${API_BASE_URL}/admin/support/tickets/${ticketId}/status`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(userId),
+        body: JSON.stringify({ status })
+    });
+    if (!response.ok) throw new Error('Failed to update status');
+};
+
 export const getAllDailyMessages = async (userId: string, limit = 50, offset = 0): Promise<DailyMessage[]> => {
     if (USE_MOCK_DATA || isTestUser()) return [];
     const response = await fetch(`${API_BASE_URL}/admin/daily-messages?limit=${limit}&offset=${offset}`, {

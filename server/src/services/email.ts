@@ -162,3 +162,72 @@ export const sendAccountDeletionRequestEmail = async (userEmail: string, userId:
     await logNotification(userId, 'email_account_deletion_request', adminEmail, { subject: '[ACTION REQUIRED] Account Deletion Request', userEmail, userName }, 'failed', error.message);
   }
 };
+
+// NEW: Support Ticket Created Email (to User)
+export const sendTicketCreatedEmail = async (userEmail: string, ticketId: string, issuePreview: string) => {
+  const baseUrl = getAppUrl();
+  // Assuming we have a public status page or just a reference
+  const ticketUrl = `${baseUrl}/support/ticket/${ticketId}`;
+
+  try {
+    await transporter.sendMail({
+      from: process.env.EMAIL_FROM,
+      to: userEmail,
+      subject: `Support Ticket Created: #${ticketId}`,
+      html: `
+          <div style="font-family: sans-serif; color: #333;">
+            <h2>Support Ticket Received</h2>
+            <p>Thank you for contacting us. We have received your support request.</p>
+            <p><strong>Ticket ID:</strong> ${ticketId}</p>
+            <p><strong>Issue:</strong></p>
+            <blockquote style="background: #f9f9f9; border-left: 5px solid #ccc; margin: 1.5em 10px; padding: 0.5em 10px;">
+              ${issuePreview}
+            </blockquote>
+            <p>You can check the status of your ticket here:</p>
+            <p>
+              <a href="${ticketUrl}" style="background-color: #2563EB; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
+                View Ticket Status
+              </a>
+            </p>
+            <p style="font-size: 12px; color: #666;">If the button doesn't work, copy and paste this link: ${ticketUrl}</p>
+          </div>
+        `,
+    });
+    console.log(`Ticket created email sent to ${userEmail}`);
+    await logNotification(null, 'email_ticket_created', userEmail, { subject: `Support Ticket Created: #${ticketId}`, ticketId }, 'sent');
+  } catch (error: any) {
+    console.error(`Failed to send ticket created email to ${userEmail}:`, error);
+    await logNotification(null, 'email_ticket_created', userEmail, { subject: `Support Ticket Created: #${ticketId}`, ticketId }, 'failed', error.message);
+  }
+};
+
+// NEW: New Ticket Notification (to Admin)
+export const sendAdminTicketNotification = async (ticketId: string, userEmail: string, issue: string) => {
+  const adminEmail = 'contact@tesarsoft.com';
+
+  try {
+    await transporter.sendMail({
+      from: process.env.EMAIL_FROM,
+      to: adminEmail,
+      subject: `[New Ticket] #${ticketId} from ${userEmail}`,
+      html: `
+          <div style="font-family: sans-serif; color: #333;">
+            <h2>New Support Ticket Created</h2>
+            <p>A new support ticket has been submitted.</p>
+            <ul>
+              <li><strong>Ticket ID:</strong> ${ticketId}</li>
+              <li><strong>User:</strong> ${userEmail}</li>
+            </ul>
+            <p><strong>Issue:</strong></p>
+            <pre style="background: #f4f4f4; padding: 10px; white-space: pre-wrap;">${issue}</pre>
+            <p>Please log in to the admin dashboard to reply.</p>
+          </div>
+        `,
+    });
+    console.log(`Admin ticket notification sent to ${adminEmail}`);
+    await logNotification(null, 'email_admin_ticket_notification', adminEmail, { subject: `[New Ticket] #${ticketId}`, ticketId, userEmail }, 'sent');
+  } catch (error: any) {
+    console.error(`Failed to send admin ticket notification:`, error);
+    await logNotification(null, 'email_admin_ticket_notification', adminEmail, { subject: `[New Ticket] #${ticketId}`, ticketId, userEmail }, 'failed', error.message);
+  }
+};

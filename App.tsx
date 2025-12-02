@@ -4,6 +4,8 @@ import { useLogger } from './hooks/useLogger';
 import Header from './components/Header';
 import Countdown from './components/dashboard/Countdown';
 import Leaderboard from './components/dashboard/Leaderboard';
+import SupportForm from './components/SupportForm';
+import TicketStatus from './components/TicketStatus';
 // Lazily load components
 const WordleGame = lazy(() => import('./components/game/WordleGame'));
 const ConnectionsGame = lazy(() => import('./components/game/ConnectionsGame'));
@@ -297,6 +299,14 @@ const MainContent: React.FC = () => {
         return null;
       }
       return <AdminDashboard />;
+    }
+    if (locationPath === '/support') {
+      return <SupportForm />;
+    }
+    if (locationPath.startsWith('/support/ticket/')) {
+      const ticketId = locationPath.split('/')[3];
+      if (!ticketId) { navigate('/support'); return null; }
+      return <TicketStatus ticketId={ticketId} />;
     }
     if (isLoading) return <div className="text-center p-10">Loading Challenge...</div>;
     if (error) return <div className="text-center p-10 text-red-400">{error}</div>;
