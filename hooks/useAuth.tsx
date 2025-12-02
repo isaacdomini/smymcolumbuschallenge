@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { User } from '@/types';
 import * as api from '@/services/api';
-import { Preferences } from '@capacitor/preferences';
 
 interface AuthContextType {
   user: User | null;
@@ -20,20 +19,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const { value } = await Preferences.get({ key: 'smym-user' });
-        if (value) {
-          setUser(JSON.parse(value));
-        }
-      } catch (error) {
-        console.error("Failed to parse user from Preferences", error);
-        await Preferences.remove({ key: 'smym-user' });
-      } finally {
-        setIsLoading(false);
+    try {
+      const storedUser = localStorage.getItem('smym-user');
+      if (storedUser) {
+        setUser(JSON.parse(storedUser));
       }
-    };
-    loadUser();
+    } catch (error) {
+      console.error("Failed to parse user from localStorage", error);
+      localStorage.removeItem('smym-user');
+    }
+    setIsLoading(false);
   }, []);
 
   const login = async (email: string, pass: string) => {
@@ -52,7 +47,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     console.log("MAPPED USER TO SAVE:", userToSave); // DEBUG LOG
 
     setUser(userToSave);
-    await Preferences.set({ key: 'smym-user', value: JSON.stringify(userToSave) });
+    localStorage.setItem('smym-user', JSON.stringify(userToSave));
   };
 
   const signup = async (name: string, email: string, pass: string, emailNotifications: boolean): Promise<{ message: string }> => {
@@ -60,10 +55,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return response;
   };
 
-  const logout = useCallback(async () => {
+  const logout = useCallback(() => {
     api.logout();
     setUser(null);
-    await Preferences.remove({ key: 'smym-user' });
+    localStorage.removeItem('smym-user');
   }, []);
 
   const forgotPassword = async (email: string) => {
