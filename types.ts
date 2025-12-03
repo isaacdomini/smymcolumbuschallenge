@@ -158,11 +158,22 @@ export interface AdminStats {
 export interface LogEntry {
   id: number;
   ip_address: string;
-  user_agent: string | null;
+  user_agent: string;
   path: string;
   method: string;
   user_id: string | null;
+  metadata: any;
   created_at: string;
+}
+
+export interface BannerMessage {
+  id: number;
+  content: string;
+  type: 'system' | 'user';
+  targetUserId?: string;
+  active: boolean;
+  created_at: string;
+  expires_at?: string;
 }
 
 export interface ScoringCriterion {

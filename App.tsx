@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
-import { AuthProvider, useAuth } from './hooks/useAuth';
+import { Toaster } from 'react-hot-toast';
+import { BannerMessage } from '@/components/BannerMessage';
+import { AuthProvider, useAuth } from '@/hooks/useAuth';
 import { useLogger } from './hooks/useLogger';
 import Header from './components/Header';
 import Countdown from './components/dashboard/Countdown';
@@ -44,7 +46,11 @@ const LoadingFallback: React.FC = () => (
 const App: React.FC = () => {
   return (
     <AuthProvider>
-      <MainContent />
+      <BannerMessage />
+      <Toaster position="top-center" />
+      <IonApp>
+        <MainContent />
+      </IonApp>
     </AuthProvider>
   );
 };
@@ -92,7 +98,7 @@ const MainContent: React.FC = () => {
 
           document.documentElement.style.setProperty(
             '--safe-area-inset-top-js',
-            `${height}px`
+            `${height} px`
           );
 
           // This is correct: Use Style.Light enum

@@ -800,6 +800,73 @@ router.put('/users/:userId', async (req: Request, res: Response) => {
   }
 });
 
+// --- BANNER MESSAGES ---
+router.get('/banner-messages', async (req: Request, res: Response) => {
+  try {
+    const userId = req.headers['x-user-id'] as string;
+    if (!userId) {
+      // If no user ID, maybe return system messages that are not user-specific?
+      // For now, let's require a user ID to track dismissals properly, or just return system messages.
+      // Let's assume we want to show system messages even to guests, but tracking dismissal might be hard without ID.
+      // If we rely on client-side storage for guests, we can just return all active system messages.
+      // But the requirement says "log this too in the DB". So we likely need a user ID.
+      // If the user is not logged in, we can't log dismissal in DB easily unless we use a device ID.
+      // Let's assume this is for logged-in users or we just return system messages and client handles dismissal for guests (but DB log won't happen).
+      // For this implementation, I'll fetch messages for the user if provided.
+    }
+
+    // Query:
+    // 1. Active messages
+    // 2. Not expired (expires_at IS NULL OR expires_at > NOW())
+    // 3. Type is 'system' OR (type is 'user' AND target_user_id = userId)
+    // 4. NOT in user_message_dismissals for this userId
+
+    let query = `
+      SELECT bm.* 
+      FROM banner_messages bm
+      LEFT JOIN user_message_dismissals umd ON bm.id = umd.message_id AND umd.user_id = $1
+      LEFT JOIN banner_message_targets bmt ON bm.id = bmt.message_id
+      WHERE bm.active = true 
+      AND (bm.expires_at IS NULL OR bm.expires_at > NOW())
+      AND umd.message_id IS NULL
+      AND (
+        bm.type = 'system' 
+        OR (bm.type = 'user' AND bmt.user_id = $1)
+      )
+    `;
+
+    const params: any[] = [userId];
+
+    const result = await pool.query(query, params);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Fetch banner messages error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.post('/banner-messages/:id/dismiss', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.headers['x-user-id'] as string;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User ID required to dismiss message' });
+    }
+
+    await pool.query(
+      'INSERT INTO user_message_dismissals (user_id, message_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+      [userId, id]
+    );
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Dismiss banner message error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+
 router.delete('/users/:userId', async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;

@@ -1,5 +1,5 @@
 import { storage } from '@/utils/storage';
-import { User, Challenge, Game, GameType, GameSubmission, WordleData, ConnectionsData, CrosswordData, MatchTheWordData, SubmitGamePayload, GameProgress, AdminStats, LogEntry } from '@/types';
+import { User, Challenge, Game, GameType, GameSubmission, WordleData, ConnectionsData, CrosswordData, MatchTheWordData, SubmitGamePayload, GameProgress, AdminStats, LogEntry, BannerMessage } from '@/types';
 
 const USE_MOCK_DATA = import.meta.env.MODE === 'development';
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
@@ -802,6 +802,50 @@ export const getDailyMessage = async (date?: string): Promise<DailyMessage | nul
     const response = await fetch(`${API_BASE_URL}/daily-message${query}`);
     if (!response.ok) throw new Error('Failed to fetch daily message');
     return await response.json();
+};
+
+// --- BANNER MESSAGES ---
+
+export const getBannerMessages = async (): Promise<BannerMessage[]> => {
+    if (USE_MOCK_DATA || await isTestUser()) {
+        await simulateDelay(300);
+        return [
+            { id: 1, content: 'Welcome to the Lenten Challenge! (Mock)', type: 'system', active: true, created_at: new Date().toISOString() }
+        ];
+    }
+    const response = await fetch(`${API_BASE_URL}/banner-messages`, {
+        headers: await getAuthHeaders()
+    });
+    if (!response.ok) throw new Error('Failed to fetch banner messages');
+    return await response.json();
+};
+
+export const dismissBannerMessage = async (id: number): Promise<void> => {
+    if (USE_MOCK_DATA || await isTestUser()) {
+        await simulateDelay(200);
+        return;
+    }
+    const response = await fetch(`${API_BASE_URL}/banner-messages/${id}/dismiss`, {
+        method: 'POST',
+        headers: await getAuthHeaders()
+    });
+    if (!response.ok) throw new Error('Failed to dismiss banner message');
+};
+
+export const createBannerMessage = async (userId: string, messageData: { content: string, type: 'system' | 'user', targetUserIds?: string[], expiresAt?: string }): Promise<void> => {
+    if (USE_MOCK_DATA || await isTestUser()) {
+        await simulateDelay(300);
+        return;
+    }
+    const response = await fetch(`${API_BASE_URL}/admin/banner-messages`, {
+        method: 'POST',
+        headers: await getAuthHeaders(userId),
+        body: JSON.stringify(messageData)
+    });
+    if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to create banner message');
+    }
 };
 
 // --- SUPPORT TICKETS ---

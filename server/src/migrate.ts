@@ -165,7 +165,28 @@ const migrations = [
     note TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )`,
-  `CREATE INDEX IF NOT EXISTS idx_ticket_notes_ticket_id ON ticket_notes(ticket_id)`
+  `CREATE INDEX IF NOT EXISTS idx_ticket_notes_ticket_id ON ticket_notes(ticket_id)`,
+
+  // Banner Messages table
+  `CREATE TABLE IF NOT EXISTS banner_messages (
+    id SERIAL PRIMARY KEY,
+    content TEXT NOT NULL,
+    type VARCHAR(20) NOT NULL CHECK (type IN ('system', 'user')),
+    active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP
+  );
+CREATE TABLE IF NOT EXISTS banner_message_targets (
+    message_id INTEGER REFERENCES banner_messages(id) ON DELETE CASCADE,
+    user_id VARCHAR(255) REFERENCES users(id) ON DELETE CASCADE,
+    PRIMARY KEY (message_id, user_id)
+  );
+CREATE TABLE IF NOT EXISTS user_message_dismissals (
+    user_id VARCHAR(255) REFERENCES users(id) ON DELETE CASCADE,
+    message_id INTEGER REFERENCES banner_messages(id) ON DELETE CASCADE,
+    dismissed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, message_id)
+  )`
 ];
 
 async function runMigrations() {
