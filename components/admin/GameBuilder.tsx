@@ -438,67 +438,7 @@ const GameBuilder: React.FC<GameBuilderProps> = ({
                     )}
                 </div>
 
-                <div className="border-t border-gray-700 pt-6">
-                    {gameType === GameType.WORDLE && (
-                        <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-1">Solution Word (5-letters standard)</label>
-                            <input
-                                type="text"
-                                value={wordleSolution}
-                                onChange={e => setWordleSolution(e.target.value)}
-                                required
-                                className="w-full p-2 bg-gray-900 border border-gray-700 rounded focus:ring-yellow-500 focus:border-yellow-500 text-white uppercase"
-                                placeholder="FAITH"
-                            />
-                        </div>
-                    )}
 
-                    {gameType === GameType.CONNECTIONS && (
-                        <div className="space-y-4">
-                            <p className="text-sm text-gray-400 mb-2">Enter 4 categories with 4 words each. Order them by difficulty if desired (e.g., Yellow, Green, Blue, Purple).</p>
-                            {connectionsCategories.map((cat, catIdx) => (
-                                <div key={catIdx} className="p-4 bg-gray-900/50 rounded border border-gray-700">
-                                    <input
-                                        type="text"
-                                        value={cat.name}
-                                        onChange={e => handleConnectionChange(catIdx, null, e.target.value)}
-                                        placeholder={`Category ${catIdx + 1} Name`}
-                                        required
-                                        className="w-full p-2 mb-2 bg-gray-800 border border-gray-600 rounded text-yellow-400 font-bold"
-                                    />
-                                    <div className="grid grid-cols-4 gap-2">
-                                        {cat.words.map((word, wordIdx) => (
-                                            <input
-                                                key={wordIdx}
-                                                type="text"
-                                                value={word}
-                                                onChange={e => handleConnectionChange(catIdx, wordIdx, e.target.value)}
-                                                placeholder={`Word ${wordIdx + 1}`}
-                                                required
-                                                className="w-full p-2 bg-gray-800 border border-gray-600 rounded text-white text-sm"
-                                            />
-                                        ))}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-
-                    {gameType === GameType.CROSSWORD && (
-                        <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-1">Crossword JSON Data</label>
-                            <textarea
-                                value={crosswordJson}
-                                onChange={e => setCrosswordJson(e.target.value)}
-                                required
-                                rows={10}
-                                className="w-full p-2 bg-gray-900 border border-gray-700 rounded focus:ring-yellow-500 focus:border-yellow-500 text-white font-mono text-sm"
-                                placeholder='{"rows": 6, "cols": 5, "acrossClues": [...], "downClues": [...] }'
-                            />
-                            <p className="text-xs text-gray-500 mt-1">Paste the full JSON object for the crossword structure here. Must include 'rows' and 'cols'.</p>
-                        </div>
-                    )}
-                </div>
 
                 <div className="flex gap-4 pt-4">
                     <button
