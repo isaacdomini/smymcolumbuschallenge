@@ -1121,6 +1121,64 @@ const resolveGameData = async (game: any, userId: string | undefined) => {
         words: selected.flatMap((c: any) => c.words)
       };
     }
+  } else if (gameType === 'crossword' && gameData.puzzles && gameData.puzzles.length > 0) {
+    // Handle Crossword with multiple puzzles
+    if (userId) {
+      let assignedPuzzle;
+
+      // 1. Check submission
+      const submissionResult = await pool.query('SELECT submission_data FROM game_submissions WHERE user_id = $1 AND game_id = $2', [userId, game.id]);
+      if (submissionResult.rows.length > 0) {
+        // If they submitted, they must have had a puzzle assigned.
+        // We rely on game_progress or re-assign the same one if possible.
+        const submissionData = submissionResult.rows[0].submission_data;
+        if (submissionData && submissionData.assignedCrosswordIndex !== undefined) {
+          const index = submissionData.assignedCrosswordIndex;
+          if (gameData.puzzles[index]) {
+            assignedPuzzle = gameData.puzzles[index];
+          }
+        }
+      }
+
+      // 2. Check progress (primary source for assignment)
+      if (!assignedPuzzle) {
+        let progressResult = await pool.query('SELECT game_state FROM game_progress WHERE user_id = $1 AND game_id = $2', [userId, game.id]);
+
+        if (progressResult.rows.length > 0 && progressResult.rows[0].game_state.assignedCrosswordIndex !== undefined) {
+          const index = progressResult.rows[0].game_state.assignedCrosswordIndex;
+          if (gameData.puzzles[index]) {
+            assignedPuzzle = gameData.puzzles[index];
+          }
+        }
+
+        if (!assignedPuzzle) {
+          // Assign new
+          const puzzles = gameData.puzzles;
+          const randomIndex = Math.floor(Math.random() * puzzles.length);
+          const candidate = puzzles[randomIndex];
+
+          const existingState = progressResult.rows.length > 0 ? progressResult.rows[0].game_state : {};
+          const newState = { ...existingState, assignedCrosswordIndex: randomIndex };
+
+          await pool.query(
+            `INSERT INTO game_progress (id, user_id, game_id, game_state, updated_at) 
+               VALUES ($1, $2, $3, $4, NOW()) 
+               ON CONFLICT (user_id, game_id) DO UPDATE SET game_state = $4, updated_at = NOW()`,
+            [`progress-${userId}-${game.id}`, userId, game.id, JSON.stringify(newState)]
+          );
+          assignedPuzzle = candidate;
+        }
+      }
+
+      if (assignedPuzzle) {
+        gameData = { ...assignedPuzzle };
+      }
+    } else {
+      // Guest - pick random
+      const puzzles = gameData.puzzles;
+      const candidate = puzzles[Math.floor(Math.random() * puzzles.length)];
+      gameData = { ...candidate };
+    }
   }
 }
 
@@ -1288,6 +1346,18 @@ router.post('/submit', async (req: Request, res: Response) => {
 
     const score = calculateScore(game, submissionData, timeTaken, mistakes);
 
+    // Check for assigned crossword index in game_progress to persist it
+    let finalSubmissionData = submissionData;
+    if (game.type === 'crossword') {
+      const progressResult = await pool.query('SELECT game_state FROM game_progress WHERE user_id = $1 AND game_id = $2', [userId, gameId]);
+      if (progressResult.rows.length > 0 && progressResult.rows[0].game_state.assignedCrosswordIndex !== undefined) {
+        finalSubmissionData = {
+          ...submissionData,
+          assignedCrosswordIndex: progressResult.rows[0].game_state.assignedCrosswordIndex
+        };
+      }
+    }
+
     const existingSub = await pool.query('SELECT * FROM game_submissions WHERE user_id = $1 AND game_id = $2', [userId, gameId]);
 
     if (existingSub.rows.length > 0) {
@@ -1295,7 +1365,7 @@ router.post('/submit', async (req: Request, res: Response) => {
       if (score > existingSub.rows[0].score) {
         const result = await pool.query(
           'UPDATE game_submissions SET started_at = $1, completed_at = $2, time_taken = $3, mistakes = $4, score = $5, submission_data = $6 WHERE id = $7 RETURNING *',
-          [startedAt, new Date(), timeTaken, mistakes, score, JSON.stringify(submissionData), existingSub.rows[0].id]
+          [startedAt, new Date(), timeTaken, mistakes, score, JSON.stringify(finalSubmissionData), existingSub.rows[0].id]
         );
         return res.json(mapSubmission(result.rows[0]));
       } else {
@@ -1306,7 +1376,7 @@ router.post('/submit', async (req: Request, res: Response) => {
     const submissionId = `sub-${Date.now()}`;
     const result = await pool.query(
       'INSERT INTO game_submissions (id, user_id, game_id, challenge_id, started_at, completed_at, time_taken, mistakes, score, submission_data) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *',
-      [submissionId, userId, gameId, game.challenge_id, startedAt, new Date(), timeTaken, mistakes, score, JSON.stringify(submissionData)]
+      [submissionId, userId, gameId, game.challenge_id, startedAt, new Date(), timeTaken, mistakes, score, JSON.stringify(finalSubmissionData)]
     );
     res.json(mapSubmission(result.rows[0]));
 
