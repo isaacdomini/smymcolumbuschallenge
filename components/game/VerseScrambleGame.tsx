@@ -49,7 +49,10 @@ const VerseScrambleGame: React.FC<VerseScrambleGameProps> = ({ gameId, gameData,
         const savedProgress = await getGameState(user.id, gameId);
 
         if (savedProgress?.gameState) {
-          if (savedProgress.gameState.availableWords || savedProgress.gameState.placedWords) {
+          const hasSavedWords = (savedProgress.gameState.availableWords && savedProgress.gameState.availableWords.length > 0) ||
+            (savedProgress.gameState.placedWords && savedProgress.gameState.placedWords.length > 0);
+
+          if (hasSavedWords) {
             setAvailableWords(savedProgress.gameState.availableWords || []);
             setPlacedWords(savedProgress.gameState.placedWords || []);
           } else {
