@@ -13,6 +13,16 @@ const getTodayEST = () => {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
 };
 
+// --- HELPER: Fisher-Yates Shuffle ---
+const shuffleArray = <T>(array: T[]): T[] => {
+  const newArray = [...array];
+  for (let i = newArray.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+  }
+  return newArray;
+};
+
 // --- HELPER: Score Calculation ---
 const calculateScore = (game: any, submissionData: any, timeTaken: number, mistakes: number): number => {
   let baseScore = 0;
@@ -1080,7 +1090,8 @@ const resolveGameData = async (game: any, userId: string | undefined) => {
           // Assign new
           const allCategories = gameData.categories;
           // Shuffle and pick 4
-          const shuffled = [...allCategories].sort(() => 0.5 - Math.random());
+          // Shuffle and pick 4
+          const shuffled = shuffleArray(allCategories);
           const selected = shuffled.slice(0, 4);
           assignedCategories = selected.map((c: any) => c.name);
 
@@ -1313,7 +1324,7 @@ const resolveGameData = async (game: any, userId: string | undefined) => {
           // Assign new 6 pairs
           const allPairs = gameData.pairs;
           // Shuffle and pick 6
-          const shuffled = [...allPairs].sort(() => 0.5 - Math.random());
+          const shuffled = shuffleArray(allPairs);
           const selected = shuffled.slice(0, 6);
           assignedPairs = selected.map((p: any) => p.word);
 
