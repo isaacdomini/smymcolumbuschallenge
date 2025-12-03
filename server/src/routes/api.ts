@@ -942,6 +942,60 @@ router.get('/challenge', async (req: Request, res: Response) => {
   }
 });
 
+// Helper to resolve game data (specifically for Wordle Advanced)
+const resolveGameData = async (game: any, userId: string | undefined) => {
+  let gameData = game.data;
+  let gameType = game.type;
+
+  if (gameType === 'wordle_advanced') {
+    // Mask as 'wordle' so frontend doesn't know the difference
+    gameType = 'wordle';
+
+    if (userId) {
+      const progressResult = await pool.query('SELECT game_state FROM game_progress WHERE user_id = $1 AND game_id = $2', [userId, game.id]);
+
+      let assignedWord;
+      if (progressResult.rows.length > 0 && progressResult.rows[0].game_state.assignedWord) {
+        assignedWord = progressResult.rows[0].game_state.assignedWord;
+      } else {
+        const solutions = gameData.solutions || [];
+        if (solutions.length > 0) {
+          assignedWord = solutions[Math.floor(Math.random() * solutions.length)];
+
+          const existingState = progressResult.rows.length > 0 ? progressResult.rows[0].game_state : {};
+          const newState = { ...existingState, assignedWord };
+
+          await pool.query(
+            `INSERT INTO game_progress (id, user_id, game_id, game_state, updated_at) 
+             VALUES ($1, $2, $3, $4, NOW()) 
+             ON CONFLICT (user_id, game_id) DO UPDATE SET game_state = $4, updated_at = NOW()`,
+            [`progress-${userId}-${game.id}`, userId, game.id, JSON.stringify(newState)]
+          );
+        } else {
+          assignedWord = "ERROR";
+        }
+      }
+
+      gameData = { ...gameData, solution: assignedWord };
+      delete gameData.solutions;
+
+    } else {
+      const solutions = gameData.solutions || [];
+      const assignedWord = solutions.length > 0 ? solutions[0] : "GUEST";
+      gameData = { ...gameData, solution: assignedWord };
+      delete gameData.solutions;
+    }
+  }
+
+  return {
+    id: game.id,
+    challengeId: game.challenge_id,
+    date: game.date.toISOString(),
+    type: gameType,
+    data: gameData,
+  };
+};
+
 router.get('/challenge/:challengeId/daily', async (req: Request, res: Response) => {
   try {
     const { challengeId } = req.params;
@@ -951,52 +1005,8 @@ router.get('/challenge/:challengeId/daily', async (req: Request, res: Response) 
 
     if (result.rows.length > 0) {
       const game = result.rows[0];
-      let gameData = game.data;
-
-      if (game.type === 'wordle_advanced') {
-        if (userId) {
-          const progressResult = await pool.query('SELECT game_state FROM game_progress WHERE user_id = $1 AND game_id = $2', [userId, game.id]);
-
-          let assignedWord;
-          if (progressResult.rows.length > 0 && progressResult.rows[0].game_state.assignedWord) {
-            assignedWord = progressResult.rows[0].game_state.assignedWord;
-          } else {
-            const solutions = gameData.solutions || [];
-            if (solutions.length > 0) {
-              assignedWord = solutions[Math.floor(Math.random() * solutions.length)];
-
-              const existingState = progressResult.rows.length > 0 ? progressResult.rows[0].game_state : {};
-              const newState = { ...existingState, assignedWord };
-
-              await pool.query(
-                `INSERT INTO game_progress (id, user_id, game_id, game_state, updated_at) 
-                 VALUES ($1, $2, $3, $4, NOW()) 
-                 ON CONFLICT (user_id, game_id) DO UPDATE SET game_state = $4, updated_at = NOW()`,
-                [`progress-${userId}-${game.id}`, userId, game.id, JSON.stringify(newState)]
-              );
-            } else {
-              assignedWord = "ERROR";
-            }
-          }
-
-          gameData = { ...gameData, solution: assignedWord };
-          delete gameData.solutions;
-
-        } else {
-          const solutions = gameData.solutions || [];
-          const assignedWord = solutions.length > 0 ? solutions[0] : "GUEST";
-          gameData = { ...gameData, solution: assignedWord };
-          delete gameData.solutions;
-        }
-      }
-
-      res.json({
-        id: game.id,
-        challengeId: game.challenge_id,
-        date: game.date.toISOString(),
-        type: game.type,
-        data: gameData,
-      });
+      const resolvedGame = await resolveGameData(game, userId);
+      res.json(resolvedGame);
     } else {
       res.json(null);
     }
@@ -1014,60 +1024,8 @@ router.get('/games/:gameId', async (req: Request, res: Response) => {
     const result = await pool.query('SELECT * FROM games WHERE id = $1', [gameId]);
     if (result.rows.length > 0) {
       const game = result.rows[0];
-      let gameData = game.data;
-
-      if (game.type === 'wordle_advanced') {
-        if (userId) {
-          // Check if user already has a word assigned
-          const progressResult = await pool.query('SELECT game_state FROM game_progress WHERE user_id = $1 AND game_id = $2', [userId, gameId]);
-
-          let assignedWord;
-          if (progressResult.rows.length > 0 && progressResult.rows[0].game_state.assignedWord) {
-            assignedWord = progressResult.rows[0].game_state.assignedWord;
-          } else {
-            // Assign a new random word
-            const solutions = gameData.solutions || [];
-            if (solutions.length > 0) {
-              assignedWord = solutions[Math.floor(Math.random() * solutions.length)];
-
-              // Save assigned word to game_progress
-              // We need to be careful not to overwrite existing progress if it exists but lacks assignedWord (unlikely for new feature, but safe to merge)
-              const existingState = progressResult.rows.length > 0 ? progressResult.rows[0].game_state : {};
-              const newState = { ...existingState, assignedWord };
-
-              await pool.query(
-                `INSERT INTO game_progress (id, user_id, game_id, game_state, updated_at) 
-                 VALUES ($1, $2, $3, $4, NOW()) 
-                 ON CONFLICT (user_id, game_id) DO UPDATE SET game_state = $4, updated_at = NOW()`,
-                [`progress-${userId}-${gameId}`, userId, gameId, JSON.stringify(newState)]
-              );
-            } else {
-              assignedWord = "ERROR"; // Fallback
-            }
-          }
-
-          // Return data with the single assigned solution
-          gameData = { ...gameData, solution: assignedWord };
-          // Remove the full list of solutions from the response
-          delete gameData.solutions;
-
-        } else {
-          // Guest user: just pick the first one for consistency (or random, but no persistence)
-          // Let's pick the first one so if they reload it's the same (mostly)
-          const solutions = gameData.solutions || [];
-          const assignedWord = solutions.length > 0 ? solutions[0] : "GUEST";
-          gameData = { ...gameData, solution: assignedWord };
-          delete gameData.solutions;
-        }
-      }
-
-      res.json({
-        id: game.id,
-        challengeId: game.challenge_id,
-        date: game.date.toISOString(),
-        type: game.type,
-        data: gameData,
-      });
+      const resolvedGame = await resolveGameData(game, userId);
+      res.json(resolvedGame);
     } else {
       res.status(404).json({ error: 'Game not found' });
     }
@@ -1080,14 +1038,15 @@ router.get('/games/:gameId', async (req: Request, res: Response) => {
 router.get('/challenge/:challengeId/games', async (req: Request, res: Response) => {
   try {
     const { challengeId } = req.params;
+    const userId = req.headers['x-user-id'] as string; // We need user ID to resolve games correctly
+
     const result = await pool.query("SELECT * FROM games WHERE challenge_id = $1 ORDER BY date ASC", [challengeId]);
-    const games = result.rows.map(game => ({
-      id: game.id,
-      challengeId: game.challenge_id,
-      date: game.date.toISOString(),
-      type: game.type,
-      data: game.data,
+
+    // Resolve all games (this might be slow if many wordle_advanced games, but usually it's few)
+    const games = await Promise.all(result.rows.map(async (game) => {
+      return resolveGameData(game, userId);
     }));
+
     res.json(games);
   } catch (error) {
     console.error('Get games error:', error);
