@@ -31,6 +31,7 @@ const WordSearchGame: React.FC<WordSearchGameProps> = ({ gameId, gameData, submi
   const isReadOnly = !!submission;
 
   const [foundWords, setFoundWords] = useState<string[]>([]);
+  const [foundCells, setFoundCells] = useState<{ r: number, c: number }[]>([]);
   const [selectedCells, setSelectedCells] = useState<{ r: number, c: number }[]>([]);
   const [isSelecting, setIsSelecting] = useState(false);
   const [selectionStart, setSelectionStart] = useState<{ r: number, c: number } | null>(null);
@@ -46,15 +47,18 @@ const WordSearchGame: React.FC<WordSearchGameProps> = ({ gameId, gameData, submi
     const loadState = async () => {
       if (isReadOnly && submission) {
         setFoundWords(dataToUse.words);
+        setFoundCells(submission.submissionData?.foundCells || []);
         setGameState('won');
         setShowInstructions(false);
       } else if (isSample) {
         setFoundWords([]);
+        setFoundCells([]);
         setGameState('playing');
       } else if (user) {
         const savedProgress = await getGameState(user.id, gameId);
         if (savedProgress?.gameState) {
           setFoundWords(savedProgress.gameState.foundWords || []);
+          setFoundCells(savedProgress.gameState.foundCells || []);
           setGameState(savedProgress.gameState.gameState || 'playing');
           if (savedProgress.gameState.startTime) {
             setStartTime(savedProgress.gameState.startTime);
@@ -68,10 +72,10 @@ const WordSearchGame: React.FC<WordSearchGameProps> = ({ gameId, gameData, submi
 
   useEffect(() => {
     if (isReadOnly || gameState !== 'playing' || !user || startTime === null || isSample) return;
-    const stateToSave = { foundWords, gameState, startTime };
+    const stateToSave = { foundWords, foundCells, gameState, startTime };
     const handler = setTimeout(() => saveGameState(user.id, gameId, stateToSave), 1000);
     return () => clearTimeout(handler);
-  }, [foundWords, gameState, startTime, isReadOnly, user, gameId]);
+  }, [foundWords, foundCells, gameState, startTime, isReadOnly, user, gameId]);
 
   const getWordFromSelection = (start: { r: number, c: number }, end: { r: number, c: number }) => {
     const dr = end.r - start.r;
@@ -129,12 +133,14 @@ const WordSearchGame: React.FC<WordSearchGameProps> = ({ gameId, gameData, submi
         if (dataToUse.words.includes(word) && !foundWords.includes(word)) {
           const newFound = [...foundWords, word];
           setFoundWords(newFound);
+          setFoundCells(prev => [...prev, ...result.cells]);
           if (newFound.length === dataToUse.words.length) {
             setGameState('won');
           }
         } else if (dataToUse.words.includes(reversed) && !foundWords.includes(reversed)) {
           const newFound = [...foundWords, reversed];
           setFoundWords(newFound);
+          setFoundCells(prev => [...prev, ...result.cells]);
           if (newFound.length === dataToUse.words.length) {
             setGameState('won');
           }
@@ -174,6 +180,7 @@ const WordSearchGame: React.FC<WordSearchGameProps> = ({ gameId, gameData, submi
           submissionData: {
             foundWordsCount: foundWords.length,
             foundWords,
+            foundCells,
             grid: dataToUse.grid,
             words: dataToUse.words
           }
@@ -182,7 +189,7 @@ const WordSearchGame: React.FC<WordSearchGameProps> = ({ gameId, gameData, submi
       }
     };
     saveResult();
-  }, [gameState, user, isReadOnly, gameId, onComplete, startTime, foundWords.length]);
+  }, [gameState, user, isReadOnly, gameId, onComplete, startTime, foundWords.length, foundCells]);
 
   const handleStartGame = () => {
     setStartTime(Date.now());
@@ -248,6 +255,7 @@ const WordSearchGame: React.FC<WordSearchGameProps> = ({ gameId, gameData, submi
             <div key={r} className="flex">
               {row.map((char, c) => {
                 const isSelected = selectedCells.some(cell => cell.r === r && cell.c === c);
+                const isFound = foundCells.some(cell => cell.r === r && cell.c === c);
                 return (
                   <div
                     key={`${r}-${c}`}
@@ -261,7 +269,7 @@ const WordSearchGame: React.FC<WordSearchGameProps> = ({ gameId, gameData, submi
                       handleCellDown(r, c);
                     }}
                     // Touch move is harder to handle with individual elements, usually requires global handler
-                    className={`w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center font-bold text-lg cursor-pointer transition-colors select-none ${isSelected ? 'bg-yellow-500 text-gray-900' : 'text-gray-300 hover:bg-gray-700'
+                    className={`w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center font-bold text-lg cursor-pointer transition-colors select-none ${isSelected || isFound ? 'bg-yellow-500 text-gray-900' : 'text-gray-300 hover:bg-gray-700'
                       }`}
                   >
                     {char}
