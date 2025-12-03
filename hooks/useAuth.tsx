@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { User } from '@/types';
 import * as api from '@/services/api';
+import { storage } from '@/utils/storage';
 
 interface AuthContextType {
   user: User | null;
@@ -14,21 +15,27 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+
+
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    try {
-      const storedUser = localStorage.getItem('smym-user');
-      if (storedUser) {
-        setUser(JSON.parse(storedUser));
+    const loadUser = async () => {
+      try {
+        const storedUser = await storage.get('user');
+        if (storedUser) {
+          setUser(JSON.parse(storedUser));
+        }
+      } catch (error) {
+        console.error("Failed to parse user from storage", error);
+        await storage.remove('user');
+      } finally {
+        setIsLoading(false);
       }
-    } catch (error) {
-      console.error("Failed to parse user from localStorage", error);
-      localStorage.removeItem('smym-user');
-    }
-    setIsLoading(false);
+    };
+    loadUser();
   }, []);
 
   const login = async (email: string, pass: string) => {
@@ -47,7 +54,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     console.log("MAPPED USER TO SAVE:", userToSave); // DEBUG LOG
 
     setUser(userToSave);
-    localStorage.setItem('smym-user', JSON.stringify(userToSave));
+    await storage.set('user', JSON.stringify(userToSave));
   };
 
   const signup = async (name: string, email: string, pass: string, emailNotifications: boolean): Promise<{ message: string }> => {
@@ -55,10 +62,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return response;
   };
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
     api.logout();
     setUser(null);
-    localStorage.removeItem('smym-user');
+    await storage.remove('user');
   }, []);
 
   const forgotPassword = async (email: string) => {

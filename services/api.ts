@@ -1,11 +1,12 @@
+import { storage } from '@/utils/storage';
 import { User, Challenge, Game, GameType, GameSubmission, WordleData, ConnectionsData, CrosswordData, MatchTheWordData, SubmitGamePayload, GameProgress, AdminStats, LogEntry } from '@/types';
 
 const USE_MOCK_DATA = import.meta.env.MODE === 'development';
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
-const isTestUser = () => {
+const isTestUser = async (): Promise<boolean> => {
     try {
-        const stored = localStorage.getItem('smym-user');
+        const stored = await storage.get('user');
         if (stored) {
             const user = JSON.parse(stored);
             return user && user.email && user.email.split('@')[0] === 'test';
@@ -13,6 +14,9 @@ const isTestUser = () => {
     } catch (e) { }
     return false;
 };
+
+
+
 
 // --- MOCK DATABASE ---
 
@@ -119,14 +123,14 @@ const MOCK_SUBMISSIONS: GameSubmission[] = [
 const MOCK_GAME_PROGRESS: GameProgress[] = [];
 
 // --- HELPER for Auth Headers ---
-const getAuthHeaders = (userId?: string) => {
+const getAuthHeaders = async (userId?: string) => {
     const headers: HeadersInit = { 'Content-Type': 'application/json' };
     if (userId) {
         headers['X-User-ID'] = userId;
     }
     else {
         try {
-            const stored = localStorage.getItem('smym-user');
+            const stored = await storage.get('user');
             if (stored) {
                 const user = JSON.parse(stored);
                 if (user.id) headers['X-User-ID'] = user.id;
@@ -266,7 +270,7 @@ export const requestAccountDeletion = async (email: string, password: string): P
 };
 
 export const getChallenge = async (): Promise<Challenge | null> => {
-    if (USE_MOCK_DATA || isTestUser()) {
+    if (USE_MOCK_DATA || await isTestUser()) {
         await simulateDelay(300);
         const now = new Date();
         const isFinished = new Date(MOCK_CHALLENGE.endDate) < now;
@@ -284,7 +288,7 @@ export const getChallenge = async (): Promise<Challenge | null> => {
 };
 
 export const getDailyGame = async (challengeId: string): Promise<Game | null> => {
-    if (USE_MOCK_DATA || isTestUser()) {
+    if (USE_MOCK_DATA || await isTestUser()) {
         await simulateDelay(200);
         if (challengeId !== MOCK_CHALLENGE.id) return null;
         const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
@@ -299,7 +303,7 @@ export const getDailyGame = async (challengeId: string): Promise<Game | null> =>
 };
 
 export const getGameById = async (gameId: string): Promise<Game | null> => {
-    if (USE_MOCK_DATA || isTestUser()) {
+    if (USE_MOCK_DATA || await isTestUser()) {
         await simulateDelay(200);
         return MOCK_GAMES.find(g => g.id === gameId) ?? null;
     } else {
@@ -313,7 +317,7 @@ export const getGameById = async (gameId: string): Promise<Game | null> => {
 
 
 export const getGamesForChallenge = async (challengeId: string): Promise<Game[]> => {
-    if (USE_MOCK_DATA || isTestUser()) {
+    if (USE_MOCK_DATA || await isTestUser()) {
         await simulateDelay(400);
         if (challengeId !== MOCK_CHALLENGE.id) return [];
         // Updated to return ALL games, irrespective of current date
@@ -328,7 +332,7 @@ export const getGamesForChallenge = async (challengeId: string): Promise<Game[]>
 };
 
 export const getSubmissionsForUser = async (userId: string, challengeId: string): Promise<GameSubmission[]> => {
-    if (USE_MOCK_DATA || isTestUser()) {
+    if (USE_MOCK_DATA || await isTestUser()) {
         await simulateDelay(200);
         return MOCK_SUBMISSIONS.filter(s => s.userId === userId && s.challengeId === challengeId);
     } else {
@@ -341,7 +345,7 @@ export const getSubmissionsForUser = async (userId: string, challengeId: string)
 };
 
 export const getSubmissionForToday = async (userId: string, gameId: string): Promise<GameSubmission | null> => {
-    if (USE_MOCK_DATA || isTestUser()) {
+    if (USE_MOCK_DATA || await isTestUser()) {
         await simulateDelay(100);
         return MOCK_SUBMISSIONS.find(s => s.userId === userId && s.gameId === gameId) ?? null;
     } else {
@@ -356,7 +360,7 @@ export const getSubmissionForToday = async (userId: string, gameId: string): Pro
 };
 
 export const getLeaderboard = async (challengeId: string): Promise<(GameSubmission & { user: User })[]> => {
-    if (USE_MOCK_DATA || isTestUser()) {
+    if (USE_MOCK_DATA || await isTestUser()) {
         await simulateDelay(400);
         if (challengeId !== MOCK_CHALLENGE.id) return [];
 
@@ -483,7 +487,7 @@ const calculateScore = (payload: SubmitGamePayload, game: Game): number => {
 }
 
 export const submitGame = async (payload: SubmitGamePayload): Promise<GameSubmission> => {
-    if (USE_MOCK_DATA || isTestUser()) {
+    if (USE_MOCK_DATA || await isTestUser()) {
         await simulateDelay(500);
         const game = MOCK_GAMES.find(g => g.id === payload.gameId);
         if (!game) throw new Error("Game not found to submit to.");
@@ -529,7 +533,7 @@ export const submitGame = async (payload: SubmitGamePayload): Promise<GameSubmis
 };
 
 export const getGameState = async (userId: string, gameId: string): Promise<GameProgress | null> => {
-    if (USE_MOCK_DATA || isTestUser()) {
+    if (USE_MOCK_DATA || await isTestUser()) {
         await simulateDelay(200);
         return MOCK_GAME_PROGRESS.find(p => p.userId === userId && p.gameId === gameId) ?? null;
     } else {
@@ -544,7 +548,7 @@ export const getGameState = async (userId: string, gameId: string): Promise<Game
 };
 
 export const saveGameState = async (userId: string, gameId: string, gameState: any): Promise<GameProgress> => {
-    if (USE_MOCK_DATA || isTestUser()) {
+    if (USE_MOCK_DATA || await isTestUser()) {
         await simulateDelay(300);
         let progress = MOCK_GAME_PROGRESS.find(p => p.userId === userId && p.gameId === gameId);
         if (progress) {
@@ -575,7 +579,7 @@ export const saveGameState = async (userId: string, gameId: string, gameState: a
 };
 
 export const clearGameState = async (userId: string, gameId: string): Promise<void> => {
-    if (USE_MOCK_DATA || isTestUser()) {
+    if (USE_MOCK_DATA || await isTestUser()) {
         await simulateDelay(100);
         const index = MOCK_GAME_PROGRESS.findIndex(p => p.userId === userId && p.gameId === gameId);
         if (index > -1) {
@@ -594,7 +598,7 @@ export const clearGameState = async (userId: string, gameId: string): Promise<vo
 // --- ADMIN API ---
 
 export const getAdminStats = async (userId: string): Promise<AdminStats> => {
-    if (USE_MOCK_DATA || isTestUser()) {
+    if (USE_MOCK_DATA || await isTestUser()) {
         // Mock admin stats
         return {
             totalUsers: MOCK_USERS.length,
@@ -604,25 +608,25 @@ export const getAdminStats = async (userId: string): Promise<AdminStats> => {
         };
     }
     const response = await fetch(`${API_BASE_URL}/admin/stats`, {
-        headers: getAuthHeaders(userId)
+        headers: await getAuthHeaders(userId)
     });
     if (!response.ok) throw new Error('Failed to fetch admin stats');
     return await response.json();
 }
 
 export const getChallenges = async (userId: string): Promise<Challenge[]> => {
-    if (USE_MOCK_DATA || isTestUser()) {
+    if (USE_MOCK_DATA || await isTestUser()) {
         return [MOCK_CHALLENGE];
     }
     const response = await fetch(`${API_BASE_URL}/admin/challenges`, {
-        headers: getAuthHeaders(userId)
+        headers: await getAuthHeaders(userId)
     });
     if (!response.ok) throw new Error('Failed to fetch challenges');
     return await response.json();
 }
 
 export const createGame = async (userId: string, gameData: any): Promise<void> => {
-    if (USE_MOCK_DATA || isTestUser()) {
+    if (USE_MOCK_DATA || await isTestUser()) {
         console.log("Mock create game:", gameData);
         MOCK_GAMES.push({
             id: `game-${gameData.type}-${gameData.date}`,
@@ -635,7 +639,7 @@ export const createGame = async (userId: string, gameData: any): Promise<void> =
     }
     const response = await fetch(`${API_BASE_URL}/admin/games`, {
         method: 'POST',
-        headers: getAuthHeaders(userId),
+        headers: await getAuthHeaders(userId),
         body: JSON.stringify(gameData)
     });
     if (!response.ok) {
@@ -645,10 +649,10 @@ export const createGame = async (userId: string, gameData: any): Promise<void> =
 }
 
 export const createChallenge = async (userId: string, challengeData: Partial<Challenge>): Promise<void> => {
-    if (USE_MOCK_DATA || isTestUser()) return; // Not implemented for mock
+    if (USE_MOCK_DATA || await isTestUser()) return; // Not implemented for mock
     const response = await fetch(`${API_BASE_URL}/admin/challenges`, {
         method: 'POST',
-        headers: getAuthHeaders(userId),
+        headers: await getAuthHeaders(userId),
         body: JSON.stringify(challengeData)
     });
     if (!response.ok) {
@@ -658,10 +662,10 @@ export const createChallenge = async (userId: string, challengeData: Partial<Cha
 }
 
 export const updateChallenge = async (userId: string, challengeId: string, challengeData: Partial<Challenge>): Promise<void> => {
-    if (USE_MOCK_DATA || isTestUser()) return; // Not implemented for mock
+    if (USE_MOCK_DATA || await isTestUser()) return; // Not implemented for mock
     const response = await fetch(`${API_BASE_URL}/admin/challenges/${challengeId}`, {
         method: 'PUT',
-        headers: getAuthHeaders(userId),
+        headers: await getAuthHeaders(userId),
         body: JSON.stringify(challengeData)
     });
     if (!response.ok) {
@@ -671,10 +675,10 @@ export const updateChallenge = async (userId: string, challengeId: string, chall
 }
 
 export const deleteChallenge = async (userId: string, challengeId: string): Promise<void> => {
-    if (USE_MOCK_DATA || isTestUser()) return; // Not implemented for mock
+    if (USE_MOCK_DATA || await isTestUser()) return; // Not implemented for mock
     const response = await fetch(`${API_BASE_URL}/admin/challenges/${challengeId}`, {
         method: 'DELETE',
-        headers: getAuthHeaders(userId)
+        headers: await getAuthHeaders(userId)
     });
     if (!response.ok) {
         const err = await response.json();
@@ -683,26 +687,26 @@ export const deleteChallenge = async (userId: string, challengeId: string): Prom
 }
 
 export const getUsers = async (userId: string, limit = 50, offset = 0): Promise<User[]> => {
-    if (USE_MOCK_DATA || isTestUser()) return MOCK_USERS;
+    if (USE_MOCK_DATA || await isTestUser()) return MOCK_USERS;
     const response = await fetch(`${API_BASE_URL}/admin/users?limit=${limit}&offset=${offset}`, {
-        headers: getAuthHeaders(userId)
+        headers: await getAuthHeaders(userId)
     });
     if (!response.ok) throw new Error('Failed to fetch users');
     return await response.json();
 };
 
 export const updateUserAsAdmin = async (adminUserId: string, targetUserId: string, data: { isAdmin?: boolean, isVerified?: boolean }): Promise<void> => {
-    if (USE_MOCK_DATA || isTestUser()) return;
+    if (USE_MOCK_DATA || await isTestUser()) return;
     const response = await fetch(`${API_BASE_URL}/admin/users/${targetUserId}`, {
         method: 'PUT',
-        headers: getAuthHeaders(adminUserId),
+        headers: await getAuthHeaders(adminUserId),
         body: JSON.stringify(data)
     });
     if (!response.ok) throw new Error('Failed to update user');
 };
 
 export const deleteUserAsAdmin = async (adminUserId: string, targetUserId: string): Promise<void> => {
-    if (USE_MOCK_DATA || isTestUser()) {
+    if (USE_MOCK_DATA || await isTestUser()) {
         await simulateDelay(500);
         const index = MOCK_USERS.findIndex(u => u.id === targetUserId);
         if (index === -1) throw new Error("User not found");
@@ -711,13 +715,13 @@ export const deleteUserAsAdmin = async (adminUserId: string, targetUserId: strin
     }
     const response = await fetch(`${API_BASE_URL}/admin/users/${targetUserId}`, {
         method: 'DELETE',
-        headers: getAuthHeaders(adminUserId)
+        headers: await getAuthHeaders(adminUserId)
     });
     if (!response.ok) throw new Error('Failed to delete user');
 };
 
 export const updateUserProfile = async (userId: string, data: { name: string }): Promise<User> => {
-    if (USE_MOCK_DATA || isTestUser()) {
+    if (USE_MOCK_DATA || await isTestUser()) {
         await simulateDelay(500);
         const user = MOCK_USERS.find(u => u.id === userId);
         if (!user) throw new Error("User not found");
@@ -726,7 +730,7 @@ export const updateUserProfile = async (userId: string, data: { name: string }):
     }
     const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
         method: 'PUT',
-        headers: getAuthHeaders(userId),
+        headers: await getAuthHeaders(userId),
         body: JSON.stringify(data)
     });
     if (!response.ok) throw new Error('Failed to update user profile');
@@ -734,7 +738,7 @@ export const updateUserProfile = async (userId: string, data: { name: string }):
 }
 
 export const deleteUser = async (userId: string): Promise<void> => {
-    if (USE_MOCK_DATA || isTestUser()) {
+    if (USE_MOCK_DATA || await isTestUser()) {
         await simulateDelay(500);
         const index = MOCK_USERS.findIndex(u => u.id === userId);
         if (index === -1) throw new Error("User not found");
@@ -743,34 +747,34 @@ export const deleteUser = async (userId: string): Promise<void> => {
     }
     const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
         method: 'DELETE',
-        headers: getAuthHeaders(userId)
+        headers: await getAuthHeaders(userId)
     });
     if (!response.ok) throw new Error('Failed to delete user');
 }
 
 export const getLogs = async (userId: string, limit = 100, offset = 0): Promise<LogEntry[]> => {
-    if (USE_MOCK_DATA || isTestUser()) return [];
+    if (USE_MOCK_DATA || await isTestUser()) return [];
     const response = await fetch(`${API_BASE_URL}/admin/logs?limit=${limit}&offset=${offset}`, {
-        headers: getAuthHeaders(userId)
+        headers: await getAuthHeaders(userId)
     });
     if (!response.ok) throw new Error('Failed to fetch logs');
     return await response.json();
 };
 
 export const getGames = async (userId: string, challengeId: string): Promise<Game[]> => {
-    if (USE_MOCK_DATA || isTestUser()) return []; // Not implemented for mock
+    if (USE_MOCK_DATA || await isTestUser()) return []; // Not implemented for mock
     const response = await fetch(`${API_BASE_URL}/admin/games?challengeId=${challengeId}`, {
-        headers: getAuthHeaders(userId)
+        headers: await getAuthHeaders(userId)
     });
     if (!response.ok) throw new Error('Failed to fetch games');
     return await response.json();
 };
 
 export const deleteGame = async (userId: string, gameId: string): Promise<void> => {
-    if (USE_MOCK_DATA || isTestUser()) return; // Not implemented for mock
+    if (USE_MOCK_DATA || await isTestUser()) return; // Not implemented for mock
     const response = await fetch(`${API_BASE_URL}/admin/games/${gameId}`, {
         method: 'DELETE',
-        headers: getAuthHeaders(userId)
+        headers: await getAuthHeaders(userId)
     });
     if (!response.ok) throw new Error('Failed to delete game');
 };
@@ -786,7 +790,7 @@ export interface DailyMessage {
 }
 
 export const getDailyMessage = async (date?: string): Promise<DailyMessage | null> => {
-    if (USE_MOCK_DATA || isTestUser()) {
+    if (USE_MOCK_DATA || await isTestUser()) {
         // Mock data
         return {
             id: 'msg-mock',
@@ -803,7 +807,7 @@ export const getDailyMessage = async (date?: string): Promise<DailyMessage | nul
 // --- SUPPORT TICKETS ---
 
 export const createTicket = async (email: string, issue: string, userId?: string): Promise<{ ticketId: string }> => {
-    if (USE_MOCK_DATA || isTestUser()) {
+    if (USE_MOCK_DATA || await isTestUser()) {
         await simulateDelay(500);
         return { ticketId: `ticket-${Date.now()}` };
     }
@@ -820,7 +824,7 @@ export const createTicket = async (email: string, issue: string, userId?: string
 };
 
 export const getTicket = async (ticketId: string): Promise<{ ticket: any, notes: any[] }> => {
-    if (USE_MOCK_DATA || isTestUser()) {
+    if (USE_MOCK_DATA || await isTestUser()) {
         await simulateDelay(300);
         return {
             ticket: {
@@ -845,65 +849,65 @@ export const getTicket = async (ticketId: string): Promise<{ ticket: any, notes:
 // Admin Support Functions
 
 export const getAdminTickets = async (userId: string, limit = 50, offset = 0, status?: string): Promise<any[]> => {
-    if (USE_MOCK_DATA || isTestUser()) {
+    if (USE_MOCK_DATA || await isTestUser()) {
         return [];
     }
     let url = `${API_BASE_URL}/admin/support/tickets?limit=${limit}&offset=${offset}`;
     if (status) url += `&status=${status}`;
 
     const response = await fetch(url, {
-        headers: getAuthHeaders(userId)
+        headers: await getAuthHeaders(userId)
     });
     if (!response.ok) throw new Error('Failed to fetch tickets');
     return await response.json();
 };
 
 export const addTicketNote = async (userId: string, ticketId: string, note: string): Promise<void> => {
-    if (USE_MOCK_DATA || isTestUser()) return;
+    if (USE_MOCK_DATA || await isTestUser()) return;
 
     const response = await fetch(`${API_BASE_URL}/admin/support/tickets/${ticketId}/notes`, {
         method: 'POST',
-        headers: getAuthHeaders(userId),
+        headers: await getAuthHeaders(userId),
         body: JSON.stringify({ note, userId }) // API expects userId in body currently
     });
     if (!response.ok) throw new Error('Failed to add note');
 };
 
 export const updateTicketStatus = async (userId: string, ticketId: string, status: string): Promise<void> => {
-    if (USE_MOCK_DATA || isTestUser()) return;
+    if (USE_MOCK_DATA || await isTestUser()) return;
 
     const response = await fetch(`${API_BASE_URL}/admin/support/tickets/${ticketId}/status`, {
         method: 'PATCH',
-        headers: getAuthHeaders(userId),
+        headers: await getAuthHeaders(userId),
         body: JSON.stringify({ status })
     });
     if (!response.ok) throw new Error('Failed to update status');
 };
 
 export const getAllDailyMessages = async (userId: string, limit = 50, offset = 0): Promise<DailyMessage[]> => {
-    if (USE_MOCK_DATA || isTestUser()) return [];
+    if (USE_MOCK_DATA || await isTestUser()) return [];
     const response = await fetch(`${API_BASE_URL}/admin/daily-messages?limit=${limit}&offset=${offset}`, {
-        headers: getAuthHeaders(userId)
+        headers: await getAuthHeaders(userId)
     });
     if (!response.ok) throw new Error('Failed to fetch daily messages');
     return await response.json();
 };
 
 export const saveDailyMessage = async (userId: string, message: { date: string, content: string }): Promise<void> => {
-    if (USE_MOCK_DATA || isTestUser()) return;
+    if (USE_MOCK_DATA || await isTestUser()) return;
     const response = await fetch(`${API_BASE_URL}/admin/daily-messages`, {
         method: 'POST',
-        headers: getAuthHeaders(userId),
+        headers: await getAuthHeaders(userId),
         body: JSON.stringify(message)
     });
     if (!response.ok) throw new Error('Failed to save daily message');
 };
 
 export const deleteDailyMessage = async (userId: string, messageId: string): Promise<void> => {
-    if (USE_MOCK_DATA || isTestUser()) return;
+    if (USE_MOCK_DATA || await isTestUser()) return;
     const response = await fetch(`${API_BASE_URL}/admin/daily-messages/${messageId}`, {
         method: 'DELETE',
-        headers: getAuthHeaders(userId)
+        headers: await getAuthHeaders(userId)
     });
     if (!response.ok) throw new Error('Failed to delete daily message');
 };
