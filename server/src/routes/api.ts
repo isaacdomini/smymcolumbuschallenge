@@ -65,15 +65,11 @@ const calculateScore = (game: any, submissionData: any, timeTaken: number, mista
       break;
     }
     case 'who_am_i': {
-      if (!submissionData?.solved) {
+      const maxGuesses = 6;
+      if (mistakes >= maxGuesses) {
         baseScore = 0;
       } else {
-        const winScore = 50;
-        const maxMistakes = 6;
-        const remainingGuesses = Math.max(0, maxMistakes - mistakes);
-        const guessBonus = remainingGuesses * 5;
-        const timeBonus = Math.max(0, 20 - Math.floor(timeTaken / 15));
-        baseScore = winScore + guessBonus + timeBonus;
+        baseScore = (maxGuesses - mistakes) * 10;
       }
       break;
     }

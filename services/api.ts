@@ -1011,13 +1011,12 @@ export const getScoringCriteria = async (): Promise<any[]> => {
             ]
         },
         {
-            title: 'Who Am I?',
-            description: 'Guess the biblical figure before running out of guesses (Hangman style).',
+            title: 'Hangman',
+            description: 'Guess the word or phrase before running out of guesses.',
             hidden: false,
             points: [
-                'Win Score: 50 points for guessing the correct answer.',
-                'Guess Bonus: 5 points for each remaining incorrect guess allowed.',
-                'Time Bonus: Up to 20 points for fast completion.'
+                'Guess Score: Up to 60 points (10 points for every unused guess remaining).',
+                'Losing (6 incorrect guesses) results in a score of 0.'
             ]
         },
         {

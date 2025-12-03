@@ -138,7 +138,7 @@ const WhoAmIGame: React.FC<WhoAmIGameProps> = ({ gameId, gameData, submission, o
   return (
     <div className="w-full max-w-2xl mx-auto flex flex-col items-center p-4">
       <div className="flex items-center justify-between w-full mb-6">
-        <h2 className="text-2xl font-bold text-yellow-400">Who Am I? {isSample && <span className="text-sm bg-blue-600 text-white px-2 py-1 rounded ml-2">Sample</span>}</h2>
+        <h2 className="text-2xl font-bold text-yellow-400">Hangman {isSample && <span className="text-sm bg-blue-600 text-white px-2 py-1 rounded ml-2">Sample</span>}</h2>
         <button onClick={() => setShowInstructions(true)} className="text-gray-400 hover:text-white" title="Show Instructions">
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
         </button>
