@@ -1022,7 +1022,7 @@ export const getScoringCriteria = async (): Promise<any[]> => {
         {
             title: 'Word Search',
             description: 'Find all the hidden words in the grid.',
-            hidden: true,
+            hidden: false,
             points: [
                 'Word Score: 10 points for each word found.',
                 'Completion Bonus: 20 points for finding all words.',
