@@ -6,6 +6,7 @@ interface BannerMessage {
   id: number;
   content: string;
   type: 'system' | 'user';
+  linkUrl?: string;
   created_at: string;
 }
 
@@ -40,16 +41,31 @@ export const BannerMessage: React.FC = () => {
   if (messages.length === 0) return null;
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-50 flex flex-col gap-2 p-2 pointer-events-none">
+    <div className="flex flex-col gap-4 w-full max-w-4xl mx-auto mb-8">
       {messages.map(msg => (
         <div
           key={msg.id}
-          className="pointer-events-auto bg-blue-600 text-white px-4 py-3 rounded-lg shadow-lg flex justify-between items-center max-w-4xl mx-auto w-full animate-fade-in-down"
+          className={`relative bg-blue-600 text-white px-6 py-4 rounded-lg shadow-lg flex justify-between items-center w-full animate-fade-in-down ${msg.linkUrl ? 'cursor-pointer hover:bg-blue-700 transition-colors' : ''}`}
+          onClick={() => {
+            if (msg.linkUrl) {
+              window.open(msg.linkUrl, '_blank', 'noopener,noreferrer');
+            }
+          }}
         >
-          <span className="font-medium">{msg.content}</span>
+          <div className="flex-1 pr-8">
+            <span className="font-medium text-lg">{msg.content}</span>
+            {msg.linkUrl && (
+              <span className="ml-2 text-blue-200 text-sm underline">
+                Learn more &rarr;
+              </span>
+            )}
+          </div>
           <button
-            onClick={() => handleDismiss(msg.id)}
-            className="ml-4 text-blue-100 hover:text-white focus:outline-none"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDismiss(msg.id);
+            }}
+            className="absolute top-2 right-2 p-2 text-blue-100 hover:text-white focus:outline-none hover:bg-blue-500 rounded-full transition-colors"
             aria-label="Dismiss"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

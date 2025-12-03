@@ -9,6 +9,7 @@ const BannerManager: React.FC = () => {
   const [type, setType] = useState<'system' | 'user'>('system');
   const [targetUserIds, setTargetUserIds] = useState<string[]>([]);
   const [expiresAt, setExpiresAt] = useState('');
+  const [linkUrl, setLinkUrl] = useState('');
   const [users, setUsers] = useState<User[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -42,12 +43,14 @@ const BannerManager: React.FC = () => {
           content,
           type,
           targetUserIds: type === 'user' ? targetUserIds : undefined,
-          expiresAt: expiresAt || undefined
+          expiresAt: expiresAt || undefined,
+          linkUrl: linkUrl || undefined
         });
         setMessage({ text: 'Banner message created successfully!', type: 'success' });
         setContent('');
         setTargetUserIds([]);
         setExpiresAt('');
+        setLinkUrl('');
       }
     } catch (error) {
       setMessage({ text: 'Failed to create banner message.', type: 'error' });
@@ -114,6 +117,17 @@ const BannerManager: React.FC = () => {
               className="w-full bg-gray-700 text-white rounded p-3 focus:outline-none focus:ring-2 focus:ring-yellow-500"
             />
           </div>
+        </div>
+
+        <div>
+          <label className="block text-gray-300 mb-2">Link URL (Optional)</label>
+          <input
+            type="url"
+            value={linkUrl}
+            onChange={(e) => setLinkUrl(e.target.value)}
+            placeholder="https://example.com"
+            className="w-full bg-gray-700 text-white rounded p-3 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+          />
         </div>
 
         {type === 'user' && (

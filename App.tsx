@@ -46,7 +46,6 @@ const LoadingFallback: React.FC = () => (
 const App: React.FC = () => {
   return (
     <AuthProvider>
-      <BannerMessage />
       <Toaster position="top-center" />
       <IonApp>
         <MainContent />
@@ -409,6 +408,7 @@ const MainContent: React.FC = () => {
             )}
           </div>
         )}
+        <BannerMessage />
         {challengeStarted && challenge ? (
           <>
             <DailyMessage message={dailyMessage} isBlurred={!todaysSubmission && !!todaysGame} />
