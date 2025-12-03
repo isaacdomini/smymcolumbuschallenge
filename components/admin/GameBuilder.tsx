@@ -255,7 +255,7 @@ const GameBuilder: React.FC<GameBuilderProps> = ({
                             <option value={GameType.CROSSWORD}>Crossword (JSON)</option>
                             <option value={GameType.MATCH_THE_WORD}>Match the Word</option>
                             <option value={GameType.VERSE_SCRAMBLE}>Verse Scramble</option>
-                            <option value={GameType.WHO_AM_I}>Who Am I?</option>
+                            <option value={GameType.WHO_AM_I}>Hangman</option>
                             <option value={GameType.WORD_SEARCH}>Word Search</option>
                         </select>
                     </div>
@@ -411,14 +411,14 @@ const GameBuilder: React.FC<GameBuilderProps> = ({
                     {gameType === GameType.WHO_AM_I && (
                         <div className="space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-1">Answer (Person's Name)</label>
+                                <label className="block text-sm font-medium text-gray-300 mb-1">Answer (Word or Phrase)</label>
                                 <input
                                     type="text"
                                     value={whoAmIAnswer}
                                     onChange={e => setWhoAmIAnswer(e.target.value)}
                                     required
                                     className="w-full p-2 bg-gray-900 border border-gray-700 rounded focus:ring-yellow-500 focus:border-yellow-500 text-white"
-                                    placeholder="MOSES"
+                                    placeholder="FAITH"
                                 />
                             </div>
                             <div>

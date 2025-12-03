@@ -32,6 +32,8 @@ const getGameName = (gameType: GameType): string => {
       return "Connect the Words";
     case GameType.MATCH_THE_WORD:
       return "Match the Word";
+    case GameType.WHO_AM_I:
+      return "Hangman";
     default:
       return gameType.charAt(0).toUpperCase() + gameType.slice(1);
   }
