@@ -193,6 +193,7 @@ const ConnectionsGame: React.FC<ConnectionsGameProps> = ({ gameId, gameData, sub
           submissionData: {
             foundGroups: foundGroups.map(g => g.name),
             categoriesFound: foundGroups.length,
+            assignedCategories: gameData.categories.map(c => c.name)
           }
         });
         setTimeout(onComplete, 3000);
