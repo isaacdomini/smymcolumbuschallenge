@@ -30,6 +30,7 @@ const GameBuilder: React.FC<GameBuilderProps> = ({
 
     // Wordle State
     const [wordleSolution, setWordleSolution] = useState('');
+    const [wordleAdvancedSolutions, setWordleAdvancedSolutions] = useState<string[]>(['', '', '', '', '']);
 
     // Connections State
     const [connectionsCategories, setConnectionsCategories] = useState([
@@ -68,6 +69,8 @@ const GameBuilder: React.FC<GameBuilderProps> = ({
             setGameType(initialData.type);
             if (initialData.type === GameType.WORDLE && initialData.data?.solution) {
                 setWordleSolution(initialData.data.solution);
+            } else if (initialData.type === GameType.WORDLE_ADVANCED && initialData.data?.solutions) {
+                setWordleAdvancedSolutions(initialData.data.solutions);
             } else if (initialData.type === GameType.CONNECTIONS && initialData.data?.categories) {
                 setConnectionsCategories(initialData.data.categories);
             } else if (initialData.type === GameType.CROSSWORD && initialData.data) {
@@ -98,6 +101,8 @@ const GameBuilder: React.FC<GameBuilderProps> = ({
         let gameData: any = {};
         if (gameType === GameType.WORDLE) {
             gameData = { solution: wordleSolution.toUpperCase() };
+        } else if (gameType === GameType.WORDLE_ADVANCED) {
+            gameData = { solutions: wordleAdvancedSolutions.filter(w => w.trim() !== '').map(w => w.toUpperCase()) };
         } else if (gameType === GameType.CONNECTIONS) {
             gameData = {
                 categories: connectionsCategories.map(c => ({
@@ -245,6 +250,7 @@ const GameBuilder: React.FC<GameBuilderProps> = ({
                             className="w-full p-2 bg-gray-900 border border-gray-700 rounded focus:ring-yellow-500 focus:border-yellow-500 text-white"
                         >
                             <option value={GameType.WORDLE}>Wordle</option>
+                            <option value={GameType.WORDLE_ADVANCED}>Wordle Advanced (Word Bank)</option>
                             <option value={GameType.CONNECTIONS}>Connect the Words</option>
                             <option value={GameType.CROSSWORD}>Crossword (JSON)</option>
                             <option value={GameType.MATCH_THE_WORD}>Match the Word</option>
@@ -267,6 +273,34 @@ const GameBuilder: React.FC<GameBuilderProps> = ({
                                 className="w-full p-2 bg-gray-900 border border-gray-700 rounded focus:ring-yellow-500 focus:border-yellow-500 text-white uppercase"
                                 placeholder="FAITH"
                             />
+                        </div>
+                    )}
+
+                    {gameType === GameType.WORDLE_ADVANCED && (
+                        <div className="space-y-4">
+                            <label className="block text-sm font-medium text-gray-300 mb-1">Solution Bank (5-letters each)</label>
+                            <p className="text-xs text-gray-400 mb-2">Enter multiple words. One will be randomly assigned to each user.</p>
+                            {wordleAdvancedSolutions.map((word, idx) => (
+                                <input
+                                    key={idx}
+                                    type="text"
+                                    value={word}
+                                    onChange={e => {
+                                        const newSolutions = [...wordleAdvancedSolutions];
+                                        newSolutions[idx] = e.target.value;
+                                        setWordleAdvancedSolutions(newSolutions);
+                                    }}
+                                    placeholder={`Word ${idx + 1}`}
+                                    className="w-full p-2 mb-2 bg-gray-900 border border-gray-700 rounded focus:ring-yellow-500 focus:border-yellow-500 text-white uppercase"
+                                />
+                            ))}
+                            <button
+                                type="button"
+                                onClick={() => setWordleAdvancedSolutions([...wordleAdvancedSolutions, ''])}
+                                className="text-sm text-yellow-400 hover:text-yellow-300"
+                            >
+                                + Add Word
+                            </button>
                         </div>
                     )}
 
