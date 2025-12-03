@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
-import { getAdminStats } from '../../services/api';
-import { AdminStats } from '../../types';
+import { getAdminStats, getChallenges, createGame } from '../../services/api';
+import { AdminStats, Challenge } from '../../types';
 import GameBuilder from './GameBuilder';
 import { ChallengeManager } from './ChallengeManager';
 import UserManager from './UserManager';
@@ -16,6 +16,13 @@ const AdminDashboard: React.FC = () => {
     const { user } = useAuth();
     const [stats, setStats] = useState<AdminStats | null>(null);
     const [activeTab, setActiveTab] = useState<Tab>('challenges');
+    const [challenges, setChallenges] = useState<Challenge[]>([]);
+
+    useEffect(() => {
+        if (user?.id && user.isAdmin) {
+            getChallenges(user.id).then(setChallenges).catch(console.error);
+        }
+    }, [user]);
 
     useEffect(() => {
         if (user?.id && user.isAdmin) {
@@ -68,7 +75,24 @@ const AdminDashboard: React.FC = () => {
             {/* Tab Content */}
             <div className="animate-fade-in">
                 {activeTab === 'challenges' && <ChallengeManager user={user} />}
-                {activeTab === 'games' && <GameBuilder />}
+                {activeTab === 'games' && (
+                    <GameBuilder
+                        onSave={async (gameData) => {
+                            try {
+                                await createGame(user.id, gameData);
+                                alert('Game saved successfully!');
+                            } catch (error: any) {
+                                alert('Failed to save game: ' + error.message);
+                            }
+                        }}
+                        onCancel={() => setActiveTab('challenges')}
+                        onPreview={(type, data) => {
+                            console.log('Previewing game:', type, data);
+                            alert('Preview functionality is available in the Challenge Manager tab.');
+                        }}
+                        challenges={challenges}
+                    />
+                )}
                 {activeTab === 'messages' && <DailyMessageManager />}
                 {activeTab === 'banners' && <BannerManager />}
                 {activeTab === 'users' && <UserManager />}
