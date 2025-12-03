@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import * as api from '@/services/api';
+import ReactMarkdown from 'react-markdown';
 
 interface BannerMessage {
   id: number;
@@ -53,9 +54,11 @@ export const BannerMessage: React.FC = () => {
           }}
         >
           <div className="flex-1 pr-8">
-            <span className="font-medium text-lg">{msg.content}</span>
+            <div className="font-medium text-lg prose prose-invert prose-p:my-0 prose-a:text-blue-200">
+              <ReactMarkdown>{msg.content}</ReactMarkdown>
+            </div>
             {msg.linkUrl && (
-              <span className="ml-2 text-blue-200 text-sm underline">
+              <span className="inline-block mt-2 text-blue-200 text-sm underline">
                 Learn more &rarr;
               </span>
             )}

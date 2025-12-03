@@ -84,14 +84,14 @@ const BannerManager: React.FC = () => {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
-          <label className="block text-gray-300 mb-2">Message Content</label>
+          <label className="block text-gray-300 mb-2">Message Content (Markdown Supported)</label>
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            className="w-full bg-gray-700 text-white rounded p-3 focus:outline-none focus:ring-2 focus:ring-yellow-500"
-            rows={3}
+            className="w-full bg-gray-700 text-white rounded p-3 focus:outline-none focus:ring-2 focus:ring-yellow-500 font-mono text-sm"
+            rows={5}
             required
-            placeholder="Enter your message here..."
+            placeholder="Enter your message here... Use **bold**, *italics*, or lists."
           />
         </div>
 
