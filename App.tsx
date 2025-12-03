@@ -355,6 +355,7 @@ const MainContent: React.FC = () => {
       }
       switch (gameToPlay.type) {
         case GameType.WORDLE:
+        case GameType.WORDLE_ADVANCED:
           return <WordleGame gameData={gameToPlay.data as any} onComplete={onComplete} submission={activeSubmission} gameId={gameToPlay.id} />;
         case GameType.CONNECTIONS:
           return <ConnectionsGame gameData={gameToPlay.data as any} onComplete={onComplete} submission={activeSubmission} gameId={gameToPlay.id} />;

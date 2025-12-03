@@ -9,6 +9,7 @@ export interface User {
 
 export enum GameType {
   WORDLE = 'wordle',
+  WORDLE_ADVANCED = 'wordle_advanced',
   CONNECTIONS = 'connections',
   CROSSWORD = 'crossword',
   MATCH_THE_WORD = 'match_the_word',
