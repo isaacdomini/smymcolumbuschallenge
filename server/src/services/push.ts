@@ -268,3 +268,44 @@ export const sendPushNotification = async (userId: string, payload: { title: str
         console.error(`Failed to fetch subscriptions for user ${userId}:`, error);
     }
 };
+
+export const sendBatchPushNotification = async (userIds: string[] | null, payload: { title: string, body: string, url?: string }) => {
+    try {
+        let query = 'SELECT * FROM push_subscriptions';
+        let params: any[] = [];
+
+        if (userIds) {
+            query += ' WHERE user_id = ANY($1)';
+            params.push(userIds);
+        }
+
+        const result = await pool.query(query, params);
+        const subscriptions = result.rows;
+
+        if (subscriptions.length === 0) return;
+
+        console.log(`Sending batch push notification to ${subscriptions.length} devices`);
+
+        // Filter subscriptions by platform
+        const webSubscriptions = subscriptions.filter(s => s.platform === 'web' && s.endpoint);
+        const androidTokens = subscriptions.filter(s => s.platform === 'android' && s.device_token).map(s => s.device_token);
+        const iosTokens = subscriptions.filter(s => s.platform === 'ios' && s.device_token).map(s => s.device_token);
+
+        const pushPromises = [];
+
+        if (webSubscriptions.length > 0) {
+            pushPromises.push(sendWebPush(webSubscriptions, payload));
+        }
+        if (androidTokens.length > 0) {
+            pushPromises.push(sendFirebasePush(androidTokens, payload));
+        }
+        if (iosTokens.length > 0) {
+            pushPromises.push(sendApplePush(iosTokens, payload));
+        }
+
+        await Promise.all(pushPromises);
+
+    } catch (error) {
+        console.error('Failed to send batch push notification:', error);
+    }
+};
