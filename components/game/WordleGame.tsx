@@ -216,7 +216,7 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
           startedAt: new Date(startTime).toISOString(),
           timeTaken,
           mistakes,
-          submissionData: { guesses: guesses.filter(g => g) }
+          submissionData: { guesses: guesses.filter(g => g), solution }
         });
         setTimeout(onComplete, 2000);
       }

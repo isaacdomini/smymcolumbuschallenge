@@ -944,6 +944,7 @@ router.get('/challenge', async (req: Request, res: Response) => {
 
 // Helper to resolve game data (specifically for Wordle Advanced)
 // Helper to resolve game data (specifically for Wordle Advanced)
+// Helper to resolve game data (specifically for Wordle Advanced)
 const resolveGameData = async (game: any, userId: string | undefined) => {
   let gameData = game.data;
   let gameType = game.type;
@@ -953,57 +954,49 @@ const resolveGameData = async (game: any, userId: string | undefined) => {
     gameType = 'wordle';
 
     if (userId) {
-      // First check if we already have a word assigned
-      let progressResult = await pool.query('SELECT game_state FROM game_progress WHERE user_id = $1 AND game_id = $2', [userId, game.id]);
-
       let assignedWord;
-      if (progressResult.rows.length > 0 && progressResult.rows[0].game_state.assignedWord) {
-        assignedWord = progressResult.rows[0].game_state.assignedWord;
-      } else {
-        // No word assigned yet. Pick one.
-        const solutions = gameData.solutions || [];
-        if (solutions.length > 0) {
-          const candidateWord = solutions[Math.floor(Math.random() * solutions.length)];
 
-          // Get existing state (if any) to merge
-          const existingState = progressResult.rows.length > 0 ? progressResult.rows[0].game_state : {};
-          const newState = { ...existingState, assignedWord: candidateWord };
+      // 1. Check if the user has already submitted the game (completed)
+      // If so, the solution MUST be in the submission data (if we started saving it there)
+      // or we might have to fallback (but if they completed it, progress is gone).
+      const submissionResult = await pool.query('SELECT submission_data FROM game_submissions WHERE user_id = $1 AND game_id = $2', [userId, game.id]);
 
-          // Try to insert/update. 
-          // If a race condition happens (another request inserted just now), we want to respect that one.
-          // However, 'ON CONFLICT DO UPDATE' would overwrite the other request's word.
-          // We want 'ON CONFLICT DO NOTHING' if the row exists? 
-          // But the row might exist without 'assignedWord' (if they played before this feature?).
-          // Actually, if the row exists, we are doing an UPDATE.
-          // If we want to be atomic: "UPDATE if assignedWord is null".
+      if (submissionResult.rows.length > 0) {
+        const submissionData = submissionResult.rows[0].submission_data;
+        if (submissionData && submissionData.solution) {
+          assignedWord = submissionData.solution;
+        }
+      }
 
-          // Simplest robust approach:
-          // 1. Try to INSERT ... ON CONFLICT DO NOTHING.
-          // 2. If insert happened, we are good.
-          // 3. If conflict (row exists), perform UPDATE only if assignedWord is missing.
+      // 2. If not found in submission, check game_progress
+      if (!assignedWord) {
+        // First check if we already have a word assigned
+        let progressResult = await pool.query('SELECT game_state FROM game_progress WHERE user_id = $1 AND game_id = $2', [userId, game.id]);
 
-          // Actually, simpler: Just perform the UPSERT as before, but re-read the value afterwards?
-          // No, if we overwrite, we change the word the user might have just seen in another tab.
-
-          // The issue is if Req A writes "A", Req B writes "B". Req A returns "A" but DB has "B".
-          // To fix this, we can use a transaction or just accept the last write wins.
-          // But to ensure we return what is in the DB, we should re-fetch.
-
-          await pool.query(
-            `INSERT INTO game_progress (id, user_id, game_id, game_state, updated_at) 
-             VALUES ($1, $2, $3, $4, NOW()) 
-             ON CONFLICT (user_id, game_id) DO UPDATE SET game_state = $4, updated_at = NOW()`,
-            [`progress-${userId}-${game.id}`, userId, game.id, JSON.stringify(newState)]
-          );
-
-          // Re-fetch to ensure we return the persisted state (in case of triggers or other logic, though unlikely here)
-          // But mainly to be safe.
-          // Actually, for this simple app, the previous logic was fine, just the logs were confusing.
-          // But let's remove the logs.
-          assignedWord = candidateWord;
-
+        if (progressResult.rows.length > 0 && progressResult.rows[0].game_state.assignedWord) {
+          assignedWord = progressResult.rows[0].game_state.assignedWord;
         } else {
-          assignedWord = "ERROR";
+          // No word assigned yet. Pick one.
+          const solutions = gameData.solutions || [];
+          if (solutions.length > 0) {
+            const candidateWord = solutions[Math.floor(Math.random() * solutions.length)];
+
+            // Get existing state (if any) to merge
+            const existingState = progressResult.rows.length > 0 ? progressResult.rows[0].game_state : {};
+            const newState = { ...existingState, assignedWord: candidateWord };
+
+            await pool.query(
+              `INSERT INTO game_progress (id, user_id, game_id, game_state, updated_at) 
+               VALUES ($1, $2, $3, $4, NOW()) 
+               ON CONFLICT (user_id, game_id) DO UPDATE SET game_state = $4, updated_at = NOW()`,
+              [`progress-${userId}-${game.id}`, userId, game.id, JSON.stringify(newState)]
+            );
+
+            assignedWord = candidateWord;
+
+          } else {
+            assignedWord = "ERROR";
+          }
         }
       }
 
