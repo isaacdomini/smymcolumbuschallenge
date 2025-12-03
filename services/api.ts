@@ -997,7 +997,7 @@ export const getScoringCriteria = async (): Promise<any[]> => {
         {
             title: 'Verse Scramble',
             description: 'Unscramble the Bible verse by dragging words into the correct order.',
-            hidden: true,
+            hidden: false,
             points: [
                 'Completion Score: 50 points for completing the verse.',
                 'Accuracy Bonus: Up to 30 points for minimal mistakes.',
@@ -1007,7 +1007,7 @@ export const getScoringCriteria = async (): Promise<any[]> => {
         {
             title: 'Who Am I?',
             description: 'Guess the biblical figure before running out of guesses (Hangman style).',
-            hidden: true,
+            hidden: false,
             points: [
                 'Win Score: 50 points for guessing the correct answer.',
                 'Guess Bonus: 5 points for each remaining incorrect guess allowed.',
