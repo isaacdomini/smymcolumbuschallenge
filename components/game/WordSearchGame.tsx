@@ -258,9 +258,6 @@ const WordSearchGame: React.FC<WordSearchGameProps> = ({ gameId, gameData, submi
                     onMouseEnter={() => handleCellEnter(r, c)}
                     onMouseUp={handleCellUp}
                     onTouchStart={(e) => {
-                      // Prevent default to stop scrolling/long-press menu
-                      // But be careful not to block scrolling entirely if not selecting
-                      // e.preventDefault(); 
                       handleCellDown(r, c);
                     }}
                     // Touch move is harder to handle with individual elements, usually requires global handler
