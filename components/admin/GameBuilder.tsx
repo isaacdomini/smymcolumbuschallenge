@@ -41,7 +41,7 @@ const GameBuilder: React.FC<GameBuilderProps> = ({
     ]);
 
     // Crossword State
-    const [crosswordJson, setCrosswordJson] = useState('');
+    const [crosswordPuzzles, setCrosswordPuzzles] = useState<string[]>(['']);
 
     // Match The Word State
     const [matchPairs, setMatchPairs] = useState<{ word: string, match: string }[]>([
@@ -76,7 +76,11 @@ const GameBuilder: React.FC<GameBuilderProps> = ({
             } else if (initialData.type === GameType.CONNECTIONS && initialData.data?.categories) {
                 setConnectionsCategories(initialData.data.categories);
             } else if (initialData.type === GameType.CROSSWORD && initialData.data) {
-                setCrosswordJson(JSON.stringify(initialData.data, null, 2));
+                if (initialData.data.puzzles) {
+                    setCrosswordPuzzles(initialData.data.puzzles.map((p: any) => JSON.stringify(p, null, 2)));
+                } else {
+                    setCrosswordPuzzles([JSON.stringify(initialData.data, null, 2)]);
+                }
             } else if (initialData.type === GameType.MATCH_THE_WORD && initialData.data) {
                 setMatchPairs(initialData.data.pairs);
             } else if (initialData.type === GameType.VERSE_SCRAMBLE && initialData.data) {
@@ -119,10 +123,14 @@ const GameBuilder: React.FC<GameBuilderProps> = ({
             };
         } else if (gameType === GameType.CROSSWORD) {
             try {
-                gameData = JSON.parse(crosswordJson);
-                if (!gameData.rows || !gameData.cols) {
-                    throw new Error("Crossword JSON must include 'rows' and 'cols'.");
-                }
+                const puzzles = crosswordPuzzles.map(json => {
+                    const parsed = JSON.parse(json);
+                    if (!parsed.rows || !parsed.cols) {
+                        throw new Error("Crossword JSON must include 'rows' and 'cols'.");
+                    }
+                    return parsed;
+                });
+                gameData = { puzzles };
             } catch (err: any) {
                 throw new Error("Invalid Crossword JSON: " + err.message);
             }
@@ -370,16 +378,44 @@ const GameBuilder: React.FC<GameBuilderProps> = ({
                     )}
 
                     {gameType === GameType.CROSSWORD && (
-                        <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-1">Crossword JSON Data</label>
-                            <textarea
-                                value={crosswordJson}
-                                onChange={e => setCrosswordJson(e.target.value)}
-                                required
-                                rows={10}
-                                className="w-full p-2 bg-gray-900 border border-gray-700 rounded focus:ring-yellow-500 focus:border-yellow-500 text-white font-mono text-sm"
-                                placeholder='{"rows": 6, "cols": 5, "acrossClues": [...], "downClues": [...] }'
-                            />
+                        <div className="space-y-6">
+                            <p className="text-sm text-gray-400 mb-2">Enter one or more Crossword JSON definitions. One will be randomly assigned to each user.</p>
+                            {crosswordPuzzles.map((json, idx) => (
+                                <div key={idx} className="relative">
+                                    <label className="block text-sm font-medium text-gray-300 mb-1">Puzzle {idx + 1} JSON</label>
+                                    <textarea
+                                        value={json}
+                                        onChange={e => {
+                                            const newPuzzles = [...crosswordPuzzles];
+                                            newPuzzles[idx] = e.target.value;
+                                            setCrosswordPuzzles(newPuzzles);
+                                        }}
+                                        required
+                                        rows={10}
+                                        className="w-full p-2 bg-gray-900 border border-gray-700 rounded focus:ring-yellow-500 focus:border-yellow-500 text-white font-mono text-sm"
+                                        placeholder='{"rows": 6, "cols": 5, "acrossClues": [...], "downClues": [...] }'
+                                    />
+                                    {crosswordPuzzles.length > 1 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const newPuzzles = crosswordPuzzles.filter((_, i) => i !== idx);
+                                                setCrosswordPuzzles(newPuzzles);
+                                            }}
+                                            className="absolute top-0 right-0 text-red-400 hover:text-red-300 text-xs bg-gray-800 px-2 py-1 rounded"
+                                        >
+                                            Remove
+                                        </button>
+                                    )}
+                                </div>
+                            ))}
+                            <button
+                                type="button"
+                                onClick={() => setCrosswordPuzzles([...crosswordPuzzles, ''])}
+                                className="text-sm text-yellow-400 hover:text-yellow-300"
+                            >
+                                + Add Puzzle
+                            </button>
                             <p className="text-xs text-gray-500 mt-1">Paste the full JSON object for the crossword structure here. Must include 'rows' and 'cols'.</p>
                         </div>
                     )}
