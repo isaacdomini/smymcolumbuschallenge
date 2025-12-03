@@ -61,8 +61,9 @@ export interface VerseScrambleData {
 }
 
 export interface WhoAmIData {
-  answer: string;
+  answer?: string;
   hint?: string;
+  solutions?: { answer: string; hint?: string }[];
 }
 
 export interface WordSearchData {
