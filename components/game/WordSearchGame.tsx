@@ -78,7 +78,7 @@ const WordSearchGame: React.FC<WordSearchGameProps> = ({ gameId, gameData, submi
     const dc = end.c - start.c;
     const steps = Math.max(Math.abs(dr), Math.abs(dc));
 
-    if (steps === 0) return grid[start.r][start.c];
+    if (steps === 0) return { word: grid[start.r][start.c], cells: [{ r: start.r, c: start.c }] };
 
     // Check if diagonal, horizontal, or vertical
     if (dr !== 0 && dc !== 0 && Math.abs(dr) !== Math.abs(dc)) return null; // Invalid angle
@@ -171,7 +171,12 @@ const WordSearchGame: React.FC<WordSearchGameProps> = ({ gameId, gameData, submi
           startedAt: new Date(startTime).toISOString(),
           timeTaken,
           mistakes: 0,
-          submissionData: { foundWordsCount: foundWords.length }
+          submissionData: {
+            foundWordsCount: foundWords.length,
+            foundWords,
+            grid: dataToUse.grid,
+            words: dataToUse.words
+          }
         });
         setTimeout(onComplete, 3000);
       }
