@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import pool from '../db/pool.js';
 import { requireAdmin } from '../middleware/auth.js';
+import { sendBatchPushNotification } from '../services/push.js';
 
 const router = Router();
 
@@ -496,6 +497,23 @@ router.post('/banner-messages', async (req: Request, res: Response) => {
             }
 
             await client.query('COMMIT');
+
+            // Send Push Notification
+            // Don't await this so we don't block the response
+            const pushTitle = priority === 'high' ? 'Important Message' : 'New Message';
+            // Strip markdown for push body (simple regex or just send content)
+            // For simplicity, we'll just send the content. Ideally we'd strip markdown.
+            const pushBody = content.replace(/[*_~`]/g, '');
+
+            sendBatchPushNotification(
+                type === 'user' ? targetUserIds : null,
+                {
+                    title: pushTitle,
+                    body: pushBody,
+                    url: linkUrl || '/'
+                }
+            );
+
             res.status(201).json({ message: 'Banner message created', id: messageId });
         } catch (error) {
             await client.query('ROLLBACK');
