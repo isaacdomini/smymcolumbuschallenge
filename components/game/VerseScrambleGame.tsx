@@ -49,8 +49,15 @@ const VerseScrambleGame: React.FC<VerseScrambleGameProps> = ({ gameId, gameData,
         const savedProgress = await getGameState(user.id, gameId);
 
         if (savedProgress?.gameState) {
-          setAvailableWords(savedProgress.gameState.availableWords || []);
-          setPlacedWords(savedProgress.gameState.placedWords || []);
+          if (savedProgress.gameState.availableWords || savedProgress.gameState.placedWords) {
+            setAvailableWords(savedProgress.gameState.availableWords || []);
+            setPlacedWords(savedProgress.gameState.placedWords || []);
+          } else {
+            const scrambled = [...verseWords].sort(() => Math.random() - 0.5);
+            setAvailableWords(scrambled.map((w, i) => ({ id: `pool-${i}`, text: w })));
+            setPlacedWords([]);
+          }
+
           setGameState(savedProgress.gameState.gameState || 'playing');
           if (savedProgress.gameState.startTime) {
             setStartTime(savedProgress.gameState.startTime);
