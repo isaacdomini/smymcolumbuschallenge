@@ -19,7 +19,8 @@ const calculateScore = (game: any, submissionData: any, timeTaken: number, mista
   const gameType = game.type;
 
   switch (gameType) {
-    case 'wordle': {
+    case 'wordle':
+    case 'wordle_advanced': {
       const maxGuesses = 6;
       if (mistakes >= maxGuesses) {
         baseScore = 0;
