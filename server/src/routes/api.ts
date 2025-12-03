@@ -13,6 +13,16 @@ const getTodayEST = () => {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
 };
 
+// --- HELPER: Fisher-Yates Shuffle ---
+const shuffleArray = <T>(array: T[]): T[] => {
+  const newArray = [...array];
+  for (let i = newArray.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+  }
+  return newArray;
+};
+
 // --- HELPER: Score Calculation ---
 const calculateScore = (game: any, submissionData: any, timeTaken: number, mistakes: number): number => {
   let baseScore = 0;
@@ -954,8 +964,6 @@ const resolveGameData = async (game: any, userId: string | undefined) => {
       let assignedWord;
 
       // 1. Check if the user has already submitted the game (completed)
-      // If so, the solution MUST be in the submission data (if we started saving it there)
-      // or we might have to fallback (but if they completed it, progress is gone).
       const submissionResult = await pool.query('SELECT submission_data FROM game_submissions WHERE user_id = $1 AND game_id = $2', [userId, game.id]);
 
       if (submissionResult.rows.length > 0) {
@@ -967,7 +975,6 @@ const resolveGameData = async (game: any, userId: string | undefined) => {
 
       // 2. If not found in submission, check game_progress
       if (!assignedWord) {
-        // First check if we already have a word assigned
         let progressResult = await pool.query('SELECT game_state FROM game_progress WHERE user_id = $1 AND game_id = $2', [userId, game.id]);
 
         if (progressResult.rows.length > 0 && progressResult.rows[0].game_state.assignedWord) {
@@ -1006,6 +1013,357 @@ const resolveGameData = async (game: any, userId: string | undefined) => {
       gameData = { ...gameData, solution: assignedWord };
       delete gameData.solutions;
     }
+  } else if (gameType === 'who_am_i' && gameData.solutions && gameData.solutions.length > 0) {
+    // Handle Who Am I with multiple solutions
+    if (userId) {
+      let assignedSolution;
+
+      // 1. Check submission
+      const submissionResult = await pool.query('SELECT submission_data FROM game_submissions WHERE user_id = $1 AND game_id = $2', [userId, game.id]);
+      if (submissionResult.rows.length > 0) {
+        const submissionData = submissionResult.rows[0].submission_data;
+        // Check for 'answer' (new format) or 'solution' (just in case)
+        if (submissionData && (submissionData.answer || submissionData.solution)) {
+          assignedSolution = {
+            answer: submissionData.answer || submissionData.solution,
+            hint: submissionData.hint
+          };
+        }
+      }
+
+      // 2. Check progress
+      if (!assignedSolution) {
+        let progressResult = await pool.query('SELECT game_state FROM game_progress WHERE user_id = $1 AND game_id = $2', [userId, game.id]);
+
+        if (progressResult.rows.length > 0 && progressResult.rows[0].game_state.assignedWhoAmI) {
+          assignedSolution = progressResult.rows[0].game_state.assignedWhoAmI;
+        } else {
+          // Assign new
+          const solutions = gameData.solutions;
+          const candidate = solutions[Math.floor(Math.random() * solutions.length)];
+
+          const existingState = progressResult.rows.length > 0 ? progressResult.rows[0].game_state : {};
+          const newState = { ...existingState, assignedWhoAmI: candidate };
+
+          await pool.query(
+            `INSERT INTO game_progress (id, user_id, game_id, game_state, updated_at) 
+               VALUES ($1, $2, $3, $4, NOW()) 
+               ON CONFLICT (user_id, game_id) DO UPDATE SET game_state = $4, updated_at = NOW()`,
+            [`progress-${userId}-${game.id}`, userId, game.id, JSON.stringify(newState)]
+          );
+          assignedSolution = candidate;
+        }
+      }
+
+      if (assignedSolution) {
+        gameData = { ...gameData, ...assignedSolution };
+        delete gameData.solutions;
+      }
+    } else {
+      // Guest - pick random
+      const solutions = gameData.solutions;
+      const candidate = solutions[Math.floor(Math.random() * solutions.length)];
+      gameData = { ...gameData, ...candidate };
+      delete gameData.solutions;
+    }
+
+  } else if (gameType === 'connections') {
+    if (userId) {
+      let assignedCategories: string[] | undefined;
+
+      // 1. Check submission
+      const submissionResult = await pool.query('SELECT submission_data FROM game_submissions WHERE user_id = $1 AND game_id = $2', [userId, game.id]);
+      if (submissionResult.rows.length > 0) {
+        const submissionData = submissionResult.rows[0].submission_data;
+        if (submissionData && submissionData.categories) {
+          assignedCategories = submissionData.categories.map((c: any) => c.name);
+        }
+      }
+
+      // 2. Check progress
+      if (!assignedCategories) {
+        let progressResult = await pool.query('SELECT game_state FROM game_progress WHERE user_id = $1 AND game_id = $2', [userId, game.id]);
+
+        if (progressResult.rows.length > 0 && progressResult.rows[0].game_state.assignedCategories) {
+          assignedCategories = progressResult.rows[0].game_state.assignedCategories;
+        } else {
+          // Assign new
+          const allCategories = gameData.categories;
+          // Shuffle and pick 4
+          // Shuffle and pick 4
+          const shuffled = shuffleArray(allCategories);
+          const selected = shuffled.slice(0, 4);
+          assignedCategories = selected.map((c: any) => c.name);
+
+          const existingState = progressResult.rows.length > 0 ? progressResult.rows[0].game_state : {};
+          const newState = { ...existingState, assignedCategories };
+
+          await pool.query(
+            `INSERT INTO game_progress (id, user_id, game_id, game_state, updated_at) 
+               VALUES ($1, $2, $3, $4, NOW()) 
+               ON CONFLICT (user_id, game_id) DO UPDATE SET game_state = $4, updated_at = NOW()`,
+            [`progress-${userId}-${game.id}`, userId, game.id, JSON.stringify(newState)]
+          );
+        }
+      }
+
+      if (assignedCategories) {
+        const selectedCats = gameData.categories.filter((c: any) => assignedCategories!.includes(c.name));
+        // Ensure we found them (in case of data mismatch), otherwise fallback
+        if (selectedCats.length === 4) {
+          gameData = {
+            categories: selectedCats,
+            words: selectedCats.flatMap((c: any) => c.words)
+          };
+        } else {
+          // Fallback if names don't match
+          const selected = gameData.categories.slice(0, 4);
+          gameData = {
+            categories: selected,
+            words: selected.flatMap((c: any) => c.words)
+          };
+        }
+      }
+    } else {
+      // Guest - just pick first 4
+      const selected = gameData.categories.slice(0, 4);
+      gameData = {
+        categories: selected,
+        words: selected.flatMap((c: any) => c.words)
+      };
+    }
+  } else if (gameType === 'word_search' && gameData.puzzles && gameData.puzzles.length > 0) {
+    // Handle Word Search with multiple puzzles
+    if (userId) {
+      let assignedPuzzle;
+
+      // 1. Check submission
+      const submissionResult = await pool.query('SELECT submission_data FROM game_submissions WHERE user_id = $1 AND game_id = $2', [userId, game.id]);
+      if (submissionResult.rows.length > 0) {
+        const submissionData = submissionResult.rows[0].submission_data;
+        if (submissionData && submissionData.assignedWordSearchIndex !== undefined) {
+          const index = submissionData.assignedWordSearchIndex;
+          if (gameData.puzzles[index]) {
+            assignedPuzzle = gameData.puzzles[index];
+          }
+        }
+      }
+
+      // 2. Check progress
+      if (!assignedPuzzle) {
+        let progressResult = await pool.query('SELECT game_state FROM game_progress WHERE user_id = $1 AND game_id = $2', [userId, game.id]);
+
+        if (progressResult.rows.length > 0 && progressResult.rows[0].game_state.assignedWordSearchIndex !== undefined) {
+          const index = progressResult.rows[0].game_state.assignedWordSearchIndex;
+          if (gameData.puzzles[index]) {
+            assignedPuzzle = gameData.puzzles[index];
+          }
+        }
+
+        if (!assignedPuzzle) {
+          // Assign new
+          const puzzles = gameData.puzzles;
+          const randomIndex = Math.floor(Math.random() * puzzles.length);
+          const candidate = puzzles[randomIndex];
+
+          const existingState = progressResult.rows.length > 0 ? progressResult.rows[0].game_state : {};
+          const newState = { ...existingState, assignedWordSearchIndex: randomIndex };
+
+          await pool.query(
+            `INSERT INTO game_progress (id, user_id, game_id, game_state, updated_at)
+               VALUES ($1, $2, $3, $4, NOW())
+               ON CONFLICT (user_id, game_id) DO UPDATE SET game_state = $4, updated_at = NOW()`,
+            [`progress-${userId}-${game.id}`, userId, game.id, JSON.stringify(newState)]
+          );
+          assignedPuzzle = candidate;
+        }
+      }
+
+      if (assignedPuzzle) {
+        gameData = { ...assignedPuzzle };
+      }
+    } else {
+      // Guest - pick random
+      const puzzles = gameData.puzzles;
+      const candidate = puzzles[Math.floor(Math.random() * puzzles.length)];
+      gameData = { ...candidate };
+    }
+  } else if (gameType === 'crossword' && gameData.puzzles && gameData.puzzles.length > 0) {
+    // Handle Crossword with multiple puzzles
+    if (userId) {
+      let assignedPuzzle;
+
+      // 1. Check submission
+      const submissionResult = await pool.query('SELECT submission_data FROM game_submissions WHERE user_id = $1 AND game_id = $2', [userId, game.id]);
+      if (submissionResult.rows.length > 0) {
+        // If they submitted, they must have had a puzzle assigned.
+        // We rely on game_progress or re-assign the same one if possible.
+        const submissionData = submissionResult.rows[0].submission_data;
+        if (submissionData && submissionData.puzzle) {
+          assignedPuzzle = submissionData.puzzle;
+        } else if (submissionData && submissionData.assignedCrosswordIndex !== undefined) {
+          const index = submissionData.assignedCrosswordIndex;
+          if (gameData.puzzles[index]) {
+            assignedPuzzle = gameData.puzzles[index];
+          }
+        }
+      }
+
+      // 2. Check progress (primary source for assignment)
+      if (!assignedPuzzle) {
+        let progressResult = await pool.query('SELECT game_state FROM game_progress WHERE user_id = $1 AND game_id = $2', [userId, game.id]);
+
+        if (progressResult.rows.length > 0 && progressResult.rows[0].game_state.assignedCrosswordIndex !== undefined) {
+          const index = progressResult.rows[0].game_state.assignedCrosswordIndex;
+          if (gameData.puzzles[index]) {
+            assignedPuzzle = gameData.puzzles[index];
+          }
+        }
+
+        if (!assignedPuzzle) {
+          // Assign new
+          const puzzles = gameData.puzzles;
+          const randomIndex = Math.floor(Math.random() * puzzles.length);
+          const candidate = puzzles[randomIndex];
+
+          const existingState = progressResult.rows.length > 0 ? progressResult.rows[0].game_state : {};
+          const newState = { ...existingState, assignedCrosswordIndex: randomIndex };
+
+          await pool.query(
+            `INSERT INTO game_progress (id, user_id, game_id, game_state, updated_at) 
+               VALUES ($1, $2, $3, $4, NOW()) 
+               ON CONFLICT (user_id, game_id) DO UPDATE SET game_state = $4, updated_at = NOW()`,
+            [`progress-${userId}-${game.id}`, userId, game.id, JSON.stringify(newState)]
+          );
+          assignedPuzzle = candidate;
+        }
+      }
+
+      if (assignedPuzzle) {
+        gameData = { ...assignedPuzzle };
+      }
+    } else {
+      // Guest - pick random
+      const puzzles = gameData.puzzles;
+      const candidate = puzzles[Math.floor(Math.random() * puzzles.length)];
+      gameData = { ...candidate };
+    }
+  } else if (gameType === 'verse_scramble' && gameData.verses && gameData.verses.length > 0) {
+    // Handle Verse Scramble with multiple verses
+    if (userId) {
+      let assignedVerse;
+
+      // 1. Check submission
+      const submissionResult = await pool.query('SELECT submission_data FROM game_submissions WHERE user_id = $1 AND game_id = $2', [userId, game.id]);
+      if (submissionResult.rows.length > 0) {
+        const submissionData = submissionResult.rows[0].submission_data;
+        if (submissionData && (submissionData.verse || submissionData.reference)) {
+          assignedVerse = {
+            verse: submissionData.verse,
+            reference: submissionData.reference
+          };
+        }
+      }
+
+      // 2. Check progress
+      if (!assignedVerse) {
+        let progressResult = await pool.query('SELECT game_state FROM game_progress WHERE user_id = $1 AND game_id = $2', [userId, game.id]);
+
+        if (progressResult.rows.length > 0 && progressResult.rows[0].game_state.assignedVerse) {
+          assignedVerse = progressResult.rows[0].game_state.assignedVerse;
+        } else {
+          // Assign new
+          const verses = gameData.verses;
+          const candidate = verses[Math.floor(Math.random() * verses.length)];
+
+          const existingState = progressResult.rows.length > 0 ? progressResult.rows[0].game_state : {};
+          const newState = { ...existingState, assignedVerse: candidate };
+
+          await pool.query(
+            `INSERT INTO game_progress (id, user_id, game_id, game_state, updated_at) 
+               VALUES ($1, $2, $3, $4, NOW()) 
+               ON CONFLICT (user_id, game_id) DO UPDATE SET game_state = $4, updated_at = NOW()`,
+            [`progress-${userId}-${game.id}`, userId, game.id, JSON.stringify(newState)]
+          );
+          assignedVerse = candidate;
+        }
+      }
+
+      if (assignedVerse) {
+        gameData = { ...gameData, verse: assignedVerse.verse, reference: assignedVerse.reference };
+        delete gameData.verses;
+      }
+
+    } else {
+      // Guest
+      const candidate = gameData.verses[0];
+      gameData = { ...gameData, verse: candidate.verse, reference: candidate.reference };
+      delete gameData.verses;
+    }
+  } else if (gameType === 'match_the_word' && gameData.pairs && gameData.pairs.length > 6) {
+    // Handle Match The Word with > 6 pairs
+    if (userId) {
+      let assignedPairs: string[] | undefined;
+
+      // 1. Check submission
+      const submissionResult = await pool.query('SELECT submission_data FROM game_submissions WHERE user_id = $1 AND game_id = $2', [userId, game.id]);
+      if (submissionResult.rows.length > 0) {
+        const submissionData = submissionResult.rows[0].submission_data;
+        if (submissionData && submissionData.assignedPairs) {
+          assignedPairs = submissionData.assignedPairs;
+        }
+      }
+
+      // 2. Check progress
+      if (!assignedPairs) {
+        let progressResult = await pool.query('SELECT game_state FROM game_progress WHERE user_id = $1 AND game_id = $2', [userId, game.id]);
+
+        if (progressResult.rows.length > 0 && progressResult.rows[0].game_state.assignedPairs) {
+          assignedPairs = progressResult.rows[0].game_state.assignedPairs;
+        } else {
+          // Assign new 6 pairs
+          const allPairs = gameData.pairs;
+          // Shuffle and pick 6
+          const shuffled = shuffleArray(allPairs);
+          const selected = shuffled.slice(0, 6);
+          assignedPairs = selected.map((p: any) => p.word);
+
+          const existingState = progressResult.rows.length > 0 ? progressResult.rows[0].game_state : {};
+          const newState = { ...existingState, assignedPairs };
+
+          await pool.query(
+            `INSERT INTO game_progress (id, user_id, game_id, game_state, updated_at) 
+               VALUES ($1, $2, $3, $4, NOW()) 
+               ON CONFLICT (user_id, game_id) DO UPDATE SET game_state = $4, updated_at = NOW()`,
+            [`progress-${userId}-${game.id}`, userId, game.id, JSON.stringify(newState)]
+          );
+        }
+      }
+
+      if (assignedPairs) {
+        const selectedPairs = gameData.pairs.filter((p: any) => assignedPairs!.includes(p.word));
+        // Ensure we found them (in case of data mismatch), otherwise fallback
+        if (selectedPairs.length === 6) {
+          gameData = {
+            pairs: selectedPairs
+          };
+        } else {
+          // Fallback if names don't match
+          const selected = gameData.pairs.slice(0, 6);
+          gameData = {
+            pairs: selected
+          };
+        }
+      }
+
+    } else {
+      // Guest - just pick first 6
+      const selected = gameData.pairs.slice(0, 6);
+      gameData = {
+        pairs: selected
+      };
+    }
+
   }
 
   return {
@@ -1173,6 +1531,26 @@ router.post('/submit', async (req: Request, res: Response) => {
 
     const score = calculateScore(game, submissionData, timeTaken, mistakes);
 
+    // Check for assigned crossword index in game_progress to persist it
+    let finalSubmissionData = submissionData;
+    if (game.type === 'crossword') {
+      const progressResult = await pool.query('SELECT game_state FROM game_progress WHERE user_id = $1 AND game_id = $2', [userId, gameId]);
+      if (progressResult.rows.length > 0 && progressResult.rows[0].game_state.assignedCrosswordIndex !== undefined) {
+        finalSubmissionData = {
+          ...submissionData,
+          assignedCrosswordIndex: progressResult.rows[0].game_state.assignedCrosswordIndex
+        };
+      }
+    } else if (game.type === 'word_search') {
+      const progressResult = await pool.query('SELECT game_state FROM game_progress WHERE user_id = $1 AND game_id = $2', [userId, gameId]);
+      if (progressResult.rows.length > 0 && progressResult.rows[0].game_state.assignedWordSearchIndex !== undefined) {
+        finalSubmissionData = {
+          ...submissionData,
+          assignedWordSearchIndex: progressResult.rows[0].game_state.assignedWordSearchIndex
+        };
+      }
+    }
+
     const existingSub = await pool.query('SELECT * FROM game_submissions WHERE user_id = $1 AND game_id = $2', [userId, gameId]);
 
     if (existingSub.rows.length > 0) {
@@ -1180,7 +1558,7 @@ router.post('/submit', async (req: Request, res: Response) => {
       if (score > existingSub.rows[0].score) {
         const result = await pool.query(
           'UPDATE game_submissions SET started_at = $1, completed_at = $2, time_taken = $3, mistakes = $4, score = $5, submission_data = $6 WHERE id = $7 RETURNING *',
-          [startedAt, new Date(), timeTaken, mistakes, score, JSON.stringify(submissionData), existingSub.rows[0].id]
+          [startedAt, new Date(), timeTaken, mistakes, score, JSON.stringify(finalSubmissionData), existingSub.rows[0].id]
         );
         return res.json(mapSubmission(result.rows[0]));
       } else {
@@ -1191,7 +1569,7 @@ router.post('/submit', async (req: Request, res: Response) => {
     const submissionId = `sub-${Date.now()}`;
     const result = await pool.query(
       'INSERT INTO game_submissions (id, user_id, game_id, challenge_id, started_at, completed_at, time_taken, mistakes, score, submission_data) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *',
-      [submissionId, userId, gameId, game.challenge_id, startedAt, new Date(), timeTaken, mistakes, score, JSON.stringify(submissionData)]
+      [submissionId, userId, gameId, game.challenge_id, startedAt, new Date(), timeTaken, mistakes, score, JSON.stringify(finalSubmissionData)]
     );
     res.json(mapSubmission(result.rows[0]));
 
@@ -1250,9 +1628,21 @@ router.post('/game-state/user/:userId/game/:gameId', async (req: Request, res: R
     let finalGameState = gameState;
     if (existingResult.rows.length > 0) {
       const existingState = existingResult.rows[0].game_state;
-      if (existingState.assignedWord && !finalGameState.assignedWord) {
-        finalGameState = { ...finalGameState, assignedWord: existingState.assignedWord };
-      }
+      const keysToPreserve = [
+        'assignedWord',
+        'assignedVerse',
+        'assignedCategories',
+        'assignedCrosswordIndex',
+        'assignedWhoAmI',
+        'assignedPairs',
+        'assignedWordSearchIndex'
+      ];
+
+      keysToPreserve.forEach(key => {
+        if (existingState[key] && !finalGameState[key]) {
+          finalGameState[key] = existingState[key];
+        }
+      });
     }
 
     await pool.query(

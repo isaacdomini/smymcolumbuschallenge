@@ -118,7 +118,7 @@ const WhoAmIGame: React.FC<WhoAmIGameProps> = ({ gameId, gameData, submission, o
           startedAt: new Date(startTime).toISOString(),
           timeTaken,
           mistakes,
-          submissionData: { solved: gameState === 'won' }
+          submissionData: { solved: gameState === 'won', answer }
         });
         setTimeout(onComplete, 3000);
       }

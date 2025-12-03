@@ -49,8 +49,18 @@ const VerseScrambleGame: React.FC<VerseScrambleGameProps> = ({ gameId, gameData,
         const savedProgress = await getGameState(user.id, gameId);
 
         if (savedProgress?.gameState) {
-          setAvailableWords(savedProgress.gameState.availableWords || []);
-          setPlacedWords(savedProgress.gameState.placedWords || []);
+          const hasSavedWords = (savedProgress.gameState.availableWords && savedProgress.gameState.availableWords.length > 0) ||
+            (savedProgress.gameState.placedWords && savedProgress.gameState.placedWords.length > 0);
+
+          if (hasSavedWords) {
+            setAvailableWords(savedProgress.gameState.availableWords || []);
+            setPlacedWords(savedProgress.gameState.placedWords || []);
+          } else {
+            const scrambled = [...verseWords].sort(() => Math.random() - 0.5);
+            setAvailableWords(scrambled.map((w, i) => ({ id: `pool-${i}`, text: w })));
+            setPlacedWords([]);
+          }
+
           setGameState(savedProgress.gameState.gameState || 'playing');
           if (savedProgress.gameState.startTime) {
             setStartTime(savedProgress.gameState.startTime);
@@ -110,7 +120,11 @@ const VerseScrambleGame: React.FC<VerseScrambleGameProps> = ({ gameId, gameData,
           startedAt: new Date(startTime).toISOString(),
           timeTaken,
           mistakes: 0,
-          submissionData: { completed: true }
+          submissionData: {
+            completed: true,
+            verse: dataToUse.verse,
+            reference: dataToUse.reference
+          }
         });
         setTimeout(onComplete, 3000);
       }

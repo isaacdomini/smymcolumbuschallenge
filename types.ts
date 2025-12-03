@@ -56,18 +56,24 @@ export interface MatchTheWordData {
 }
 
 export interface VerseScrambleData {
-  verse: string;
-  reference: string;
+  verse?: string;
+  reference?: string;
+  verses?: { verse: string; reference: string }[];
 }
 
 export interface WhoAmIData {
-  answer: string;
+  answer?: string;
   hint?: string;
+  solutions?: { answer: string; hint?: string }[];
 }
 
 export interface WordSearchData {
   grid: string[][];
   words: string[];
+  puzzles?: {
+    grid: string[][];
+    words: string[];
+  }[];
 }
 
 export type Game = {

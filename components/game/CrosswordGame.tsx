@@ -32,7 +32,11 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
     const isReadOnly = !!submission;
 
     // Use correct data for initialization
-    const activeData = isSample ? SAMPLE_DATA : gameData;
+    const activeData = useMemo(() => {
+        if (isSample) return SAMPLE_DATA;
+        if (submission?.submissionData?.puzzle) return submission.submissionData.puzzle;
+        return gameData;
+    }, [isSample, gameData, submission]);
 
     const [userGrid, setUserGrid] = useState<(string | null)[][]>(() =>
         Array(activeData.rows).fill(null).map(() => Array(activeData.cols).fill(null))
@@ -42,20 +46,19 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
     const [showInstructions, setShowInstructions] = useState(!isReadOnly && !isPreview);
 
     const solutionGrid = useMemo(() => {
-        const dataToUse = isSample ? SAMPLE_DATA : gameData;
-        const grid: (string | null)[][] = Array(dataToUse.rows).fill(null).map(() => Array(dataToUse.cols).fill(null));
-        const allClues: Clue[] = [...dataToUse.acrossClues, ...dataToUse.downClues];
+        const grid: (string | null)[][] = Array(activeData.rows).fill(null).map(() => Array(activeData.cols).fill(null));
+        const allClues: Clue[] = [...activeData.acrossClues, ...activeData.downClues];
         allClues.forEach(clue => {
             for (let i = 0; i < clue.answer.length; i++) {
                 const r = clue.direction === 'across' ? clue.row : clue.row + i;
                 const c = clue.direction === 'across' ? clue.col + i : clue.col;
-                if (grid[r] && c < dataToUse.cols) {
+                if (grid[r] && c < activeData.cols) {
                     grid[r][c] = clue.answer[i];
                 }
             }
         });
         return grid;
-    }, [gameData, isSample]);
+    }, [activeData]);
 
     useEffect(() => {
         if (isReadOnly && submission) {
@@ -85,7 +88,7 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
             }
         };
         loadState();
-    }, [gameId, isReadOnly, submission, gameData.rows, gameData.cols, user, solutionGrid, isSample, isPreview]);
+    }, [gameId, isReadOnly, submission, activeData.rows, activeData.cols, user, solutionGrid, isSample, isPreview]);
 
     useEffect(() => {
         if (isReadOnly || isSubmitted || !user || startTime === null || isSample || isPreview) return;
@@ -121,8 +124,8 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
         let correctCells = 0;
         let totalFillableCells = 0;
 
-        for (let r = 0; r < gameData.rows; r++) {
-            for (let c = 0; c < gameData.cols; c++) {
+        for (let r = 0; r < activeData.rows; r++) {
+            for (let c = 0; c < activeData.cols; c++) {
                 if (solutionGrid[r][c] !== null) { // This is a fillable cell
                     totalFillableCells++;
                     if (userGrid[r][c] === solutionGrid[r][c]) {
@@ -143,7 +146,8 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
             submissionData: {
                 grid: userGrid,
                 correctCells,
-                totalFillableCells
+                totalFillableCells,
+                puzzle: activeData // Store the puzzle definition with submission
             },
         });
 
