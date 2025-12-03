@@ -1354,6 +1354,7 @@ const resolveGameData = async (game: any, userId: string | undefined) => {
   }
 
   return {
+    id: game.id,
     challengeId: game.challenge_id,
     date: game.date.toISOString(),
     type: gameType,
