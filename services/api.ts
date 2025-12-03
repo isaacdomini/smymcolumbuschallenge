@@ -294,7 +294,9 @@ export const getDailyGame = async (challengeId: string): Promise<Game | null> =>
         const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
         return MOCK_GAMES.find(g => g.date.startsWith(today)) ?? null;
     } else {
-        const response = await fetch(`${API_BASE_URL}/challenge/${challengeId}/daily`);
+        const response = await fetch(`${API_BASE_URL}/challenge/${challengeId}/daily`, {
+            headers: await getAuthHeaders()
+        });
         if (!response.ok) {
             throw new Error('Failed to fetch daily game');
         }
@@ -307,7 +309,9 @@ export const getGameById = async (gameId: string): Promise<Game | null> => {
         await simulateDelay(200);
         return MOCK_GAMES.find(g => g.id === gameId) ?? null;
     } else {
-        const response = await fetch(`${API_BASE_URL}/games/${gameId}`);
+        const response = await fetch(`${API_BASE_URL}/games/${gameId}`, {
+            headers: await getAuthHeaders()
+        });
         if (!response.ok) {
             throw new Error('Failed to fetch game');
         }
@@ -323,7 +327,9 @@ export const getGamesForChallenge = async (challengeId: string): Promise<Game[]>
         // Updated to return ALL games, irrespective of current date
         return MOCK_GAMES;
     } else {
-        const response = await fetch(`${API_BASE_URL}/challenge/${challengeId}/games`);
+        const response = await fetch(`${API_BASE_URL}/challenge/${challengeId}/games`, {
+            headers: await getAuthHeaders()
+        });
         if (!response.ok) {
             throw new Error('Failed to fetch games');
         }
