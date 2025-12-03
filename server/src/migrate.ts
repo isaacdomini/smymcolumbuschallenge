@@ -172,6 +172,7 @@ const migrations = [
     id SERIAL PRIMARY KEY,
     content TEXT NOT NULL,
     type VARCHAR(20) NOT NULL CHECK (type IN ('system', 'user')),
+    link_url TEXT,
     active BOOLEAN DEFAULT true,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     expires_at TIMESTAMP
