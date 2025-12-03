@@ -460,4 +460,53 @@ router.patch('/support/tickets/:id/status', async (req: Request, res: Response) 
     }
 });
 
+// --- BANNER MESSAGES ---
+
+// Create a banner message
+router.post('/banner-messages', async (req: Request, res: Response) => {
+    try {
+        const { content, type, targetUserIds, expiresAt } = req.body;
+
+        if (!content || !type) {
+            return res.status(400).json({ error: 'Content and type are required' });
+        }
+
+        if (type !== 'system' && type !== 'user') {
+            return res.status(400).json({ error: 'Type must be "system" or "user"' });
+        }
+
+        if (type === 'user' && (!targetUserIds || !Array.isArray(targetUserIds) || targetUserIds.length === 0)) {
+            return res.status(400).json({ error: 'Target user IDs array is required for user-specific messages' });
+        }
+
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+
+            const result = await client.query(
+                'INSERT INTO banner_messages (content, type, expires_at) VALUES ($1, $2, $3) RETURNING id',
+                [content, type, expiresAt || null]
+            );
+
+            const messageId = result.rows[0].id;
+
+            if (type === 'user' && targetUserIds && targetUserIds.length > 0) {
+                const values = targetUserIds.map((userId: string) => `(${messageId}, '${userId}')`).join(',');
+                await client.query(`INSERT INTO banner_message_targets (message_id, user_id) VALUES ${values}`);
+            }
+
+            await client.query('COMMIT');
+            res.status(201).json({ message: 'Banner message created', id: messageId });
+        } catch (error) {
+            await client.query('ROLLBACK');
+            throw error;
+        } finally {
+            client.release();
+        }
+    } catch (error) {
+        console.error('Error creating banner message:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 export default router;
