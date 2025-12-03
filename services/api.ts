@@ -838,7 +838,7 @@ export const dismissBannerMessage = async (id: number): Promise<void> => {
     if (!response.ok) throw new Error('Failed to dismiss banner message');
 };
 
-export const createBannerMessage = async (userId: string, messageData: { content: string, type: 'system' | 'user', targetUserIds?: string[], expiresAt?: string, linkUrl?: string, linkText?: string }): Promise<void> => {
+export const createBannerMessage = async (userId: string, messageData: { content: string, type: 'system' | 'user', targetUserIds?: string[], expiresAt?: string, linkUrl?: string, linkText?: string, priority?: 'high' | 'normal' | 'low' }): Promise<void> => {
     if (USE_MOCK_DATA || await isTestUser()) {
         await simulateDelay(300);
         return;

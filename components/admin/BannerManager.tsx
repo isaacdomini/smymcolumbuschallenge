@@ -11,6 +11,7 @@ const BannerManager: React.FC = () => {
   const [expiresAt, setExpiresAt] = useState('');
   const [linkUrl, setLinkUrl] = useState('');
   const [linkText, setLinkText] = useState('');
+  const [priority, setPriority] = useState<'high' | 'normal' | 'low'>('normal');
   const [users, setUsers] = useState<User[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -46,7 +47,8 @@ const BannerManager: React.FC = () => {
           targetUserIds: type === 'user' ? targetUserIds : undefined,
           expiresAt: expiresAt || undefined,
           linkUrl: linkUrl || undefined,
-          linkText: linkText || undefined
+          linkText: linkText || undefined,
+          priority
         });
         setMessage({ text: 'Banner message created successfully!', type: 'success' });
         setContent('');
@@ -54,6 +56,7 @@ const BannerManager: React.FC = () => {
         setExpiresAt('');
         setLinkUrl('');
         setLinkText('');
+        setPriority('normal');
       }
     } catch (error) {
       setMessage({ text: 'Failed to create banner message.', type: 'error' });
@@ -108,6 +111,19 @@ const BannerManager: React.FC = () => {
             >
               <option value="system">System Wide (All Users)</option>
               <option value="user">Targeted (Specific Users)</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-gray-300 mb-2">Priority</label>
+            <select
+              value={priority}
+              onChange={(e) => setPriority(e.target.value as 'high' | 'normal' | 'low')}
+              className="w-full bg-gray-700 text-white rounded p-3 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+            >
+              <option value="normal">Normal</option>
+              <option value="high">High (Red)</option>
+              <option value="low">Low</option>
             </select>
           </div>
 
