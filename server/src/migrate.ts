@@ -190,7 +190,8 @@ CREATE TABLE IF NOT EXISTS user_message_dismissals (
     PRIMARY KEY (user_id, message_id)
   )`,
   `ALTER TABLE banner_messages ADD COLUMN IF NOT EXISTS link_url TEXT`,
-  `ALTER TABLE banner_messages ADD COLUMN IF NOT EXISTS link_text TEXT`
+  `ALTER TABLE banner_messages ADD COLUMN IF NOT EXISTS link_text TEXT`,
+  `ALTER TABLE banner_messages ADD COLUMN IF NOT EXISTS priority VARCHAR(20) DEFAULT 'normal'`
 ];
 
 async function runMigrations() {

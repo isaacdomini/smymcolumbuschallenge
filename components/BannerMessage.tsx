@@ -10,6 +10,7 @@ interface BannerMessage {
   linkUrl?: string;
   linkText?: string;
   created_at: string;
+  priority?: 'high' | 'normal' | 'low';
 }
 
 export const BannerMessage: React.FC = () => {
@@ -47,7 +48,7 @@ export const BannerMessage: React.FC = () => {
       {messages.map(msg => (
         <div
           key={msg.id}
-          className={`relative bg-gray-800 border-l-4 border-yellow-500 text-white px-6 py-4 rounded-lg shadow-lg flex justify-between items-center w-full animate-fade-in-down ${msg.linkUrl ? 'cursor-pointer hover:bg-gray-700 transition-colors' : ''}`}
+          className={`relative ${msg.priority === 'high' ? 'bg-red-900 border-red-500' : 'bg-gray-800 border-yellow-500'} border-l-4 text-white px-6 py-4 rounded-lg shadow-lg flex justify-between items-center w-full animate-fade-in-down ${msg.linkUrl ? 'cursor-pointer hover:opacity-90 transition-opacity' : ''}`}
           onClick={() => {
             if (msg.linkUrl) {
               window.open(msg.linkUrl, '_blank', 'noopener,noreferrer');

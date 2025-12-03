@@ -181,6 +181,7 @@ export interface BannerMessage {
   active: boolean;
   created_at: string;
   expires_at?: string;
+  priority?: 'high' | 'normal' | 'low';
 }
 
 export interface ScoringCriterion {
