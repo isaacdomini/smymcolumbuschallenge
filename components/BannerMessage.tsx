@@ -8,6 +8,7 @@ interface BannerMessage {
   content: string;
   type: 'system' | 'user';
   linkUrl?: string;
+  linkText?: string;
   created_at: string;
 }
 
@@ -46,7 +47,7 @@ export const BannerMessage: React.FC = () => {
       {messages.map(msg => (
         <div
           key={msg.id}
-          className={`relative bg-blue-600 text-white px-6 py-4 rounded-lg shadow-lg flex justify-between items-center w-full animate-fade-in-down ${msg.linkUrl ? 'cursor-pointer hover:bg-blue-700 transition-colors' : ''}`}
+          className={`relative bg-gray-800 border-l-4 border-yellow-500 text-white px-6 py-4 rounded-lg shadow-lg flex justify-between items-center w-full animate-fade-in-down ${msg.linkUrl ? 'cursor-pointer hover:bg-gray-700 transition-colors' : ''}`}
           onClick={() => {
             if (msg.linkUrl) {
               window.open(msg.linkUrl, '_blank', 'noopener,noreferrer');
@@ -54,12 +55,12 @@ export const BannerMessage: React.FC = () => {
           }}
         >
           <div className="flex-1 pr-8">
-            <div className="font-medium text-lg prose prose-invert prose-p:my-0 prose-a:text-blue-200 prose-ul:list-disc prose-ul:pl-5 prose-li:my-0">
+            <div className="font-medium text-lg prose prose-invert prose-p:my-0 prose-a:text-yellow-400 prose-ul:list-disc prose-ul:pl-5 prose-li:my-0">
               <ReactMarkdown>{msg.content}</ReactMarkdown>
             </div>
             {msg.linkUrl && (
-              <span className="inline-block mt-2 text-blue-200 text-sm underline">
-                Learn more &rarr;
+              <span className="inline-block mt-2 text-yellow-400 text-sm font-semibold hover:text-yellow-300 transition-colors">
+                {msg.linkText || 'Learn more'} &rarr;
               </span>
             )}
           </div>

@@ -10,6 +10,7 @@ const BannerManager: React.FC = () => {
   const [targetUserIds, setTargetUserIds] = useState<string[]>([]);
   const [expiresAt, setExpiresAt] = useState('');
   const [linkUrl, setLinkUrl] = useState('');
+  const [linkText, setLinkText] = useState('');
   const [users, setUsers] = useState<User[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -44,13 +45,15 @@ const BannerManager: React.FC = () => {
           type,
           targetUserIds: type === 'user' ? targetUserIds : undefined,
           expiresAt: expiresAt || undefined,
-          linkUrl: linkUrl || undefined
+          linkUrl: linkUrl || undefined,
+          linkText: linkText || undefined
         });
         setMessage({ text: 'Banner message created successfully!', type: 'success' });
         setContent('');
         setTargetUserIds([]);
         setExpiresAt('');
         setLinkUrl('');
+        setLinkText('');
       }
     } catch (error) {
       setMessage({ text: 'Failed to create banner message.', type: 'error' });
@@ -126,6 +129,17 @@ const BannerManager: React.FC = () => {
             value={linkUrl}
             onChange={(e) => setLinkUrl(e.target.value)}
             placeholder="https://example.com"
+            className="w-full bg-gray-700 text-white rounded p-3 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+          />
+        </div>
+
+        <div>
+          <label className="block text-gray-300 mb-2">Link Text (Optional)</label>
+          <input
+            type="text"
+            value={linkText}
+            onChange={(e) => setLinkText(e.target.value)}
+            placeholder="Learn more ->"
             className="w-full bg-gray-700 text-white rounded p-3 focus:outline-none focus:ring-2 focus:ring-yellow-500"
           />
         </div>
