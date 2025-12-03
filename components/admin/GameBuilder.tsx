@@ -49,6 +49,7 @@ const GameBuilder: React.FC<GameBuilderProps> = ({
         { word: '', match: '' },
         { word: '', match: '' },
         { word: '', match: '' },
+        { word: '', match: '' },
         { word: '', match: '' }
     ]);
 
@@ -434,9 +435,9 @@ const GameBuilder: React.FC<GameBuilderProps> = ({
 
                     {gameType === GameType.MATCH_THE_WORD && (
                         <div className="space-y-4">
-                            <p className="text-sm text-gray-400 mb-2">Enter pairs of words to match.</p>
+                            <p className="text-sm text-gray-400 mb-2">Enter at least 6 pairs of words to match. If more than 6 are provided, 6 will be randomly assigned to each user.</p>
                             {matchPairs.map((pair, idx) => (
-                                <div key={idx} className="flex gap-4">
+                                <div key={idx} className="flex gap-4 relative">
                                     <input
                                         type="text"
                                         value={pair.word}
@@ -451,6 +452,18 @@ const GameBuilder: React.FC<GameBuilderProps> = ({
                                         placeholder="Match"
                                         className="flex-1 p-2 bg-gray-900 border border-gray-700 rounded focus:ring-yellow-500 focus:border-yellow-500 text-white"
                                     />
+                                    {matchPairs.length > 6 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const newPairs = matchPairs.filter((_, i) => i !== idx);
+                                                setMatchPairs(newPairs);
+                                            }}
+                                            className="absolute -right-6 top-2 text-red-400 hover:text-red-300 text-xs"
+                                        >
+                                            X
+                                        </button>
+                                    )}
                                 </div>
                             ))}
                             <button

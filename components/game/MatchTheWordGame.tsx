@@ -206,7 +206,10 @@ const MatchTheWordGame: React.FC<MatchTheWordGameProps> = ({ gameId, gameData, s
           startedAt: new Date(startTime).toISOString(),
           timeTaken,
           mistakes,
-          submissionData: { foundPairsCount: foundPairs.length }
+          submissionData: {
+            foundPairsCount: foundPairs.length,
+            assignedPairs: gameData.pairs.map(p => p.word)
+          }
         });
         setTimeout(onComplete, 3000);
       }

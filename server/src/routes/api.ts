@@ -1231,6 +1231,69 @@ const resolveGameData = async (game: any, userId: string | undefined) => {
       gameData = { ...gameData, verse: candidate.verse, reference: candidate.reference };
       delete gameData.verses;
     }
+  } else if (gameType === 'match_the_word' && gameData.pairs && gameData.pairs.length > 6) {
+    // Handle Match The Word with > 6 pairs
+    if (userId) {
+      let assignedPairs: string[] | undefined;
+
+      // 1. Check submission
+      const submissionResult = await pool.query('SELECT submission_data FROM game_submissions WHERE user_id = $1 AND game_id = $2', [userId, game.id]);
+      if (submissionResult.rows.length > 0) {
+        const submissionData = submissionResult.rows[0].submission_data;
+        if (submissionData && submissionData.assignedPairs) {
+          assignedPairs = submissionData.assignedPairs;
+        }
+      }
+
+      // 2. Check progress
+      if (!assignedPairs) {
+        let progressResult = await pool.query('SELECT game_state FROM game_progress WHERE user_id = $1 AND game_id = $2', [userId, game.id]);
+
+        if (progressResult.rows.length > 0 && progressResult.rows[0].game_state.assignedPairs) {
+          assignedPairs = progressResult.rows[0].game_state.assignedPairs;
+        } else {
+          // Assign new 6 pairs
+          const allPairs = gameData.pairs;
+          // Shuffle and pick 6
+          const shuffled = [...allPairs].sort(() => 0.5 - Math.random());
+          const selected = shuffled.slice(0, 6);
+          assignedPairs = selected.map((p: any) => p.word);
+
+          const existingState = progressResult.rows.length > 0 ? progressResult.rows[0].game_state : {};
+          const newState = { ...existingState, assignedPairs };
+
+          await pool.query(
+            `INSERT INTO game_progress (id, user_id, game_id, game_state, updated_at) 
+               VALUES ($1, $2, $3, $4, NOW()) 
+               ON CONFLICT (user_id, game_id) DO UPDATE SET game_state = $4, updated_at = NOW()`,
+            [`progress-${userId}-${game.id}`, userId, game.id, JSON.stringify(newState)]
+          );
+        }
+      }
+
+      if (assignedPairs) {
+        const selectedPairs = gameData.pairs.filter((p: any) => assignedPairs!.includes(p.word));
+        // Ensure we found them (in case of data mismatch), otherwise fallback
+        if (selectedPairs.length === 6) {
+          gameData = {
+            pairs: selectedPairs
+          };
+        } else {
+          // Fallback if names don't match
+          const selected = gameData.pairs.slice(0, 6);
+          gameData = {
+            pairs: selected
+          };
+        }
+      }
+
+    } else {
+      // Guest - just pick first 6
+      const selected = gameData.pairs.slice(0, 6);
+      gameData = {
+        pairs: selected
+      };
+    }
   }
 }
 
