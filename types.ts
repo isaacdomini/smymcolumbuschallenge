@@ -70,6 +70,10 @@ export interface WhoAmIData {
 export interface WordSearchData {
   grid: string[][];
   words: string[];
+  puzzles?: {
+    grid: string[][];
+    words: string[];
+  }[];
 }
 
 export type Game = {

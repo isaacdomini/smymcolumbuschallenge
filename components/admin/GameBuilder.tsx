@@ -64,8 +64,8 @@ const GameBuilder: React.FC<GameBuilderProps> = ({
     const [whoAmISolutions, setWhoAmISolutions] = useState<{ answer: string, hint: string }[]>([{ answer: '', hint: '' }]);
 
     // Word Search State
-    const [wordSearchWords, setWordSearchWords] = useState<string[]>(['', '', '', '', '']);
-    const [wordSearchGridSize, setWordSearchGridSize] = useState(10);
+    // Word Search State
+    const [wordSearchPuzzles, setWordSearchPuzzles] = useState<{ gridInput: string, words: string[] }[]>([{ gridInput: '', words: ['', '', '', '', ''] }]);
 
     // Initialize state from initialData
     useEffect(() => {
@@ -100,8 +100,17 @@ const GameBuilder: React.FC<GameBuilderProps> = ({
                     setWhoAmIHint(initialData.data.hint || '');
                 }
             } else if (initialData.type === GameType.WORD_SEARCH && initialData.data) {
-                setWordSearchWords(initialData.data.words);
-                setWordSearchGridSize(initialData.data.grid.length);
+                if (initialData.data.puzzles) {
+                    setWordSearchPuzzles(initialData.data.puzzles.map((p: any) => ({
+                        gridInput: p.grid.map((row: string[]) => row.join(' ')).join('\n'),
+                        words: p.words
+                    })));
+                } else {
+                    setWordSearchPuzzles([{
+                        gridInput: initialData.data.grid.map((row: string[]) => row.join(' ')).join('\n'),
+                        words: initialData.data.words
+                    }]);
+                }
             }
         }
     }, [initialData]);
@@ -174,11 +183,14 @@ const GameBuilder: React.FC<GameBuilderProps> = ({
                 };
             }
         } else if (gameType === GameType.WORD_SEARCH) {
-            const grid = Array(wordSearchGridSize).fill(null).map(() => Array(wordSearchGridSize).fill(''));
-            gameData = {
-                words: wordSearchWords.filter(w => w.trim() !== '').map(w => w.toUpperCase()),
-                grid: grid
-            };
+            const puzzles = wordSearchPuzzles.map(p => {
+                const grid = p.gridInput.trim().split('\n').map(row => row.trim().split(/\s+/).map(char => char.toUpperCase()));
+                return {
+                    grid,
+                    words: p.words.filter(w => w.trim() !== '').map(w => w.toUpperCase())
+                };
+            });
+            gameData = { puzzles };
         }
         return gameData;
     };
@@ -232,11 +244,7 @@ const GameBuilder: React.FC<GameBuilderProps> = ({
         setMatchPairs(newPairs);
     };
 
-    const handleWordSearchWordChange = (index: number, value: string) => {
-        const newWords = [...wordSearchWords];
-        newWords[index] = value;
-        setWordSearchWords(newWords);
-    };
+
 
     return (
         <div className="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700">
@@ -595,39 +603,73 @@ const GameBuilder: React.FC<GameBuilderProps> = ({
                     )}
 
                     {gameType === GameType.WORD_SEARCH && (
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-1">Grid Size</label>
-                                <input
-                                    type="number"
-                                    value={wordSearchGridSize}
-                                    onChange={e => setWordSearchGridSize(parseInt(e.target.value))}
-                                    required
-                                    min={5}
-                                    max={20}
-                                    className="w-full p-2 bg-gray-900 border border-gray-700 rounded focus:ring-yellow-500 focus:border-yellow-500 text-white"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-1">Words to Find</label>
-                                {wordSearchWords.map((word, idx) => (
-                                    <input
-                                        key={idx}
-                                        type="text"
-                                        value={word}
-                                        onChange={e => handleWordSearchWordChange(idx, e.target.value)}
-                                        placeholder={`Word ${idx + 1}`}
-                                        className="w-full p-2 mb-2 bg-gray-900 border border-gray-700 rounded focus:ring-yellow-500 focus:border-yellow-500 text-white uppercase"
-                                    />
-                                ))}
-                                <button
-                                    type="button"
-                                    onClick={() => setWordSearchWords([...wordSearchWords, ''])}
-                                    className="text-sm text-yellow-400 hover:text-yellow-300"
-                                >
-                                    + Add Word
-                                </button>
-                            </div>
+                        <div className="space-y-6">
+                            <p className="text-sm text-gray-400 mb-2">Enter one or more Word Search puzzles. One will be randomly assigned to each user.</p>
+                            {wordSearchPuzzles.map((puzzle, pIdx) => (
+                                <div key={pIdx} className="p-4 bg-gray-900/50 rounded border border-gray-700 relative">
+                                    <div className="mb-4">
+                                        <label className="block text-sm font-medium text-gray-300 mb-1">Grid (Letters separated by spaces, rows by newlines)</label>
+                                        <textarea
+                                            value={puzzle.gridInput}
+                                            onChange={e => {
+                                                const newPuzzles = [...wordSearchPuzzles];
+                                                newPuzzles[pIdx].gridInput = e.target.value;
+                                                setWordSearchPuzzles(newPuzzles);
+                                            }}
+                                            rows={8}
+                                            className="w-full p-2 bg-gray-900 border border-gray-700 rounded focus:ring-yellow-500 focus:border-yellow-500 text-white font-mono uppercase"
+                                            placeholder={`A B C D E\nF G H I J\nK L M N O\nP Q R S T\nU V W X Y`}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-1">Words to Find</label>
+                                        {puzzle.words.map((word, wIdx) => (
+                                            <input
+                                                key={wIdx}
+                                                type="text"
+                                                value={word}
+                                                onChange={e => {
+                                                    const newPuzzles = [...wordSearchPuzzles];
+                                                    newPuzzles[pIdx].words[wIdx] = e.target.value;
+                                                    setWordSearchPuzzles(newPuzzles);
+                                                }}
+                                                placeholder={`Word ${wIdx + 1}`}
+                                                className="w-full p-2 mb-2 bg-gray-900 border border-gray-700 rounded focus:ring-yellow-500 focus:border-yellow-500 text-white uppercase"
+                                            />
+                                        ))}
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const newPuzzles = [...wordSearchPuzzles];
+                                                newPuzzles[pIdx].words.push('');
+                                                setWordSearchPuzzles(newPuzzles);
+                                            }}
+                                            className="text-sm text-yellow-400 hover:text-yellow-300"
+                                        >
+                                            + Add Word
+                                        </button>
+                                    </div>
+                                    {wordSearchPuzzles.length > 1 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const newPuzzles = wordSearchPuzzles.filter((_, i) => i !== pIdx);
+                                                setWordSearchPuzzles(newPuzzles);
+                                            }}
+                                            className="absolute top-2 right-2 text-red-400 hover:text-red-300 text-xs"
+                                        >
+                                            Remove Puzzle
+                                        </button>
+                                    )}
+                                </div>
+                            ))}
+                            <button
+                                type="button"
+                                onClick={() => setWordSearchPuzzles([...wordSearchPuzzles, { gridInput: '', words: ['', '', '', '', ''] }])}
+                                className="text-sm text-yellow-400 hover:text-yellow-300"
+                            >
+                                + Add Puzzle
+                            </button>
                         </div>
                     )}
                 </div>

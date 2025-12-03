@@ -1121,6 +1121,62 @@ const resolveGameData = async (game: any, userId: string | undefined) => {
         words: selected.flatMap((c: any) => c.words)
       };
     }
+  } else if (gameType === 'word_search' && gameData.puzzles && gameData.puzzles.length > 0) {
+    // Handle Word Search with multiple puzzles
+    if (userId) {
+      let assignedPuzzle;
+
+      // 1. Check submission
+      const submissionResult = await pool.query('SELECT submission_data FROM game_submissions WHERE user_id = $1 AND game_id = $2', [userId, game.id]);
+      if (submissionResult.rows.length > 0) {
+        const submissionData = submissionResult.rows[0].submission_data;
+        if (submissionData && submissionData.assignedWordSearchIndex !== undefined) {
+          const index = submissionData.assignedWordSearchIndex;
+          if (gameData.puzzles[index]) {
+            assignedPuzzle = gameData.puzzles[index];
+          }
+        }
+      }
+
+      // 2. Check progress
+      if (!assignedPuzzle) {
+        let progressResult = await pool.query('SELECT game_state FROM game_progress WHERE user_id = $1 AND game_id = $2', [userId, game.id]);
+
+        if (progressResult.rows.length > 0 && progressResult.rows[0].game_state.assignedWordSearchIndex !== undefined) {
+          const index = progressResult.rows[0].game_state.assignedWordSearchIndex;
+          if (gameData.puzzles[index]) {
+            assignedPuzzle = gameData.puzzles[index];
+          }
+        }
+
+        if (!assignedPuzzle) {
+          // Assign new
+          const puzzles = gameData.puzzles;
+          const randomIndex = Math.floor(Math.random() * puzzles.length);
+          const candidate = puzzles[randomIndex];
+
+          const existingState = progressResult.rows.length > 0 ? progressResult.rows[0].game_state : {};
+          const newState = { ...existingState, assignedWordSearchIndex: randomIndex };
+
+          await pool.query(
+            `INSERT INTO game_progress (id, user_id, game_id, game_state, updated_at)
+               VALUES ($1, $2, $3, $4, NOW())
+               ON CONFLICT (user_id, game_id) DO UPDATE SET game_state = $4, updated_at = NOW()`,
+            [`progress-${userId}-${game.id}`, userId, game.id, JSON.stringify(newState)]
+          );
+          assignedPuzzle = candidate;
+        }
+      }
+
+      if (assignedPuzzle) {
+        gameData = { ...assignedPuzzle };
+      }
+    } else {
+      // Guest - pick random
+      const puzzles = gameData.puzzles;
+      const candidate = puzzles[Math.floor(Math.random() * puzzles.length)];
+      gameData = { ...candidate };
+    }
   } else if (gameType === 'crossword' && gameData.puzzles && gameData.puzzles.length > 0) {
     // Handle Crossword with multiple puzzles
     if (userId) {
@@ -1294,15 +1350,15 @@ const resolveGameData = async (game: any, userId: string | undefined) => {
         pairs: selected
       };
     }
-  }
-}
 
-return {
-  challengeId: game.challenge_id,
-  date: game.date.toISOString(),
-  type: gameType,
-  data: gameData,
-};
+  }
+
+  return {
+    challengeId: game.challenge_id,
+    date: game.date.toISOString(),
+    type: gameType,
+    data: gameData,
+  };
 };
 
 router.get('/challenge/:challengeId/daily', async (req: Request, res: Response) => {
@@ -1469,6 +1525,14 @@ router.post('/submit', async (req: Request, res: Response) => {
         finalSubmissionData = {
           ...submissionData,
           assignedCrosswordIndex: progressResult.rows[0].game_state.assignedCrosswordIndex
+        };
+      }
+    } else if (game.type === 'word_search') {
+      const progressResult = await pool.query('SELECT game_state FROM game_progress WHERE user_id = $1 AND game_id = $2', [userId, gameId]);
+      if (progressResult.rows.length > 0 && progressResult.rows[0].game_state.assignedWordSearchIndex !== undefined) {
+        finalSubmissionData = {
+          ...submissionData,
+          assignedWordSearchIndex: progressResult.rows[0].game_state.assignedWordSearchIndex
         };
       }
     }
