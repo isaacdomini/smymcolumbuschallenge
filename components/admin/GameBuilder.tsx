@@ -58,6 +58,7 @@ const GameBuilder: React.FC<GameBuilderProps> = ({
     // Who Am I State
     const [whoAmIAnswer, setWhoAmIAnswer] = useState('');
     const [whoAmIHint, setWhoAmIHint] = useState('');
+    const [whoAmISolutions, setWhoAmISolutions] = useState<{ answer: string, hint: string }[]>([{ answer: '', hint: '' }]);
 
     // Word Search State
     const [wordSearchWords, setWordSearchWords] = useState<string[]>(['', '', '', '', '']);
@@ -81,8 +82,12 @@ const GameBuilder: React.FC<GameBuilderProps> = ({
                 setVerseScrambleVerse(initialData.data.verse);
                 setVerseScrambleReference(initialData.data.reference);
             } else if (initialData.type === GameType.WHO_AM_I && initialData.data) {
-                setWhoAmIAnswer(initialData.data.answer);
-                setWhoAmIHint(initialData.data.hint || '');
+                if (initialData.data.solutions) {
+                    setWhoAmISolutions(initialData.data.solutions);
+                } else {
+                    setWhoAmIAnswer(initialData.data.answer);
+                    setWhoAmIHint(initialData.data.hint || '');
+                }
             } else if (initialData.type === GameType.WORD_SEARCH && initialData.data) {
                 setWordSearchWords(initialData.data.words);
                 setWordSearchGridSize(initialData.data.grid.length);
@@ -133,10 +138,19 @@ const GameBuilder: React.FC<GameBuilderProps> = ({
                 reference: verseScrambleReference
             };
         } else if (gameType === GameType.WHO_AM_I) {
-            gameData = {
-                answer: whoAmIAnswer,
-                hint: whoAmIHint
-            };
+            // If multiple solutions are used (check if the array has content beyond default or if user switched mode)
+            // For now, let's prefer the multiple solutions format if it has valid data
+            const validSolutions = whoAmISolutions.filter(s => s.answer.trim() !== '');
+            if (validSolutions.length > 0) {
+                gameData = {
+                    solutions: validSolutions.map(s => ({ answer: s.answer.toUpperCase(), hint: s.hint }))
+                };
+            } else {
+                gameData = {
+                    answer: whoAmIAnswer.toUpperCase(),
+                    hint: whoAmIHint
+                };
+            }
         } else if (gameType === GameType.WORD_SEARCH) {
             const grid = Array(wordSearchGridSize).fill(null).map(() => Array(wordSearchGridSize).fill(''));
             gameData = {
@@ -410,27 +424,60 @@ const GameBuilder: React.FC<GameBuilderProps> = ({
 
                     {gameType === GameType.WHO_AM_I && (
                         <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-1">Answer (Word or Phrase)</label>
-                                <input
-                                    type="text"
-                                    value={whoAmIAnswer}
-                                    onChange={e => setWhoAmIAnswer(e.target.value)}
-                                    required
-                                    className="w-full p-2 bg-gray-900 border border-gray-700 rounded focus:ring-yellow-500 focus:border-yellow-500 text-white"
-                                    placeholder="FAITH"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-1">Hint (Optional)</label>
-                                <input
-                                    type="text"
-                                    value={whoAmIHint}
-                                    onChange={e => setWhoAmIHint(e.target.value)}
-                                    className="w-full p-2 bg-gray-900 border border-gray-700 rounded focus:ring-yellow-500 focus:border-yellow-500 text-white"
-                                    placeholder="Led the Israelites out of Egypt"
-                                />
-                            </div>
+                            <p className="text-sm text-gray-400 mb-2">Enter one or more Answer/Hint pairs. If multiple are provided, one will be randomly assigned to each user.</p>
+
+                            {whoAmISolutions.map((sol, idx) => (
+                                <div key={idx} className="p-4 bg-gray-900/50 rounded border border-gray-700 relative">
+                                    <div className="mb-2">
+                                        <label className="block text-sm font-medium text-gray-300 mb-1">Answer (Word or Phrase)</label>
+                                        <input
+                                            type="text"
+                                            value={sol.answer}
+                                            onChange={e => {
+                                                const newSols = [...whoAmISolutions];
+                                                newSols[idx].answer = e.target.value;
+                                                setWhoAmISolutions(newSols);
+                                            }}
+                                            required={idx === 0} // Only first one required initially
+                                            className="w-full p-2 bg-gray-800 border border-gray-600 rounded focus:ring-yellow-500 focus:border-yellow-500 text-white uppercase"
+                                            placeholder="FAITH"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-1">Hint (Optional)</label>
+                                        <input
+                                            type="text"
+                                            value={sol.hint}
+                                            onChange={e => {
+                                                const newSols = [...whoAmISolutions];
+                                                newSols[idx].hint = e.target.value;
+                                                setWhoAmISolutions(newSols);
+                                            }}
+                                            className="w-full p-2 bg-gray-800 border border-gray-600 rounded focus:ring-yellow-500 focus:border-yellow-500 text-white"
+                                            placeholder="Evidence of things not seen"
+                                        />
+                                    </div>
+                                    {whoAmISolutions.length > 1 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const newSols = whoAmISolutions.filter((_, i) => i !== idx);
+                                                setWhoAmISolutions(newSols);
+                                            }}
+                                            className="absolute top-2 right-2 text-red-400 hover:text-red-300 text-xs"
+                                        >
+                                            Remove
+                                        </button>
+                                    )}
+                                </div>
+                            ))}
+                            <button
+                                type="button"
+                                onClick={() => setWhoAmISolutions([...whoAmISolutions, { answer: '', hint: '' }])}
+                                className="text-sm text-yellow-400 hover:text-yellow-300"
+                            >
+                                + Add Another Solution
+                            </button>
                         </div>
                     )}
 

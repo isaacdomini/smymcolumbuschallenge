@@ -954,8 +954,6 @@ const resolveGameData = async (game: any, userId: string | undefined) => {
       let assignedWord;
 
       // 1. Check if the user has already submitted the game (completed)
-      // If so, the solution MUST be in the submission data (if we started saving it there)
-      // or we might have to fallback (but if they completed it, progress is gone).
       const submissionResult = await pool.query('SELECT submission_data FROM game_submissions WHERE user_id = $1 AND game_id = $2', [userId, game.id]);
 
       if (submissionResult.rows.length > 0) {
@@ -967,7 +965,6 @@ const resolveGameData = async (game: any, userId: string | undefined) => {
 
       // 2. If not found in submission, check game_progress
       if (!assignedWord) {
-        // First check if we already have a word assigned
         let progressResult = await pool.query('SELECT game_state FROM game_progress WHERE user_id = $1 AND game_id = $2', [userId, game.id]);
 
         if (progressResult.rows.length > 0 && progressResult.rows[0].game_state.assignedWord) {
@@ -1004,6 +1001,59 @@ const resolveGameData = async (game: any, userId: string | undefined) => {
       const solutions = gameData.solutions || [];
       const assignedWord = solutions.length > 0 ? solutions[0] : "GUEST";
       gameData = { ...gameData, solution: assignedWord };
+      delete gameData.solutions;
+    }
+  } else if (gameType === 'who_am_i' && gameData.solutions && gameData.solutions.length > 0) {
+    // Handle Who Am I with multiple solutions
+    if (userId) {
+      let assignedSolution;
+
+      // 1. Check submission
+      const submissionResult = await pool.query('SELECT submission_data FROM game_submissions WHERE user_id = $1 AND game_id = $2', [userId, game.id]);
+      if (submissionResult.rows.length > 0) {
+        const submissionData = submissionResult.rows[0].submission_data;
+        // Check for 'answer' (new format) or 'solution' (just in case)
+        if (submissionData && (submissionData.answer || submissionData.solution)) {
+          assignedSolution = {
+            answer: submissionData.answer || submissionData.solution,
+            hint: submissionData.hint
+          };
+        }
+      }
+
+      // 2. Check progress
+      if (!assignedSolution) {
+        let progressResult = await pool.query('SELECT game_state FROM game_progress WHERE user_id = $1 AND game_id = $2', [userId, game.id]);
+
+        if (progressResult.rows.length > 0 && progressResult.rows[0].game_state.assignedWhoAmI) {
+          assignedSolution = progressResult.rows[0].game_state.assignedWhoAmI;
+        } else {
+          // Assign new
+          const solutions = gameData.solutions;
+          const candidate = solutions[Math.floor(Math.random() * solutions.length)];
+
+          const existingState = progressResult.rows.length > 0 ? progressResult.rows[0].game_state : {};
+          const newState = { ...existingState, assignedWhoAmI: candidate };
+
+          await pool.query(
+            `INSERT INTO game_progress (id, user_id, game_id, game_state, updated_at) 
+               VALUES ($1, $2, $3, $4, NOW()) 
+               ON CONFLICT (user_id, game_id) DO UPDATE SET game_state = $4, updated_at = NOW()`,
+            [`progress-${userId}-${game.id}`, userId, game.id, JSON.stringify(newState)]
+          );
+          assignedSolution = candidate;
+        }
+      }
+
+      if (assignedSolution) {
+        gameData = { ...gameData, answer: assignedSolution.answer, hint: assignedSolution.hint };
+        delete gameData.solutions;
+      }
+
+    } else {
+      // Guest
+      const candidate = gameData.solutions[0];
+      gameData = { ...gameData, answer: candidate.answer, hint: candidate.hint };
       delete gameData.solutions;
     }
   }
