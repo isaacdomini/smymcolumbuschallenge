@@ -242,7 +242,7 @@ const MatchTheWordGame: React.FC<MatchTheWordGameProps> = ({ gameId, gameData, s
             const isFound = foundPairs.includes(word);
             return (
               <button
-                ref={el => { wordRefs.current[word] = el; }}
+                ref={el => void (wordRefs.current[word] = el)}
                 key={word}
                 onClick={() => handleWordClick(word)}
                 disabled={isFound || isReadOnly}
@@ -266,7 +266,7 @@ const MatchTheWordGame: React.FC<MatchTheWordGameProps> = ({ gameId, gameData, s
             const isFound = pair ? foundPairs.includes(pair.word) : false;
             return (
               <button
-                ref={el => { matchRefs.current[match] = el; }}
+                ref={el => void (matchRefs.current[match] = el)}
                 key={match}
                 onClick={() => handleMatchClick(match)}
                 disabled={isFound || isReadOnly}
