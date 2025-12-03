@@ -77,7 +77,11 @@ const ConnectionsGame: React.FC<ConnectionsGameProps> = ({ gameId, gameData, sub
         if (savedProgress?.gameState) {
           try {
             const savedState = savedProgress.gameState;
-            setWords(savedState.words || []);
+            if (savedState.words && savedState.words.length > 0) {
+              setWords(savedState.words);
+            } else {
+              setWords(generateShuffledWords());
+            }
             setFoundGroups(savedState.foundGroups || []);
             setMistakes(savedState.mistakes || 0);
             setGameState(savedState.gameState || 'playing');
