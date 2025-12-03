@@ -203,6 +203,30 @@ const WordSearchGame: React.FC<WordSearchGameProps> = ({ gameId, gameData, submi
   // But since we don't store coordinates in data, we'd have to search the grid again.
   // For now, let's just highlight the current selection.
 
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isSelecting || !selectionStart) return;
+
+    // Prevent scrolling while selecting
+    e.preventDefault();
+
+    const touch = e.touches[0];
+    const element = document.elementFromPoint(touch.clientX, touch.clientY);
+
+    if (element) {
+      // Check if the element is a grid cell (or inside one)
+      // We can use data attributes to identify cells
+      const cell = element.closest('[data-grid-cell]');
+      if (cell) {
+        const r = parseInt(cell.getAttribute('data-r') || '-1');
+        const c = parseInt(cell.getAttribute('data-c') || '-1');
+
+        if (r !== -1 && c !== -1) {
+          handleCellEnter(r, c);
+        }
+      }
+    }
+  };
+
   return (
     <div className="w-full max-w-2xl mx-auto flex flex-col items-center p-4 select-none">
       <div className="flex items-center justify-between w-full mb-6">
@@ -217,6 +241,8 @@ const WordSearchGame: React.FC<WordSearchGameProps> = ({ gameId, gameData, submi
         <div
           className="bg-gray-800 p-2 rounded-lg shadow-xl touch-none"
           onMouseLeave={handleCellUp}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleCellUp}
         >
           {grid.map((row, r) => (
             <div key={r} className="flex">
@@ -225,10 +251,18 @@ const WordSearchGame: React.FC<WordSearchGameProps> = ({ gameId, gameData, submi
                 return (
                   <div
                     key={`${r}-${c}`}
+                    data-grid-cell="true"
+                    data-r={r}
+                    data-c={c}
                     onMouseDown={() => handleCellDown(r, c)}
                     onMouseEnter={() => handleCellEnter(r, c)}
                     onMouseUp={handleCellUp}
-                    onTouchStart={() => handleCellDown(r, c)}
+                    onTouchStart={(e) => {
+                      // Prevent default to stop scrolling/long-press menu
+                      // But be careful not to block scrolling entirely if not selecting
+                      // e.preventDefault(); 
+                      handleCellDown(r, c);
+                    }}
                     // Touch move is harder to handle with individual elements, usually requires global handler
                     className={`w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center font-bold text-lg cursor-pointer transition-colors select-none ${isSelected ? 'bg-yellow-500 text-gray-900' : 'text-gray-300 hover:bg-gray-700'
                       }`}
