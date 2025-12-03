@@ -173,6 +173,7 @@ const migrations = [
     content TEXT NOT NULL,
     type VARCHAR(20) NOT NULL CHECK (type IN ('system', 'user')),
     link_url TEXT,
+    link_text TEXT,
     active BOOLEAN DEFAULT true,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     expires_at TIMESTAMP
@@ -187,7 +188,9 @@ CREATE TABLE IF NOT EXISTS user_message_dismissals (
     message_id INTEGER REFERENCES banner_messages(id) ON DELETE CASCADE,
     dismissed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (user_id, message_id)
-  )`
+  )`,
+  `ALTER TABLE banner_messages ADD COLUMN IF NOT EXISTS link_url TEXT`,
+  `ALTER TABLE banner_messages ADD COLUMN IF NOT EXISTS link_text TEXT`
 ];
 
 async function runMigrations() {

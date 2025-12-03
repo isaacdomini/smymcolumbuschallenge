@@ -465,7 +465,7 @@ router.patch('/support/tickets/:id/status', async (req: Request, res: Response) 
 // Create a banner message
 router.post('/banner-messages', async (req: Request, res: Response) => {
     try {
-        const { content, type, targetUserIds, expiresAt, linkUrl } = req.body;
+        const { content, type, targetUserIds, expiresAt, linkUrl, linkText } = req.body;
 
         if (!content || !type) {
             return res.status(400).json({ error: 'Content and type are required' });
@@ -484,8 +484,8 @@ router.post('/banner-messages', async (req: Request, res: Response) => {
             await client.query('BEGIN');
 
             const result = await client.query(
-                'INSERT INTO banner_messages (content, type, expires_at, link_url) VALUES ($1, $2, $3, $4) RETURNING id',
-                [content, type, expiresAt || null, linkUrl || null]
+                'INSERT INTO banner_messages (content, type, expires_at, link_url, link_text) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+                [content, type, expiresAt || null, linkUrl || null, linkText || null]
             );
 
             const messageId = result.rows[0].id;

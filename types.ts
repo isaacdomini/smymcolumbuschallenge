@@ -172,6 +172,7 @@ export interface BannerMessage {
   type: 'system' | 'user';
   targetUserId?: string;
   linkUrl?: string;
+  linkText?: string;
   active: boolean;
   created_at: string;
   expires_at?: string;
