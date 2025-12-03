@@ -80,6 +80,10 @@ export type Game = {
       data: WordleData;
     }
     | {
+      type: GameType.WORDLE_ADVANCED;
+      data: WordleData;
+    }
+    | {
       type: GameType.CONNECTIONS;
       data: ConnectionsData;
     }
