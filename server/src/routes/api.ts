@@ -943,6 +943,7 @@ router.get('/challenge', async (req: Request, res: Response) => {
 });
 
 // Helper to resolve game data (specifically for Wordle Advanced)
+// Helper to resolve game data (specifically for Wordle Advanced)
 const resolveGameData = async (game: any, userId: string | undefined) => {
   let gameData = game.data;
   let gameType = game.type;
@@ -952,27 +953,44 @@ const resolveGameData = async (game: any, userId: string | undefined) => {
     gameType = 'wordle';
 
     if (userId) {
+      console.log(`[resolveGameData] Resolving for user ${userId}, game ${game.id}`);
       const progressResult = await pool.query('SELECT game_state FROM game_progress WHERE user_id = $1 AND game_id = $2', [userId, game.id]);
 
       let assignedWord;
       if (progressResult.rows.length > 0 && progressResult.rows[0].game_state.assignedWord) {
         assignedWord = progressResult.rows[0].game_state.assignedWord;
+        console.log(`[resolveGameData] Found existing assigned word: ${assignedWord}`);
       } else {
         const solutions = gameData.solutions || [];
         if (solutions.length > 0) {
           assignedWord = solutions[Math.floor(Math.random() * solutions.length)];
+          console.log(`[resolveGameData] Assigning new word: ${assignedWord}`);
 
           const existingState = progressResult.rows.length > 0 ? progressResult.rows[0].game_state : {};
           const newState = { ...existingState, assignedWord };
 
-          await pool.query(
-            `INSERT INTO game_progress (id, user_id, game_id, game_state, updated_at) 
-             VALUES ($1, $2, $3, $4, NOW()) 
-             ON CONFLICT (user_id, game_id) DO UPDATE SET game_state = $4, updated_at = NOW()`,
-            [`progress-${userId}-${game.id}`, userId, game.id, JSON.stringify(newState)]
-          );
+          // Pass object directly for JSONB, let driver handle stringification if needed, 
+          // or explicit stringify if driver requires it. 
+          // Usually pg driver handles objects for JSONB columns.
+          // But to be safe and consistent with previous code, let's try passing the object.
+          // If that fails, we revert to stringify.
+          // Actually, looking at other queries, we often use JSON.stringify.
+          // Let's stick to JSON.stringify but ensure it's correct.
+
+          try {
+            await pool.query(
+              `INSERT INTO game_progress (id, user_id, game_id, game_state, updated_at) 
+               VALUES ($1, $2, $3, $4, NOW()) 
+               ON CONFLICT (user_id, game_id) DO UPDATE SET game_state = $4, updated_at = NOW()`,
+              [`progress-${userId}-${game.id}`, userId, game.id, JSON.stringify(newState)]
+            );
+            console.log(`[resolveGameData] Saved assigned word to DB`);
+          } catch (e) {
+            console.error(`[resolveGameData] Error saving to DB:`, e);
+          }
         } else {
           assignedWord = "ERROR";
+          console.error(`[resolveGameData] No solutions found for game ${game.id}`);
         }
       }
 
@@ -980,6 +998,7 @@ const resolveGameData = async (game: any, userId: string | undefined) => {
       delete gameData.solutions;
 
     } else {
+      console.log(`[resolveGameData] Guest user, assigning temporary word`);
       const solutions = gameData.solutions || [];
       const assignedWord = solutions.length > 0 ? solutions[0] : "GUEST";
       gameData = { ...gameData, solution: assignedWord };
