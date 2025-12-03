@@ -37,6 +37,7 @@ const GameBuilder: React.FC<GameBuilderProps> = ({
         { name: '', words: ['', '', '', ''] },
         { name: '', words: ['', '', '', ''] },
         { name: '', words: ['', '', '', ''] },
+        { name: '', words: ['', '', '', ''] },
     ]);
 
     // Crossword State
@@ -320,9 +321,9 @@ const GameBuilder: React.FC<GameBuilderProps> = ({
 
                     {gameType === GameType.CONNECTIONS && (
                         <div className="space-y-4">
-                            <p className="text-sm text-gray-400 mb-2">Enter 4 categories with 4 words each. Order them by difficulty if desired (e.g., Yellow, Green, Blue, Purple).</p>
+                            <p className="text-sm text-gray-400 mb-2">Enter at least 4 categories with 4 words each. If more than 4 are provided, 4 will be randomly assigned to each user.</p>
                             {connectionsCategories.map((cat, catIdx) => (
-                                <div key={catIdx} className="p-4 bg-gray-900/50 rounded border border-gray-700">
+                                <div key={catIdx} className="p-4 bg-gray-900/50 rounded border border-gray-700 relative">
                                     <input
                                         type="text"
                                         value={cat.name}
@@ -344,8 +345,27 @@ const GameBuilder: React.FC<GameBuilderProps> = ({
                                             />
                                         ))}
                                     </div>
+                                    {connectionsCategories.length > 4 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const newCats = connectionsCategories.filter((_, i) => i !== catIdx);
+                                                setConnectionsCategories(newCats);
+                                            }}
+                                            className="absolute top-2 right-2 text-red-400 hover:text-red-300 text-xs"
+                                        >
+                                            Remove
+                                        </button>
+                                    )}
                                 </div>
                             ))}
+                            <button
+                                type="button"
+                                onClick={() => setConnectionsCategories([...connectionsCategories, { name: '', words: ['', '', '', ''] }])}
+                                className="text-sm text-yellow-400 hover:text-yellow-300"
+                            >
+                                + Add Category
+                            </button>
                         </div>
                     )}
 
