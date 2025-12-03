@@ -54,7 +54,7 @@ export const BannerMessage: React.FC = () => {
           }}
         >
           <div className="flex-1 pr-8">
-            <div className="font-medium text-lg prose prose-invert prose-p:my-0 prose-a:text-blue-200">
+            <div className="font-medium text-lg prose prose-invert prose-p:my-0 prose-a:text-blue-200 prose-ul:list-disc prose-ul:pl-5 prose-li:my-0">
               <ReactMarkdown>{msg.content}</ReactMarkdown>
             </div>
             {msg.linkUrl && (
