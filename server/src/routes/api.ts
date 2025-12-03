@@ -1615,9 +1615,21 @@ router.post('/game-state/user/:userId/game/:gameId', async (req: Request, res: R
     let finalGameState = gameState;
     if (existingResult.rows.length > 0) {
       const existingState = existingResult.rows[0].game_state;
-      if (existingState.assignedWord && !finalGameState.assignedWord) {
-        finalGameState = { ...finalGameState, assignedWord: existingState.assignedWord };
-      }
+      const keysToPreserve = [
+        'assignedWord',
+        'assignedVerse',
+        'assignedCategories',
+        'assignedCrosswordIndex',
+        'assignedWhoAmI',
+        'assignedPairs',
+        'assignedWordSearchIndex'
+      ];
+
+      keysToPreserve.forEach(key => {
+        if (existingState[key] && !finalGameState[key]) {
+          finalGameState[key] = existingState[key];
+        }
+      });
     }
 
     await pool.query(
