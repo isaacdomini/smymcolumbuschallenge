@@ -110,7 +110,11 @@ const VerseScrambleGame: React.FC<VerseScrambleGameProps> = ({ gameId, gameData,
           startedAt: new Date(startTime).toISOString(),
           timeTaken,
           mistakes: 0,
-          submissionData: { completed: true }
+          submissionData: {
+            completed: true,
+            verse: dataToUse.verse,
+            reference: dataToUse.reference
+          }
         });
         setTimeout(onComplete, 3000);
       }

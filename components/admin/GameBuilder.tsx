@@ -55,6 +55,7 @@ const GameBuilder: React.FC<GameBuilderProps> = ({
     // Verse Scramble State
     const [verseScrambleVerse, setVerseScrambleVerse] = useState('');
     const [verseScrambleReference, setVerseScrambleReference] = useState('');
+    const [verseScrambleVerses, setVerseScrambleVerses] = useState<{ verse: string, reference: string }[]>([{ verse: '', reference: '' }]);
 
     // Who Am I State
     const [whoAmIAnswer, setWhoAmIAnswer] = useState('');
@@ -84,8 +85,12 @@ const GameBuilder: React.FC<GameBuilderProps> = ({
             } else if (initialData.type === GameType.MATCH_THE_WORD && initialData.data) {
                 setMatchPairs(initialData.data.pairs);
             } else if (initialData.type === GameType.VERSE_SCRAMBLE && initialData.data) {
-                setVerseScrambleVerse(initialData.data.verse);
-                setVerseScrambleReference(initialData.data.reference);
+                if (initialData.data.verses) {
+                    setVerseScrambleVerses(initialData.data.verses);
+                } else {
+                    setVerseScrambleVerse(initialData.data.verse);
+                    setVerseScrambleReference(initialData.data.reference);
+                }
             } else if (initialData.type === GameType.WHO_AM_I && initialData.data) {
                 if (initialData.data.solutions) {
                     setWhoAmISolutions(initialData.data.solutions);
@@ -142,10 +147,17 @@ const GameBuilder: React.FC<GameBuilderProps> = ({
                 }))
             };
         } else if (gameType === GameType.VERSE_SCRAMBLE) {
-            gameData = {
-                verse: verseScrambleVerse,
-                reference: verseScrambleReference
-            };
+            const validVerses = verseScrambleVerses.filter(v => v.verse.trim() !== '');
+            if (validVerses.length > 0) {
+                gameData = {
+                    verses: validVerses
+                };
+            } else {
+                gameData = {
+                    verse: verseScrambleVerse,
+                    reference: verseScrambleReference
+                };
+            }
         } else if (gameType === GameType.WHO_AM_I) {
             // If multiple solutions are used (check if the array has content beyond default or if user switched mode)
             // For now, let's prefer the multiple solutions format if it has valid data
@@ -453,28 +465,60 @@ const GameBuilder: React.FC<GameBuilderProps> = ({
 
                     {gameType === GameType.VERSE_SCRAMBLE && (
                         <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-1">Verse Text</label>
-                                <textarea
-                                    value={verseScrambleVerse}
-                                    onChange={e => setVerseScrambleVerse(e.target.value)}
-                                    required
-                                    rows={3}
-                                    className="w-full p-2 bg-gray-900 border border-gray-700 rounded focus:ring-yellow-500 focus:border-yellow-500 text-white"
-                                    placeholder="For God so loved the world..."
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-1">Reference</label>
-                                <input
-                                    type="text"
-                                    value={verseScrambleReference}
-                                    onChange={e => setVerseScrambleReference(e.target.value)}
-                                    required
-                                    className="w-full p-2 bg-gray-900 border border-gray-700 rounded focus:ring-yellow-500 focus:border-yellow-500 text-white"
-                                    placeholder="John 3:16"
-                                />
-                            </div>
+                            <p className="text-sm text-gray-400 mb-2">Enter one or more Verse/Reference pairs. One will be randomly assigned to each user.</p>
+                            {verseScrambleVerses.map((v, idx) => (
+                                <div key={idx} className="p-4 bg-gray-900/50 rounded border border-gray-700 relative">
+                                    <div className="mb-2">
+                                        <label className="block text-sm font-medium text-gray-300 mb-1">Verse Text</label>
+                                        <textarea
+                                            value={v.verse}
+                                            onChange={e => {
+                                                const newVerses = [...verseScrambleVerses];
+                                                newVerses[idx].verse = e.target.value;
+                                                setVerseScrambleVerses(newVerses);
+                                            }}
+                                            required={idx === 0}
+                                            rows={3}
+                                            className="w-full p-2 bg-gray-900 border border-gray-700 rounded focus:ring-yellow-500 focus:border-yellow-500 text-white"
+                                            placeholder="For God so loved the world..."
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-1">Reference</label>
+                                        <input
+                                            type="text"
+                                            value={v.reference}
+                                            onChange={e => {
+                                                const newVerses = [...verseScrambleVerses];
+                                                newVerses[idx].reference = e.target.value;
+                                                setVerseScrambleVerses(newVerses);
+                                            }}
+                                            required={idx === 0}
+                                            className="w-full p-2 bg-gray-900 border border-gray-700 rounded focus:ring-yellow-500 focus:border-yellow-500 text-white"
+                                            placeholder="John 3:16"
+                                        />
+                                    </div>
+                                    {verseScrambleVerses.length > 1 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const newVerses = verseScrambleVerses.filter((_, i) => i !== idx);
+                                                setVerseScrambleVerses(newVerses);
+                                            }}
+                                            className="absolute top-2 right-2 text-red-400 hover:text-red-300 text-xs"
+                                        >
+                                            Remove
+                                        </button>
+                                    )}
+                                </div>
+                            ))}
+                            <button
+                                type="button"
+                                onClick={() => setVerseScrambleVerses([...verseScrambleVerses, { verse: '', reference: '' }])}
+                                className="text-sm text-yellow-400 hover:text-yellow-300"
+                            >
+                                + Add Verse
+                            </button>
                         </div>
                     )}
 

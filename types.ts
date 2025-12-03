@@ -56,8 +56,9 @@ export interface MatchTheWordData {
 }
 
 export interface VerseScrambleData {
-  verse: string;
-  reference: string;
+  verse?: string;
+  reference?: string;
+  verses?: { verse: string; reference: string }[];
 }
 
 export interface WhoAmIData {

@@ -1179,6 +1179,58 @@ const resolveGameData = async (game: any, userId: string | undefined) => {
       const candidate = puzzles[Math.floor(Math.random() * puzzles.length)];
       gameData = { ...candidate };
     }
+  } else if (gameType === 'verse_scramble' && gameData.verses && gameData.verses.length > 0) {
+    // Handle Verse Scramble with multiple verses
+    if (userId) {
+      let assignedVerse;
+
+      // 1. Check submission
+      const submissionResult = await pool.query('SELECT submission_data FROM game_submissions WHERE user_id = $1 AND game_id = $2', [userId, game.id]);
+      if (submissionResult.rows.length > 0) {
+        const submissionData = submissionResult.rows[0].submission_data;
+        if (submissionData && (submissionData.verse || submissionData.reference)) {
+          assignedVerse = {
+            verse: submissionData.verse,
+            reference: submissionData.reference
+          };
+        }
+      }
+
+      // 2. Check progress
+      if (!assignedVerse) {
+        let progressResult = await pool.query('SELECT game_state FROM game_progress WHERE user_id = $1 AND game_id = $2', [userId, game.id]);
+
+        if (progressResult.rows.length > 0 && progressResult.rows[0].game_state.assignedVerse) {
+          assignedVerse = progressResult.rows[0].game_state.assignedVerse;
+        } else {
+          // Assign new
+          const verses = gameData.verses;
+          const candidate = verses[Math.floor(Math.random() * verses.length)];
+
+          const existingState = progressResult.rows.length > 0 ? progressResult.rows[0].game_state : {};
+          const newState = { ...existingState, assignedVerse: candidate };
+
+          await pool.query(
+            `INSERT INTO game_progress (id, user_id, game_id, game_state, updated_at) 
+               VALUES ($1, $2, $3, $4, NOW()) 
+               ON CONFLICT (user_id, game_id) DO UPDATE SET game_state = $4, updated_at = NOW()`,
+            [`progress-${userId}-${game.id}`, userId, game.id, JSON.stringify(newState)]
+          );
+          assignedVerse = candidate;
+        }
+      }
+
+      if (assignedVerse) {
+        gameData = { ...gameData, verse: assignedVerse.verse, reference: assignedVerse.reference };
+        delete gameData.verses;
+      }
+
+    } else {
+      // Guest
+      const candidate = gameData.verses[0];
+      gameData = { ...gameData, verse: candidate.verse, reference: candidate.reference };
+      delete gameData.verses;
+    }
   }
 }
 
