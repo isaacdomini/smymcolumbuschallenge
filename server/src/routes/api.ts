@@ -2,11 +2,13 @@ import { Router, Request, Response } from 'express';
 import pool from '../db/pool.js';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
+import jwt from 'jsonwebtoken';
 import { sendVerificationEmail, sendPasswordResetEmail, sendAccountDeletionRequestEmail, sendTicketCreatedEmail, sendAdminTicketNotification } from '../services/email.js'; // Added new email function
 import { getVapidPublicKey, saveSubscription } from '../services/push.js';
 import { manualLog, getClientIp } from '../middleware/logger.js';
 
 const router = Router();
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
 // Helper to get 'YYYY-MM-DD' in Eastern Time
 const getTodayEST = () => {
@@ -242,9 +244,39 @@ router.post('/login', async (req: Request, res: Response) => {
     delete user.verification_token;
     delete user.reset_password_token;
     delete user.reset_password_expires;
-    res.json(user);
+
+    const token = jwt.sign({ id: user.id, isAdmin: user.is_admin }, JWT_SECRET, { expiresIn: '7d' });
+    res.json({ ...user, token });
   } catch (error) {
     console.error('Login error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.post('/migrate-session', async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.body;
+    if (!userId) return res.status(400).json({ error: 'User ID is required' });
+
+    // Verify user exists
+    const result = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'User not found' });
+
+    const user = result.rows[0];
+
+    // Remove sensitive data
+    delete user.password;
+    delete user.verification_token;
+    delete user.reset_password_token;
+    delete user.reset_password_expires;
+
+    // Issue new token
+    const token = jwt.sign({ id: user.id, isAdmin: user.is_admin }, JWT_SECRET, { expiresIn: '7d' });
+
+    // Return updated user object (with correct isAdmin from DB) and token
+    res.json({ ...user, token });
+  } catch (error) {
+    console.error('Session migration error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

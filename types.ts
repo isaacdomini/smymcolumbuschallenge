@@ -5,6 +5,7 @@ export interface User {
   isAdmin?: boolean;
   isVerified?: boolean;
   createdAt?: string;
+  token?: string;
 }
 
 export enum GameType {

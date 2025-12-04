@@ -125,6 +125,15 @@ const MOCK_GAME_PROGRESS: GameProgress[] = [];
 // --- HELPER for Auth Headers ---
 const getAuthHeaders = async (userId?: string) => {
     const headers: HeadersInit = { 'Content-Type': 'application/json' };
+
+    // Add JWT token if available
+    try {
+        const token = await storage.get('token');
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+    } catch (e) { }
+
     if (userId) {
         headers['X-User-ID'] = userId;
     }
@@ -143,6 +152,32 @@ const getAuthHeaders = async (userId?: string) => {
 const simulateDelay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
 // --- API FUNCTIONS ---
+
+export const migrateSession = async (userId: string): Promise<User> => {
+    const useMock = USE_MOCK_DATA || userId.startsWith('user-'); // Simple check for mock/test users
+    if (useMock && USE_MOCK_DATA) {
+        await simulateDelay(500);
+        const user = MOCK_USERS.find(u => u.id === userId);
+        if (user) {
+            // Mock token generation
+            return { ...user, token: 'mock-jwt-token' };
+        }
+        throw new Error("User not found");
+    } else {
+        const response = await fetch(`${API_BASE_URL}/migrate-session`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId }),
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Session migration failed');
+        }
+
+        return await response.json();
+    }
+};
 
 export const login = async (email: string, pass: string): Promise<User> => {
     const useMock = USE_MOCK_DATA || email.split('@')[0] === 'test';
