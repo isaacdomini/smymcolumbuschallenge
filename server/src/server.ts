@@ -20,8 +20,8 @@ const PORT = process.env.PORT || 3000;
 app.set('trust proxy', true);
 
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, 
-  max: 1000, 
+  windowMs: 15 * 60 * 1000,
+  max: 1000,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests, please try again later.' }
@@ -31,7 +31,12 @@ app.use(cors());
 app.use(express.json());
 app.use(visitLogger);
 
-app.use('/api', limiter); 
+app.use(visitLogger);
+
+import { maintenanceCheck } from './middleware/maintenance.js';
+app.use(maintenanceCheck);
+
+app.use('/api', limiter);
 
 // Routes
 app.use('/api/admin', adminRoutes); // Register admin routes BEFORE generic API if they overlap, though here they don't.
@@ -42,15 +47,15 @@ if (process.env.NODE_ENV !== 'development') {
   app.get('/service-worker.js', (req, res) => {
     const swPath = path.join(distPath, 'service-worker.js');
     res.sendFile(swPath, {
-      headers: { 
-          'Content-Type': 'application/javascript',
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
+      headers: {
+        'Content-Type': 'application/javascript',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
       }
     }, (err) => {
       if (err && !res.headersSent) {
-          res.status(404).send('Service Worker not found');
+        res.status(404).send('Service Worker not found');
       }
     });
   });
@@ -64,6 +69,6 @@ if (process.env.NODE_ENV !== 'development') {
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
   if (process.env.NODE_ENV === 'production') {
-      initScheduler();
+    initScheduler();
   }
 });
