@@ -8,7 +8,7 @@ dotenv.config();
 // Configuration
 // const APP_URL = process.env.APP_URL || 'http://localhost:5173';
 // const DB_CONNECTION_STRING = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/smym_bible_games';
-const APP_URL = 'http://localhost:5173';//process.env.APP_URL || 'http://localhost:5173';
+const APP_URL = 'http://10.0.0.3:6144';//process.env.APP_URL || 'http://localhost:5173';
 const DB_CONNECTION_STRING = 'postgresql://postgres:postgres@10.0.0.3:5432/smym_bible_games'//process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/smym_bible_games';
 
 const HEADLESS = false; //process.env.HEADLESS !== 'false'; // Default to headless, set HEADLESS=false to see browser

@@ -2072,6 +2072,24 @@ const mapSubmission = (sub: any) => ({
 });
 
 // --- GAME STATE ENDPOINTS ---
+
+const stripSensitiveGameState = (gameState: any) => {
+  if (!gameState) return gameState;
+  const sensitiveFields = [
+    'assignedWord',
+    'assignedSolution',
+    'assignedVerse',
+    'assignedCategories',
+    'assignedCrosswordIndex',
+    'assignedWhoAmI',
+    'assignedPairs',
+    'assignedWordSearchIndex'
+  ];
+  const cleanState = { ...gameState };
+  sensitiveFields.forEach(field => delete cleanState[field]);
+  return cleanState;
+};
+
 router.get('/game-state/user/:userId/game/:gameId', async (req: Request, res: Response) => {
   try {
     const { userId, gameId } = req.params;
@@ -2081,7 +2099,7 @@ router.get('/game-state/user/:userId/game/:gameId', async (req: Request, res: Re
         id: result.rows[0].id,
         userId: result.rows[0].user_id,
         gameId: result.rows[0].game_id,
-        gameState: result.rows[0].game_state,
+        gameState: stripSensitiveGameState(result.rows[0].game_state),
         updatedAt: result.rows[0].updated_at.toISOString(),
       });
     } else {
@@ -2141,7 +2159,7 @@ router.post('/game-state/user/:userId/game/:gameId', async (req: Request, res: R
       id: result.rows[0].id,
       userId: result.rows[0].user_id,
       gameId: result.rows[0].game_id,
-      gameState: result.rows[0].game_state,
+      gameState: stripSensitiveGameState(result.rows[0].game_state),
       updatedAt: result.rows[0].updated_at.toISOString(),
     });
   } catch (error) {
