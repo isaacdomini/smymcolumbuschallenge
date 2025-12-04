@@ -154,7 +154,7 @@ const simulateDelay = (ms: number) => new Promise(res => setTimeout(res, ms));
 // --- API FUNCTIONS ---
 
 export const migrateSession = async (userId: string): Promise<User> => {
-    const useMock = USE_MOCK_DATA || userId.startsWith('user-'); // Simple check for mock/test users
+    const useMock = USE_MOCK_DATA || await isTestUser(); // Simple check for mock/test users
     if (useMock && USE_MOCK_DATA) {
         await simulateDelay(500);
         const user = MOCK_USERS.find(u => u.id === userId);
@@ -794,21 +794,7 @@ export const reportCheating = async (userId: string, details: string): Promise<v
     }
 };
 
-export const migrateSession = async (userId: string): Promise<User> => {
-    if (USE_MOCK_DATA || await isTestUser()) {
-        await simulateDelay(500);
-        const index = MOCK_USERS.findIndex(u => u.id === userId);
-        if (index === -1) throw new Error("User not found");
-        MOCK_USERS.splice(index, 1);
-        return;
-    }
-    const response = await fetch(`${API_BASE_URL}/users/${userId}/migrate-session`, {
-        method: 'POST',
-        headers: await getAuthHeaders(userId)
-    });
-    if (!response.ok) throw new Error('Failed to migrate session');
-    return await response.json();
-}
+
 
 export const deleteUser = async (userId: string): Promise<void> => {
     if (USE_MOCK_DATA || await isTestUser()) {
