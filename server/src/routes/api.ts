@@ -8,7 +8,10 @@ import { getVapidPublicKey, saveSubscription } from '../services/push.js';
 import { manualLog, getClientIp } from '../middleware/logger.js';
 
 const router = Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+if (!process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable must be set');
+}
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // Helper to get 'YYYY-MM-DD' in Eastern Time
 const getTodayEST = () => {
@@ -982,8 +985,6 @@ router.get('/challenge', async (req: Request, res: Response) => {
 });
 
 // Helper to resolve game data (specifically for Wordle Advanced)
-// Helper to resolve game data (specifically for Wordle Advanced)
-// Helper to resolve game data (specifically for Wordle Advanced)
 export const resolveGameData = async (game: any, userId?: string, stripSolution: boolean = true) => {
   console.log('resolveGameData called for game:', game.id, 'type:', game.type, 'userId:', userId);
   let gameData = game.data;
@@ -1416,7 +1417,6 @@ export const resolveGameData = async (game: any, userId?: string, stripSolution:
                ON CONFLICT (user_id, game_id) DO UPDATE SET game_state = $4, updated_at = NOW()`,
             [`progress-${userId}-${game.id}`, userId, game.id, JSON.stringify(newState)]
           );
-          console.log(`[DEBUG] Assigned pairs saved for user ${userId}:`, assignedPairs);
         }
       }
 
@@ -1762,13 +1762,6 @@ router.get('/challenge/:challengeId/games', async (req: Request, res: Response) 
 // Since it's not in the original content, it's added here as per the instruction's context.
 // If this block is not part of the actual file, it should be removed.
 // For the purpose of this edit, it's included as it appears in the instruction's context.
-// Return updated user object (with correct isAdmin from DB) and token
-// res.json({ ...user, token });
-// } catch (error) {
-//   console.error('Session migration error:', error);
-//   res.status(500).json({ error: 'Internal server error' });
-// }
-// });
 
 router.post('/report-cheating', async (req: Request, res: Response) => {
   try {
