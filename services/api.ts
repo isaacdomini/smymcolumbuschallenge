@@ -1,7 +1,7 @@
 import { storage } from '@/utils/storage';
 import { User, Challenge, Game, GameType, GameSubmission, WordleData, ConnectionsData, CrosswordData, MatchTheWordData, SubmitGamePayload, GameProgress, AdminStats, LogEntry, BannerMessage } from '@/types';
 
-const USE_MOCK_DATA = import.meta.env.MODE === 'development';
+const USE_MOCK_DATA = false; // import.meta.env.MODE === 'development';
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 const isTestUser = async (): Promise<boolean> => {

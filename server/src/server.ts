@@ -17,7 +17,7 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.set('trust proxy', true);
+app.set('trust proxy', false);
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,

@@ -107,7 +107,7 @@ const calculateScore = (game: any, submissionData: any, timeTaken: number, mista
   // Get the game date as YYYY-MM-DD in EST
   // game.date is a Date object from the DB, e.g., 2025-11-15 00:00:00 UTC
   // We need its UTC date string.
-  const gameDateStr = game.date.toISOString().split('T')[0]; // "2025-11-15"
+  const gameDateStr = new Date(game.date).toISOString().split('T')[0]; // "2025-11-15"
   const gameDate = new Date(gameDateStr + 'T12:00:00Z'); // Noon UTC on that day
 
   const diffTime = today.getTime() - gameDate.getTime();
@@ -985,6 +985,7 @@ router.get('/challenge', async (req: Request, res: Response) => {
 // Helper to resolve game data (specifically for Wordle Advanced)
 // Helper to resolve game data (specifically for Wordle Advanced)
 export const resolveGameData = async (game: any, userId?: string, stripSolution: boolean = true) => {
+  console.log('resolveGameData called for game:', game.id, 'type:', game.type, 'userId:', userId);
   let gameData = game.data;
   let gameType = game.type;
 
@@ -1286,6 +1287,7 @@ export const resolveGameData = async (game: any, userId?: string, stripSolution:
     }
   } else if ((gameType === 'wordle' || gameType === 'wordle_advanced') && gameData.solutions && gameData.solutions.length > 0) {
     if (userId) {
+      console.log('Resolving Wordle for user:', userId);
       let assignedSolution;
       // Check submission
       const submissionResult = await pool.query('SELECT submission_data FROM game_submissions WHERE user_id = $1 AND game_id = $2', [userId, game.id]);
@@ -1302,10 +1304,12 @@ export const resolveGameData = async (game: any, userId?: string, stripSolution:
           assignedSolution = progressResult.rows[0].game_state.assignedSolution;
         } else {
           // Assign new
+          console.log('Assigning new solution...');
           const solutions = gameData.solutions;
           assignedSolution = solutions[Math.floor(Math.random() * solutions.length)];
           const existingState = progressResult.rows.length > 0 ? progressResult.rows[0].game_state : {};
           const newState = { ...existingState, assignedSolution };
+          console.log('Saving new state:', newState);
           await pool.query(
             `INSERT INTO game_progress (id, user_id, game_id, game_state, updated_at)
                     VALUES ($1, $2, $3, $4, NOW())
@@ -1323,6 +1327,7 @@ export const resolveGameData = async (game: any, userId?: string, stripSolution:
       gameData = { ...gameData, solution: gameData.solutions[0] };
       delete gameData.solutions;
     }
+  } else if (gameType === 'verse_scramble' && gameData.verses && gameData.verses.length > 0) {
     // Handle Verse Scramble with multiple verses
     if (userId) {
       let assignedVerse;
@@ -1411,6 +1416,7 @@ export const resolveGameData = async (game: any, userId?: string, stripSolution:
                ON CONFLICT (user_id, game_id) DO UPDATE SET game_state = $4, updated_at = NOW()`,
             [`progress-${userId}-${game.id}`, userId, game.id, JSON.stringify(newState)]
           );
+          console.log(`[DEBUG] Assigned pairs saved for user ${userId}:`, assignedPairs);
         }
       }
 
@@ -1550,7 +1556,7 @@ export const resolveGameData = async (game: any, userId?: string, stripSolution:
       if (gameData.pairs) {
         gameData.shuffledWords = shuffleArray(gameData.pairs.map((p: any) => p.word));
         gameData.shuffledMatches = shuffleArray(gameData.pairs.map((p: any) => p.match));
-        delete gameData.pairs;
+        // delete gameData.pairs; // Frontend needs pairs to reconstruct lines on load
       }
     } else if (gameType === 'verse_scramble') {
       if (gameData.verse) {
@@ -1734,6 +1740,7 @@ router.get('/games/:gameId', async (req: Request, res: Response) => {
 router.get('/challenge/:challengeId/games', async (req: Request, res: Response) => {
   try {
     const { challengeId } = req.params;
+    console.log('Hit /challenge/:challengeId/games', challengeId);
     const userId = req.headers['x-user-id'] as string; // We need user ID to resolve games correctly
 
     const result = await pool.query("SELECT * FROM games WHERE challenge_id = $1 ORDER BY date ASC", [challengeId]);
@@ -2105,6 +2112,7 @@ router.post('/game-state/user/:userId/game/:gameId', async (req: Request, res: R
       const existingState = existingResult.rows[0].game_state;
       const keysToPreserve = [
         'assignedWord',
+        'assignedSolution',
         'assignedVerse',
         'assignedCategories',
         'assignedCrosswordIndex',
@@ -2113,9 +2121,14 @@ router.post('/game-state/user/:userId/game/:gameId', async (req: Request, res: R
         'assignedWordSearchIndex'
       ];
 
+      console.log(`[DEBUG] Existing keys: ${Object.keys(existingState).join(', ')}`);
+      console.log(`[DEBUG] Final keys before preserve: ${Object.keys(finalGameState).join(', ')}`);
       keysToPreserve.forEach(key => {
         if (existingState[key] && !finalGameState[key]) {
+          console.log(`[DEBUG] Preserving key ${key}:`, existingState[key]);
           finalGameState[key] = existingState[key];
+        } else {
+          if (existingState[key]) console.log(`[DEBUG] NOT preserving ${key}. Final has it? ${!!finalGameState[key]}`);
         }
       });
     }
