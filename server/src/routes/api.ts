@@ -3,7 +3,7 @@ import pool from '../db/pool.js';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
-import { sendVerificationEmail, sendPasswordResetEmail, sendAccountDeletionRequestEmail, sendTicketCreatedEmail, sendAdminTicketNotification } from '../services/email.js'; // Added new email function
+import { sendVerificationEmail, sendPasswordResetEmail, sendAccountDeletionRequestEmail, sendTicketCreatedEmail, sendAdminTicketNotification, sendCheatingAlert } from '../services/email.js'; // Added new email function
 import { getVapidPublicKey, saveSubscription } from '../services/push.js';
 import { manualLog, getClientIp } from '../middleware/logger.js';
 
