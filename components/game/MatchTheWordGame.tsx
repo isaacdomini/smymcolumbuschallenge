@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { MatchTheWordData, GameSubmission, GameType } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
-import { submitGame, getGameState, saveGameState, clearGameState } from '../../services/api';
+import { submitGame, getGameState, saveGameState, clearGameState, checkAnswer } from '../../services/api';
 import GameInstructionsModal from './GameInstructionsModal';
 
 interface MatchTheWordGameProps {
@@ -48,16 +48,20 @@ const MatchTheWordGame: React.FC<MatchTheWordGameProps> = ({ gameId, gameData, s
   const containerRef = useRef<HTMLDivElement>(null);
 
   const shuffledWords = useMemo(() => {
-    const dataToUse = isSample ? SAMPLE_DATA : gameData;
-    const allWords = dataToUse.pairs.map(p => p.word);
-    return allWords.sort(() => Math.random() - 0.5);
-  }, [gameData.pairs, isSample]);
+    if (isSample) {
+      const allWords = SAMPLE_DATA.pairs.map(p => p.word);
+      return allWords.sort(() => Math.random() - 0.5);
+    }
+    return gameData.shuffledWords || [];
+  }, [gameData.shuffledWords, isSample]);
 
   const shuffledMatches = useMemo(() => {
-    const dataToUse = isSample ? SAMPLE_DATA : gameData;
-    const allMatches = dataToUse.pairs.map(p => p.match);
-    return allMatches.sort(() => Math.random() - 0.5);
-  }, [gameData.pairs, isSample]);
+    if (isSample) {
+      const allMatches = SAMPLE_DATA.pairs.map(p => p.match);
+      return allMatches.sort(() => Math.random() - 0.5);
+    }
+    return gameData.shuffledMatches || [];
+  }, [gameData.shuffledMatches, isSample]);
 
   useEffect(() => {
     const loadState = async () => {
@@ -130,30 +134,58 @@ const MatchTheWordGame: React.FC<MatchTheWordGameProps> = ({ gameId, gameData, s
 
   useEffect(() => {
     if (selectedWord && selectedMatch) {
-      const dataToUse = isSample ? SAMPLE_DATA : gameData;
-      const correctPair = dataToUse.pairs.find(p => p.word === selectedWord && p.match === selectedMatch);
-      if (correctPair) {
-        const newFoundPairs = [...foundPairs, selectedWord];
-        setFoundPairs(newFoundPairs);
-        const color = COLORS[(newFoundPairs.length - 1) % COLORS.length];
-        setPairColors(prev => ({ ...prev, [selectedWord]: color }));
-        if (selectedMatch) {
-          setLines(prev => [...prev, { from: selectedWord, to: selectedMatch, color }]);
-        }
+      if (isSample) {
+        const correctPair = SAMPLE_DATA.pairs.find(p => p.word === selectedWord && p.match === selectedMatch);
+        if (correctPair) {
+          const newFoundPairs = [...foundPairs, selectedWord];
+          setFoundPairs(newFoundPairs);
+          const color = COLORS[(newFoundPairs.length - 1) % COLORS.length];
+          setPairColors(prev => ({ ...prev, [selectedWord]: color }));
+          if (selectedMatch) {
+            setLines(prev => [...prev, { from: selectedWord, to: selectedMatch, color }]);
+          }
 
-        if (newFoundPairs.length === dataToUse.pairs.length) {
-          setGameState('won');
+          if (newFoundPairs.length === SAMPLE_DATA.pairs.length) {
+            setGameState('won');
+          }
+        } else {
+          setMistakes(prev => prev + 1);
+          if (mistakes + 1 >= maxMistakes) {
+            setGameState('lost');
+          }
         }
       } else {
-        setMistakes(prev => prev + 1);
-        if (mistakes + 1 >= maxMistakes) {
-          setGameState('lost');
-        }
+        // Backend check
+        checkAnswer(gameId, { word: selectedWord, match: selectedMatch })
+          .then(res => {
+            if (res.correct) {
+              const newFoundPairs = [...foundPairs, selectedWord];
+              setFoundPairs(newFoundPairs);
+              const color = COLORS[(newFoundPairs.length - 1) % COLORS.length];
+              setPairColors(prev => ({ ...prev, [selectedWord]: color }));
+              if (selectedMatch) {
+                setLines(prev => [...prev, { from: selectedWord, to: selectedMatch, color }]);
+              }
+
+              // Check win
+              // We need total pairs.
+              // shuffledWords.length should be total pairs.
+              if (newFoundPairs.length === shuffledWords.length) {
+                setGameState('won');
+              }
+            } else {
+              setMistakes(prev => prev + 1);
+              if (mistakes + 1 >= maxMistakes) {
+                setGameState('lost');
+              }
+            }
+          })
+          .catch(err => console.error("Check failed", err));
       }
       setSelectedWord(null);
       setSelectedMatch(null);
     }
-  }, [selectedWord, selectedMatch, gameData.pairs, foundPairs, mistakes, isSample]);
+  }, [selectedWord, selectedMatch, foundPairs, mistakes, isSample, gameId, shuffledWords]);
 
   useEffect(() => {
     const calculateCoords = () => {
@@ -208,7 +240,7 @@ const MatchTheWordGame: React.FC<MatchTheWordGameProps> = ({ gameId, gameData, s
           mistakes,
           submissionData: {
             foundPairsCount: foundPairs.length,
-            assignedPairs: gameData.pairs.map(p => p.word)
+            assignedPairs: isSample ? SAMPLE_DATA.pairs.map(p => p.word) : undefined // We don't have pairs locally for real game.
           }
         });
         setTimeout(onComplete, 3000);

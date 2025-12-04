@@ -231,3 +231,37 @@ export const sendAdminTicketNotification = async (ticketId: string, userEmail: s
     await logNotification(null, 'email_admin_ticket_notification', adminEmail, { subject: `[New Ticket] #${ticketId}`, ticketId, userEmail }, 'failed', error.message);
   }
 };
+
+// NEW: Cheating Alert (to Admin)
+export const sendCheatingAlert = async (userEmail: string, userName: string, details: string) => {
+  const adminEmail = 'me@isaacdomini.com'; // Admin's email address
+
+  try {
+    await transporter.sendMail({
+      from: process.env.EMAIL_FROM,
+      to: adminEmail,
+      subject: `[CHEATING ALERT] User ${userName} detected using DevTools`,
+      html: `
+          <div style="font-family: sans-serif; color: #333;">
+            <h2 style="color: #DC2626;">Potential Cheating Detected</h2>
+            <p>A user has been detected using Developer Tools while using the application.</p>
+            <hr>
+            <p><strong>User Details:</strong></p>
+            <ul>
+              <li><strong>Name:</strong> ${userName}</li>
+              <li><strong>Email:</strong> ${userEmail}</li>
+            </ul>
+            <hr>
+            <p><strong>Detection Details:</strong></p>
+            <pre style="background: #f4f4f4; padding: 10px; white-space: pre-wrap;">${details}</pre>
+            <p>Please investigate if necessary.</p>
+          </div>
+        `,
+    });
+    console.log(`Cheating alert sent to admin for user ${userEmail}`);
+    await logNotification(null, 'email_cheating_alert', adminEmail, { subject: `[CHEATING ALERT] User ${userName}`, userEmail, details }, 'sent');
+  } catch (error: any) {
+    console.error(`Failed to send cheating alert to admin for user ${userEmail}:`, error);
+    await logNotification(null, 'email_cheating_alert', adminEmail, { subject: `[CHEATING ALERT] User ${userName}`, userEmail, details }, 'failed', error.message);
+  }
+};

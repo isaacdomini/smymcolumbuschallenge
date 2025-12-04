@@ -8,7 +8,7 @@ export type Direction = 'across' | 'down';
 export interface Clue {
   number: number;
   clue: string;
-  answer: string;
+  answer?: string;
   row: number;
   col: number;
   direction: Direction;
@@ -41,6 +41,7 @@ interface DarkModeCrosswordProps {
   onCellChange?: (row: number, col: number, char: string | null) => void;
   initialGrid?: (string | null)[][];
   isReviewMode?: boolean;
+  incorrectCells?: { row: number, col: number }[];
 }
 
 export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
@@ -49,6 +50,7 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
   onCellChange,
   initialGrid,
   isReviewMode = false,
+  incorrectCells,
 }) => {
   const { rows, cols } = puzzleData;
   const gridRef = useRef<HTMLDivElement>(null);
@@ -83,12 +85,12 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
 
     puzzleData.acrossClues.forEach(clue => {
       acrossMap.set(clue.number, clue);
-      for (let i = 0; i < clue.answer.length; i++) {
+      for (let i = 0; i < (clue.answer ? clue.answer.length : (clue as any).length || 0); i++) {
         if (clue.col + i < cols) {
           const cell = newGridData[clue.row][clue.col + i];
           cell.isBlack = false;
           cell.acrossClueNumber = clue.number;
-          newSolutionGrid[clue.row][clue.col + i] = clue.answer[i];
+          if (clue.answer) newSolutionGrid[clue.row][clue.col + i] = clue.answer[i];
         }
       }
       if (clue.col < cols && clue.row < rows) {
@@ -98,12 +100,12 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
 
     puzzleData.downClues.forEach(clue => {
       downMap.set(clue.number, clue);
-      for (let i = 0; i < clue.answer.length; i++) {
+      for (let i = 0; i < (clue.answer ? clue.answer.length : (clue as any).length || 0); i++) {
         if (clue.row + i < rows) {
           const cell = newGridData[clue.row + i][clue.col];
           cell.isBlack = false;
           cell.downClueNumber = clue.number;
-          newSolutionGrid[clue.row + i][clue.col] = clue.answer[i];
+          if (clue.answer) newSolutionGrid[clue.row + i][clue.col] = clue.answer[i];
         }
       }
       if (clue.row < rows && clue.col < cols) {
@@ -133,7 +135,15 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
     if (!clue) return { number: clueNumber, clueText: '', cells: [] };
 
     const cells: ActiveCell[] = [];
-    for (let i = 0; i < clue.answer.length; i++) {
+    // If answer is missing (backend check), we can't highlight cells easily unless we have length.
+    // We added length to Clue in types.ts. We should use it.
+    // But here Clue interface (line 8) doesn't have length. I should update it.
+    // Or use clue.answer.length if available.
+    // If answer is missing, we need length.
+    // Let's assume clue has length if answer is missing.
+    const length = clue.answer ? clue.answer.length : (clue as any).length || 0;
+
+    for (let i = 0; i < length; i++) {
       cells.push({
         row: direction === 'across' ? clue.row : clue.row + i,
         col: direction === 'across' ? clue.col + i : clue.col,
@@ -144,6 +154,13 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
 
   const checkCompletion = useCallback(() => {
     if (isCompleted || isReviewMode) return;
+    // Cannot check completion locally if solution is missing
+    // So we skip this check if solutionGrid is empty or partial
+    // Or we rely on explicit submit.
+    // For now, disable auto-completion check if any answer is missing.
+    const hasAllAnswers = puzzleData.acrossClues.every(c => c.answer) && puzzleData.downClues.every(c => c.answer);
+    if (!hasAllAnswers) return;
+
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
         if (!fullGridData[r][c].isBlack && grid[r][c] !== solutionGrid[r][c]) {
@@ -153,7 +170,7 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
     }
     setIsCompleted(true);
     onPuzzleComplete?.();
-  }, [grid, onPuzzleComplete, isCompleted, isReviewMode, rows, cols, fullGridData, solutionGrid]);
+  }, [grid, onPuzzleComplete, isCompleted, isReviewMode, rows, cols, fullGridData, solutionGrid, puzzleData]);
 
   useEffect(() => {
     checkCompletion();
@@ -322,8 +339,15 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
               } else {
                 if (isReviewMode) {
                   const userChar = grid[row][col];
-                  const solutionChar = solutionGrid[row][col];
-                  const isIncorrect = userChar && userChar !== solutionChar;
+                  // Use incorrectCells prop if available, otherwise fallback to solutionGrid check (for sample/legacy)
+                  let isIncorrect = false;
+                  if (incorrectCells) {
+                    isIncorrect = incorrectCells.some(c => c.row === row && c.col === col);
+                  } else if (solutionGrid[row][col]) {
+                    const solutionChar = solutionGrid[row][col];
+                    isIncorrect = userChar !== solutionChar;
+                  }
+
                   if (isIncorrect) {
                     cellClasses += ' bg-red-900/30 text-red-200';
                   } else {
@@ -339,8 +363,22 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
               }
 
               let charToShow = grid[row][col];
+              // In review mode, we usually showed solution. But if we don't have it, we show user's input.
+              // If we have solution (sample), we can show it?
+              // But usually review mode shows what user entered.
+              // The original code showed solutionGrid[row][col]!
+              // "charToShow = solutionGrid[row][col];"
+              // This means it revealed the solution.
+              // If we want to hide solution, we should show user input.
+              // But if user wants to see what they missed?
+              // If we don't send solution, we can't show it.
+              // So we must show user input.
               if (isReviewMode && !isBlack) {
-                charToShow = solutionGrid[row][col];
+                // If we have solution (sample), maybe show it?
+                // But for consistency, let's show user input.
+                // If user wants to see solution, they can't unless we fetch it (which we don't want).
+                // So showing user input is correct for "no solution on frontend".
+                charToShow = grid[row][col];
               }
 
               return (

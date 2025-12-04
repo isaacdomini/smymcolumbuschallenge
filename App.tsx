@@ -54,8 +54,11 @@ const App: React.FC = () => {
   );
 };
 
+import { useDevToolsDetection } from './hooks/useDevToolsDetection';
+
 const MainContent: React.FC = () => {
   useLogger();
+  useDevToolsDetection();
   const { user } = useAuth();
   const [challenge, setChallenge] = useState<Challenge | null>(null);
   const [todaysGame, setTodaysGame] = useState<Game | null>(null);

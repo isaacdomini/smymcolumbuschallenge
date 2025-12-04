@@ -778,6 +778,34 @@ export const updateUserProfile = async (userId: string, data: { name: string }):
     return await response.json();
 }
 
+export const reportCheating = async (userId: string, details: string): Promise<void> => {
+    try {
+        await fetch(`${API_BASE_URL}/report-cheating`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId, details }),
+        });
+    } catch (e) {
+        console.error("Failed to report cheating", e);
+    }
+};
+
+export const migrateSession = async (userId: string): Promise<User> => {
+    if (USE_MOCK_DATA || await isTestUser()) {
+        await simulateDelay(500);
+        const index = MOCK_USERS.findIndex(u => u.id === userId);
+        if (index === -1) throw new Error("User not found");
+        MOCK_USERS.splice(index, 1);
+        return;
+    }
+    const response = await fetch(`${API_BASE_URL}/users/${userId}/migrate-session`, {
+        method: 'POST',
+        headers: await getAuthHeaders(userId)
+    });
+    if (!response.ok) throw new Error('Failed to migrate session');
+    return await response.json();
+}
+
 export const deleteUser = async (userId: string): Promise<void> => {
     if (USE_MOCK_DATA || await isTestUser()) {
         await simulateDelay(500);
@@ -809,6 +837,24 @@ export const getGames = async (userId: string, challengeId: string): Promise<Gam
     });
     if (!response.ok) throw new Error('Failed to fetch games');
     return await response.json();
+};
+
+export const checkAnswer = async (gameId: string, guess: any): Promise<any> => {
+    if (USE_MOCK_DATA || await isTestUser()) {
+        await simulateDelay(200);
+        // Mock simple success for testing UI
+        return { result: Array(5).fill('correct'), correct: true };
+    } else {
+        const response = await fetch(`${API_BASE_URL}/games/${gameId}/check`, {
+            method: 'POST',
+            headers: await getAuthHeaders(),
+            body: JSON.stringify({ guess })
+        });
+        if (!response.ok) {
+            throw new Error('Failed to check answer');
+        }
+        return await response.json();
+    }
 };
 
 export const deleteGame = async (userId: string, gameId: string): Promise<void> => {

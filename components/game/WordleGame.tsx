@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { WordleData, GameSubmission, GameType } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
-import { submitGame, getGameState, saveGameState, clearGameState } from '../../services/api';
+import { submitGame, getGameState, saveGameState, clearGameState, checkAnswer } from '../../services/api';
 import GameInstructionsModal from './GameInstructionsModal';
 
 interface WordleGameProps {
@@ -15,12 +15,13 @@ interface WordleGameProps {
 const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, onComplete, isPreview = false }) => {
   const { user } = useAuth();
   const isSample = gameId.startsWith('sample-');
-  const solution = useMemo(() => isSample ? 'FAITH' : gameData.solution.toUpperCase(), [gameData.solution, isSample]);
-  const wordLength = useMemo(() => solution.length, [solution]);
+  const solution = useMemo(() => isSample ? 'FAITH' : (gameData.solution?.toUpperCase() || ''), [gameData.solution, isSample]);
+  const wordLength = useMemo(() => isSample ? 5 : (gameData.wordLength || solution.length || 5), [solution, gameData.wordLength, isSample]);
   const maxGuesses = 6;
   const isReadOnly = !!submission;
 
   const [guesses, setGuesses] = useState<string[]>(() => Array(maxGuesses).fill(''));
+  const [guessResults, setGuessResults] = useState<('correct' | 'present' | 'absent')[][]>([]);
   const [currentGuess, setCurrentGuess] = useState('');
   const [activeGuessIndex, setActiveGuessIndex] = useState(0);
   const [isRevealing, setIsRevealing] = useState(false);
@@ -44,6 +45,9 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
           } else {
             setGuesses(Array(maxGuesses).fill(''));
           }
+          if (savedState.guessResults) {
+            setGuessResults(savedState.guessResults);
+          }
           setActiveGuessIndex(savedState.activeGuessIndex || 0);
           setGameState(savedState.gameState || 'playing');
           // Use saved start time, or if it doesn't exist (old save), don't set it yet (wait for user to "start" again if we wanted, but better to just set it now to avoid issues)
@@ -66,6 +70,7 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
 
     const stateToSave = {
       guesses,
+      guessResults,
       activeGuessIndex,
       gameState,
       startTime,
@@ -87,17 +92,29 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
         finalGuesses.push('');
       }
       setGuesses(finalGuesses);
+      // If submission data has results, use them. Otherwise we might not be able to reconstruct perfectly without solution.
+      // But usually we can't reconstruct without solution.
+      // However, for read-only/history, maybe we don't need perfect colors if we don't have solution?
+      // Or we assume submissionData has results?
+      // For now, let's assume we can't reconstruct if solution is missing.
+      // But wait, if we are reviewing, we might want to see what happened.
+      // If we don't have solution, we can't show colors.
+      // Unless we stored results in submissionData.
+      // I should update submitGame to store results.
+      if (submission.submissionData.guessResults) {
+        setGuessResults(submission.submissionData.guessResults);
+      }
+
       setActiveGuessIndex(submittedGuesses.length);
       setShowInstructions(false);
 
-      const lastGuess = submittedGuesses[submittedGuesses.length - 1];
-      if (lastGuess === solution) {
+      if (submission.score > 0) { // Simple check for win
         setGameState('won');
       } else {
         setGameState('lost');
       }
     }
-  }, [isReadOnly, submission, solution, maxGuesses]);
+  }, [isReadOnly, submission, maxGuesses]);
 
   const [extraWords, setExtraWords] = useState<Set<string> | null>(null);
 
@@ -160,9 +177,60 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
         if (!isValid) {
           return;
         }
+
+        setIsLoading(true);
+        let results: ('correct' | 'present' | 'absent')[];
+
+        if (isSample || isPreview) {
+          // Local check
+          const solutionUpper = solution.toUpperCase();
+          const guessUpper = currentGuess.toUpperCase();
+          results = Array(wordLength).fill('absent');
+          const solutionChars = solutionUpper.split('');
+          const guessChars = guessUpper.split('');
+
+          // First pass: correct
+          guessChars.forEach((char, i) => {
+            if (char === solutionChars[i]) {
+              results[i] = 'correct';
+              solutionChars[i] = '';
+            }
+          });
+
+          // Second pass: present
+          guessChars.forEach((char, i) => {
+            if (results[i] !== 'correct' && solutionChars.includes(char)) {
+              results[i] = 'present';
+              const index = solutionChars.indexOf(char);
+              solutionChars[index] = '';
+            }
+          });
+          setIsLoading(false);
+        } else {
+          // Backend check
+          try {
+            const response = await checkAnswer(gameId, currentGuess);
+            if (response.error) {
+              setError(response.error);
+              setIsLoading(false);
+              return;
+            }
+            results = response.result;
+            setIsLoading(false);
+          } catch (e) {
+            console.error("Check answer failed", e);
+            setError("Failed to check answer");
+            setIsLoading(false);
+            return;
+          }
+        }
+
         const newGuesses = [...guesses];
         newGuesses[activeGuessIndex] = currentGuess;
         setGuesses(newGuesses);
+
+        setGuessResults(prev => [...prev, results]);
+
         setIsRevealing(true);
       } else {
         setError(`Word must be ${wordLength} letters`);
@@ -174,7 +242,7 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
       setError(null);
       setCurrentGuess(prev => prev + key.toUpperCase());
     }
-  }, [currentGuess, activeGuessIndex, guesses, gameState, isRevealing, isReadOnly, isLoading, wordLength, checkWordValidity, showInstructions]);
+  }, [currentGuess, activeGuessIndex, guesses, gameState, isRevealing, isReadOnly, isLoading, wordLength, checkWordValidity, showInstructions, gameId, isSample, isPreview, solution]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => handleKeyPress(e.key);
@@ -185,12 +253,14 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
   useEffect(() => {
     if (!isRevealing) return;
 
-    const guess = guesses[activeGuessIndex];
+    // We already have results in guessResults[activeGuessIndex]
+    const currentResults = guessResults[activeGuessIndex];
+    const isWin = currentResults.every(r => r === 'correct');
 
     setTimeout(() => {
-      if (guess === solution) {
+      if (isWin) {
         setGameState('won');
-        setIsRevealing(false); // stop revealing further rows
+        setIsRevealing(false);
       } else if (activeGuessIndex === maxGuesses - 1) {
         setGameState('lost');
         setIsRevealing(false);
@@ -200,7 +270,7 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
         setIsRevealing(false);
       }
     }, wordLength * 350);
-  }, [isRevealing, activeGuessIndex, guesses, solution, maxGuesses, wordLength]);
+  }, [isRevealing, activeGuessIndex, guessResults, maxGuesses, wordLength]);
 
   useEffect(() => {
     const saveResult = async () => {
@@ -216,7 +286,7 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
           startedAt: new Date(startTime).toISOString(),
           timeTaken,
           mistakes,
-          submissionData: { guesses: guesses.filter(g => g), solution }
+          submissionData: { guesses: guesses.filter(g => g), guessResults }
         });
         setTimeout(onComplete, 2000);
       }
@@ -234,23 +304,30 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
 
   const letterStatuses = useMemo(() => {
     const statuses: { [key: string]: 'correct' | 'present' | 'absent' } = {};
-    const submittedGuesses = guesses.slice(0, activeGuessIndex + (isRevealing ? 1 : 0));
 
-    submittedGuesses.forEach(guess => {
+    guesses.forEach((guess, guessIdx) => {
+      if (guessIdx >= activeGuessIndex + (isRevealing ? 1 : 0)) return;
+
+      const results = guessResults[guessIdx];
+      if (!results) return;
+
       [...guess].forEach((char, i) => {
-        if (solution[i] === char) {
+        const status = results[i];
+        if (status === 'correct') {
           statuses[char] = 'correct';
-        } else if (solution.includes(char)) {
+        } else if (status === 'present') {
           if (statuses[char] !== 'correct') {
             statuses[char] = 'present';
           }
-        } else {
-          statuses[char] = 'absent';
+        } else if (status === 'absent') {
+          if (!statuses[char]) {
+            statuses[char] = 'absent';
+          }
         }
       });
     });
     return statuses;
-  }, [guesses, activeGuessIndex, solution, isRevealing]);
+  }, [guesses, activeGuessIndex, guessResults, isRevealing]);
 
   if (showInstructions) {
     return <GameInstructionsModal gameType={GameType.WORDLE} onStart={handleInstructionsClose} onClose={handleInstructionsClose} />;
@@ -287,7 +364,7 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
             key={i}
             guess={i === activeGuessIndex ? currentGuess : guess}
             isSubmitted={i < activeGuessIndex || (i === activeGuessIndex && (isRevealing || isReadOnly))}
-            solution={solution}
+            results={guessResults[i]}
             wordLength={wordLength}
           />
         ))}
@@ -295,7 +372,7 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
       {(gameState !== 'playing' || isReadOnly) && (
         <div className="text-center p-4 rounded-lg bg-gray-800 w-full">
           {gameState === 'won' && <p className="text-xl text-green-400 font-bold">You won!</p>}
-          {gameState === 'lost' && <p className="text-xl text-red-400 font-bold">Nice try! The word was <span className="font-bold">{solution}</span>.</p>}
+          {gameState === 'lost' && <p className="text-xl text-red-400 font-bold">Nice try!</p>}
           {isReadOnly && submission && (
             <div className="mt-4 text-sm text-gray-300">
               <p>Time Taken: {submission.timeTaken}s | Mistakes: {submission.mistakes} | Score: {submission.score}</p>
@@ -315,7 +392,7 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
 };
 
 
-const Row: React.FC<{ guess: string; isSubmitted: boolean; solution: string; wordLength: number; }> = ({ guess, isSubmitted, solution, wordLength }) => {
+const Row: React.FC<{ guess: string; isSubmitted: boolean; results?: ('correct' | 'present' | 'absent')[]; wordLength: number; }> = ({ guess, isSubmitted, results, wordLength }) => {
   const letters = Array.from(Array(wordLength));
   return (
     <div
@@ -324,45 +401,14 @@ const Row: React.FC<{ guess: string; isSubmitted: boolean; solution: string; wor
     >
       {letters.map((_, i) => {
         const char = guess[i];
-        const status = getTileStatus(char, i, isSubmitted, solution, guess);
+        const status = isSubmitted && results ? results[i] : 'empty';
         return <Tile key={i} char={char} status={status} isRevealing={isSubmitted} index={i} />
       })}
     </div>
   );
 };
 
-const getTileStatus = (char: string, index: number, isSubmitted: boolean, solution: string, guess: string) => {
-  if (!isSubmitted || !char) return 'empty';
-  if (solution[index] === char) return 'correct';
-  if (solution.includes(char)) {
-    const solutionChars = [...solution];
-    const guessChars = [...guess];
 
-    let solutionCount = 0;
-    solutionChars.forEach(sChar => {
-      if (sChar === char) solutionCount++;
-    });
-
-    let correctCount = 0;
-    guessChars.forEach((gChar, i) => {
-      if (gChar === char && solutionChars[i] === char) {
-        correctCount++;
-      }
-    });
-
-    let presentCount = 0;
-    for (let i = 0; i <= index; i++) {
-      if (guessChars[i] === char && solutionChars[i] !== char) {
-        presentCount++;
-      }
-    }
-
-    if (presentCount <= solutionCount - correctCount) {
-      return 'present';
-    }
-  }
-  return 'absent';
-};
 
 const Tile: React.FC<{ char?: string; status: 'empty' | 'correct' | 'present' | 'absent'; isRevealing: boolean; index: number }> = ({ char, status, isRevealing, index }) => {
   const baseClasses = "aspect-square w-full border-2 flex items-center justify-center text-xl sm:text-3xl font-bold uppercase transition-all duration-300";
