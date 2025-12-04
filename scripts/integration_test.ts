@@ -5,8 +5,8 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // Configuration
-const APP_URL = process.env.APP_URL || 'http://localhost:5173';
-const DB_CONNECTION_STRING = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/smym_bible_games';
+const APP_URL = 'http://10.0.0.3:6144'//process.env.APP_URL || 'http://localhost:5173';
+const DB_CONNECTION_STRING = 'postgresql://postgres:postgres@10.0.0.3:5432/smym_bible_games'//process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/smym_bible_games';
 
 const pool = new Pool({
   connectionString: DB_CONNECTION_STRING,
@@ -122,8 +122,8 @@ async function runTests() {
 
     const userHeaders = { 'x-user-id': userId, 'Authorization': `Bearer ${userToken}` };
 
-    res = await fetch(`${APP_URL}/api/games/${gameIds['wordle']}`, { headers: userHeaders });
-    let gameDataRes = await res.json();
+    const wordleRes = await fetch(`${APP_URL}/api/games/${gameIds['wordle']}`, { headers: userHeaders });
+    let gameDataRes = await wordleRes.json();
 
     if (gameDataRes.data.solution) throw new Error('SECURITY FAIL: Wordle solution exposed in API response!');
     if (gameDataRes.data.solutions) throw new Error('SECURITY FAIL: Wordle solutions list exposed in API response!');
@@ -175,8 +175,8 @@ async function runTests() {
 
     // --- VERSE SCRAMBLE TEST ---
     console.log('\nTesting Verse Scramble...');
-    res = await fetch(`${APP_URL}/api/games/${gameIds['verse']}`, { headers: userHeaders });
-    gameDataRes = await res.json();
+    const verseRes = await fetch(`${APP_URL}/api/games/${gameIds['verse']}`, { headers: userHeaders });
+    gameDataRes = await verseRes.json();
 
     if (gameDataRes.data.verse) throw new Error('SECURITY FAIL: Verse text exposed in API response!');
     if (gameDataRes.data.verses) throw new Error('SECURITY FAIL: Verses list exposed in API response!');
