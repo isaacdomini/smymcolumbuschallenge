@@ -44,6 +44,7 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
     const [isSubmitted, setIsSubmitted] = useState(!!submission);
     const [startTime, setStartTime] = useState<number | null>(null);
     const [showInstructions, setShowInstructions] = useState(!isReadOnly && !isPreview);
+    const [feedback, setFeedback] = useState<any>(null);
 
     const solutionGrid = useMemo(() => {
         const grid: (string | null)[][] = Array(activeData.rows).fill(null).map(() => Array(activeData.cols).fill(null));
@@ -120,24 +121,12 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
 
         const timeTaken = Math.round((Date.now() - startTime) / 1000);
 
-        let mistakes = 0;
-        let correctCells = 0;
-        let totalFillableCells = 0;
+        // Mistakes are calculated on server
+        const mistakes = 0;
+        const correctCells = 0;
+        const totalFillableCells = 0;
 
-        for (let r = 0; r < activeData.rows; r++) {
-            for (let c = 0; c < activeData.cols; c++) {
-                if (solutionGrid[r][c] !== null) { // This is a fillable cell
-                    totalFillableCells++;
-                    if (userGrid[r][c] === solutionGrid[r][c]) {
-                        correctCells++;
-                    } else if (userGrid[r][c] !== null) {
-                        mistakes++;
-                    }
-                }
-            }
-        }
-
-        await submitGame({
+        const response = await submitGame({
             userId: user.id,
             gameId,
             startedAt: new Date(startTime).toISOString(),
@@ -150,6 +139,10 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
                 puzzle: activeData // Store the puzzle definition with submission
             },
         });
+
+        if (response.feedback) {
+            setFeedback(response.feedback);
+        }
 
         setIsSubmitted(true);
         await clearGameState(user.id, gameId);
@@ -205,6 +198,7 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
                 onPuzzleComplete={isReadOnly ? undefined : handleSubmit}
                 initialGrid={userGrid}
                 isReviewMode={isReadOnly}
+                incorrectCells={feedback?.incorrectCells || submission?.submissionData?.incorrectCells}
             />
 
             <div className="mt-6 w-full max-w-md flex flex-col items-center">

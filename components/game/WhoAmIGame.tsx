@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { WhoAmIData, GameSubmission, GameType } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
-import { submitGame, getGameState, saveGameState, clearGameState } from '../../services/api';
+import { submitGame, getGameState, saveGameState, clearGameState, checkAnswer } from '../../services/api';
 import GameInstructionsModal from './GameInstructionsModal';
 
 interface WhoAmIGameProps {
@@ -30,29 +30,60 @@ const WhoAmIGame: React.FC<WhoAmIGameProps> = ({ gameId, gameData, submission, o
 
   const [guessedLetters, setGuessedLetters] = useState<string[]>([]);
   const [mistakes, setMistakes] = useState(0);
+  const [revealedPositions, setRevealedPositions] = useState<number[]>([]);
+  const [revealedMap, setRevealedMap] = useState<{ [index: number]: string }>({});
+  const [correctLetters, setCorrectLetters] = useState<string[]>([]);
   const [gameState, setGameState] = useState<'playing' | 'won' | 'lost'>('playing');
   const [startTime, setStartTime] = useState<number | null>(null);
   const [showInstructions, setShowInstructions] = useState(!isReadOnly);
 
   const dataToUse = isSample ? SAMPLE_DATA : gameData;
-  const answer = dataToUse.answer.toUpperCase();
+  // For real game, we don't have answer. We use maskedAnswer.
+  const maskedAnswer = isSample ? SAMPLE_DATA.answer.replace(/[a-zA-Z0-9]/g, '_') : (gameData.maskedAnswer || '');
+  const answerLength = isSample ? SAMPLE_DATA.answer.length : (gameData.wordLength || maskedAnswer.length);
 
   useEffect(() => {
     const loadState = async () => {
       if (isReadOnly && submission) {
-        setGuessedLetters(answer.split('')); // Reveal all
+        // Show completed state
+        // If won, show all. If lost, show what was revealed?
+        // Usually we reveal answer on loss.
+        // But we don't have answer locally unless we fetch it or it's in submissionData.
+        // submissionData.answer should be there.
+        const answer = submission.submissionData.answer || (isSample ? SAMPLE_DATA.answer : '');
+        if (answer) {
+          // Mock revealed positions for all letters
+          const positions = [];
+          const map: { [index: number]: string } = {};
+          const correct: string[] = [];
+          for (let i = 0; i < answer.length; i++) {
+            positions.push(i);
+            map[i] = answer[i];
+            if (answer[i] !== ' ' && !correct.includes(answer[i])) correct.push(answer[i]);
+          }
+          setRevealedPositions(positions);
+          setRevealedMap(map);
+          setCorrectLetters(correct);
+          setGuessedLetters(answer.split('').filter((c: string) => c !== ' '));
+        }
         setMistakes(submission.mistakes);
         setGameState(submission.mistakes >= maxMistakes ? 'lost' : 'won');
         setShowInstructions(false);
       } else if (isSample) {
         // Reset for sample
         setGuessedLetters([]);
+        setRevealedPositions([]);
+        setRevealedMap({});
+        setCorrectLetters([]);
         setMistakes(0);
         setGameState('playing');
       } else if (user) {
         const savedProgress = await getGameState(user.id, gameId);
         if (savedProgress?.gameState) {
           setGuessedLetters(savedProgress.gameState.guessedLetters || []);
+          setRevealedPositions(savedProgress.gameState.revealedPositions || []);
+          setRevealedMap(savedProgress.gameState.revealedMap || {});
+          setCorrectLetters(savedProgress.gameState.correctLetters || []);
           setMistakes(savedProgress.gameState.mistakes || 0);
           setGameState(savedProgress.gameState.gameState || 'playing');
           if (savedProgress.gameState.startTime) {
@@ -63,35 +94,78 @@ const WhoAmIGame: React.FC<WhoAmIGameProps> = ({ gameId, gameData, submission, o
       }
     };
     loadState();
-  }, [gameData, isReadOnly, submission, gameId, user, isSample, answer]);
+  }, [gameData, isReadOnly, submission, gameId, user, isSample]);
 
   useEffect(() => {
     if (isReadOnly || gameState !== 'playing' || !user || startTime === null || isSample) return;
-    const stateToSave = { guessedLetters, mistakes, gameState, startTime };
+    const stateToSave = { guessedLetters, revealedPositions, revealedMap, correctLetters, mistakes, gameState, startTime };
     const handler = setTimeout(() => saveGameState(user.id, gameId, stateToSave), 1000);
     return () => clearTimeout(handler);
-  }, [guessedLetters, mistakes, gameState, startTime, isReadOnly, user, gameId]);
+  }, [guessedLetters, revealedPositions, revealedMap, correctLetters, mistakes, gameState, startTime, isReadOnly, user, gameId]);
 
-  const handleGuess = useCallback((letter: string) => {
+  const handleGuess = useCallback(async (letter: string) => {
     if (gameState !== 'playing' || isReadOnly || guessedLetters.includes(letter)) return;
 
     const newGuessed = [...guessedLetters, letter];
     setGuessedLetters(newGuessed);
 
-    if (!answer.includes(letter)) {
-      const newMistakes = mistakes + 1;
-      setMistakes(newMistakes);
-      if (newMistakes >= maxMistakes) {
-        setGameState('lost');
+    if (isSample) {
+      const answer = SAMPLE_DATA.answer.toUpperCase();
+      if (!answer.includes(letter)) {
+        const newMistakes = mistakes + 1;
+        setMistakes(newMistakes);
+        if (newMistakes >= maxMistakes) {
+          setGameState('lost');
+        }
+      } else {
+        // Update revealed positions locally for sample
+        const newRevealed = [...revealedPositions];
+        for (let i = 0; i < answer.length; i++) {
+          if (answer[i] === letter) newRevealed.push(i);
+        }
+        setRevealedPositions(newRevealed);
+        setCorrectLetters(prev => [...prev, letter]);
+
+        // Check win
+        const isWon = answer.split('').every(char => char === ' ' || newGuessed.includes(char));
+        if (isWon) setGameState('won');
       }
     } else {
-      // Check win condition
-      const isWon = answer.split('').every(char => char === ' ' || newGuessed.includes(char));
-      if (isWon) {
-        setGameState('won');
+      // Backend check
+      try {
+        const response = await checkAnswer(gameId, letter);
+        if (response.correct) {
+          setRevealedPositions(prev => [...prev, ...response.positions]);
+          setRevealedMap(prev => {
+            const newMap = { ...prev };
+            response.positions.forEach((pos: number) => {
+              newMap[pos] = letter;
+            });
+            return newMap;
+          });
+          setCorrectLetters(prev => [...prev, letter]);
+
+          // Check win: if all non-space chars are revealed.
+          const totalLetters = (maskedAnswer.match(/_/g) || []).length;
+          const newRevealedPositions = [...revealedPositions, ...response.positions];
+          const uniqueRevealed = new Set(newRevealedPositions);
+
+          if (uniqueRevealed.size === totalLetters) {
+            setGameState('won');
+          }
+
+        } else {
+          const newMistakes = mistakes + 1;
+          setMistakes(newMistakes);
+          if (newMistakes >= maxMistakes) {
+            setGameState('lost');
+          }
+        }
+      } catch (e) {
+        console.error("Check failed", e);
       }
     }
-  }, [gameState, isReadOnly, guessedLetters, answer, mistakes]);
+  }, [gameState, isReadOnly, guessedLetters, mistakes, isSample, gameId, maskedAnswer, revealedPositions]);
 
   // Handle physical keyboard
   useEffect(() => {
@@ -118,7 +192,7 @@ const WhoAmIGame: React.FC<WhoAmIGameProps> = ({ gameId, gameData, submission, o
           startedAt: new Date(startTime).toISOString(),
           timeTaken,
           mistakes,
-          submissionData: { solved: gameState === 'won', answer }
+          submissionData: { solved: gameState === 'won', answer: isSample ? SAMPLE_DATA.answer : undefined } // Backend will fill answer if won? Or we don't need it.
         });
         setTimeout(onComplete, 3000);
       }
@@ -153,13 +227,48 @@ const WhoAmIGame: React.FC<WhoAmIGameProps> = ({ gameId, gameData, submission, o
 
       {/* Word Display */}
       <div className="flex flex-wrap justify-center gap-2 mb-10">
-        {answer.split('').map((char, i) => (
-          <div key={i} className={`w-10 h-12 flex items-end justify-center border-b-4 ${char === ' ' ? 'border-transparent' : 'border-gray-500'} mx-1`}>
-            <span className={`text-3xl font-bold ${guessedLetters.includes(char) || gameState !== 'playing' ? 'visible' : 'invisible'}`}>
-              {char}
-            </span>
-          </div>
-        ))}
+        {maskedAnswer.split('').map((char, i) => {
+          const isSpace = char === ' '; // maskedAnswer preserves spaces? Yes, we replaced [a-zA-Z0-9]/g, _.
+          // Wait, maskedAnswer in api.ts: `gameData.answer.replace(/[a-zA-Z0-9]/g, '_')`.
+          // So spaces remain spaces.
+          // If it's a space, we show space.
+          // If it's _, we show blank or letter if revealed.
+
+          // For sample, we have answer.
+          // For real game, we have maskedAnswer and revealedPositions.
+
+          let displayChar = '';
+          if (isSample) {
+            displayChar = SAMPLE_DATA.answer[i];
+          } else {
+            // We don't have the letter locally unless we revealed it!
+            // Wait, checkAnswer returns positions, but does it return the letter?
+            // No, checkAnswer returns { correct: true, positions: [...] }.
+            // It does NOT return the letter because we sent the letter!
+            // So we know the letter.
+            // But we need to map position to letter.
+            // We can reconstruct the word from guessedLetters and positions?
+            // Yes. If i is in revealedPositions, we need to find which guessed letter corresponds to it?
+            // No, we can just iterate guessedLetters and check if they are correct?
+            // But we don't know which letter is at position i unless we store it.
+            // We stored `revealedPositions`. But we didn't store "position i is letter X".
+            // We need to store that mapping.
+            // Or we can just use `guessedLetters` if I had the answer.
+            // But I don't have the answer.
+
+            // So I need `revealedMap`: { [index: number]: string }.
+            // I'll update the state to include `revealedMap` or derive it.
+            // I'll update handleGuess to update a map.
+          }
+
+          return (
+            <div key={i} className={`w-10 h-12 flex items-end justify-center border-b-4 ${isSpace ? 'border-transparent' : 'border-gray-500'} mx-1`}>
+              <span className={`text-3xl font-bold ${revealedPositions.includes(i) || isSpace ? 'visible' : 'invisible'}`}>
+                {isSpace ? ' ' : (isSample ? SAMPLE_DATA.answer[i] : (revealedMap[i] || '?'))}
+              </span>
+            </div>
+          );
+        })}
       </div>
 
       {/* Hangman Visual & Mistakes */}
@@ -208,7 +317,16 @@ const WhoAmIGame: React.FC<WhoAmIGameProps> = ({ gameId, gameData, submission, o
           <div key={i} className="flex justify-center gap-1 mb-2">
             {row.map(char => {
               const isGuessed = guessedLetters.includes(char);
-              const isCorrect = answer.includes(char);
+              // We don't know isCorrect locally for real game unless we check.
+              // But we know if we guessed it and it was correct (revealed something).
+              // We can track correct guesses.
+              // Or check if any revealed position corresponds to this char (if we had map).
+              // For now, let's assume if it's guessed and not in mistakes, it's correct?
+              // No, mistakes tracks count.
+              // We need to track `correctGuessedLetters` and `incorrectGuessedLetters`.
+              // I'll update state to track this.
+
+              const isCorrect = isSample ? SAMPLE_DATA.answer.includes(char) : correctLetters.includes(char);
               let bgColor = 'bg-gray-700 hover:bg-gray-600';
               if (isGuessed) {
                 bgColor = isCorrect ? 'bg-green-600' : 'bg-gray-800 text-gray-500';
@@ -235,7 +353,7 @@ const WhoAmIGame: React.FC<WhoAmIGameProps> = ({ gameId, gameData, submission, o
           {gameState === 'lost' && (
             <div className="mb-4">
               <p className="text-xl text-red-400 font-bold mb-2">Game Over</p>
-              <p className="text-gray-300">The answer was: <span className="font-bold text-white">{answer}</span></p>
+              <p className="text-gray-300">The answer was hidden.</p>
             </div>
           )}
           <button onClick={onComplete} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-full transition-transform hover:scale-105">

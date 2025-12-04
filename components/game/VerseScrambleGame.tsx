@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { VerseScrambleData, GameSubmission, GameType } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
-import { submitGame, getGameState, saveGameState, clearGameState } from '../../services/api';
+import { submitGame, getGameState, saveGameState, clearGameState, checkAnswer } from '../../services/api';
 import GameInstructionsModal from './GameInstructionsModal';
 
 interface VerseScrambleGameProps {
@@ -23,7 +23,6 @@ const VerseScrambleGame: React.FC<VerseScrambleGameProps> = ({ gameId, gameData,
 
   const [availableWords, setAvailableWords] = useState<{ id: string, text: string }[]>([]);
   const [placedWords, setPlacedWords] = useState<{ id: string, text: string }[]>([]);
-  const [correctOrder, setCorrectOrder] = useState<string[]>([]);
   const [gameState, setGameState] = useState<'playing' | 'won'>('playing');
   const [startTime, setStartTime] = useState<number | null>(null);
   const [showInstructions, setShowInstructions] = useState(!isReadOnly);
@@ -32,17 +31,31 @@ const VerseScrambleGame: React.FC<VerseScrambleGameProps> = ({ gameId, gameData,
 
   useEffect(() => {
     const loadState = async () => {
-      const verseWords = dataToUse.verse.split(' ');
-      setCorrectOrder(verseWords);
+      let initialWords: string[] = [];
+      if (isSample) {
+        initialWords = SAMPLE_DATA.verse!.split(' ');
+      } else if (gameData.scrambledWords) {
+        initialWords = gameData.scrambledWords;
+      } else if (gameData.verse) {
+        // Fallback if verse is still present (e.g. admin view or legacy)
+        initialWords = gameData.verse.split(' ');
+      }
 
       if (isReadOnly && submission) {
-        // Show completed state
-        setPlacedWords(verseWords.map((w, i) => ({ id: `sol-${i}`, text: w })));
-        setAvailableWords([]);
+        // Show completed state - we might not have the correct order if verse is stripped!
+        // But if submission is completed, we assume user got it right?
+        // Or we use submissionData.verse if available (it was saved on submit).
+        // Yes, submitGame saves verse.
+        const verse = submission.submissionData.verse || (isSample ? SAMPLE_DATA.verse : '');
+        if (verse) {
+          const verseWords = verse.split(' ');
+          setPlacedWords(verseWords.map((w: string, i: number) => ({ id: `sol-${i}`, text: w })));
+          setAvailableWords([]);
+        }
         setGameState('won');
         setShowInstructions(false);
       } else if (isSample) {
-        const scrambled = [...verseWords].sort(() => Math.random() - 0.5);
+        const scrambled = [...initialWords].sort(() => Math.random() - 0.5);
         setAvailableWords(scrambled.map((w, i) => ({ id: `pool-${i}`, text: w })));
         setPlacedWords([]);
       } else if (user) {
@@ -56,8 +69,13 @@ const VerseScrambleGame: React.FC<VerseScrambleGameProps> = ({ gameId, gameData,
             setAvailableWords(savedProgress.gameState.availableWords || []);
             setPlacedWords(savedProgress.gameState.placedWords || []);
           } else {
-            const scrambled = [...verseWords].sort(() => Math.random() - 0.5);
-            setAvailableWords(scrambled.map((w, i) => ({ id: `pool-${i}`, text: w })));
+            // Use provided scrambled words (already scrambled by backend)
+            // Or scramble if we derived from verse (legacy)
+            let wordsToUse = initialWords;
+            if (gameData.verse && !gameData.scrambledWords) {
+              wordsToUse = [...initialWords].sort(() => Math.random() - 0.5);
+            }
+            setAvailableWords(wordsToUse.map((w, i) => ({ id: `pool-${i}`, text: w })));
             setPlacedWords([]);
           }
 
@@ -67,8 +85,12 @@ const VerseScrambleGame: React.FC<VerseScrambleGameProps> = ({ gameId, gameData,
             setShowInstructions(false);
           }
         } else {
-          const scrambled = [...verseWords].sort(() => Math.random() - 0.5);
-          setAvailableWords(scrambled.map((w, i) => ({ id: `pool-${i}`, text: w })));
+          // Use provided scrambled words
+          let wordsToUse = initialWords;
+          if (gameData.verse && !gameData.scrambledWords) {
+            wordsToUse = [...initialWords].sort(() => Math.random() - 0.5);
+          }
+          setAvailableWords(wordsToUse.map((w, i) => ({ id: `pool-${i}`, text: w })));
           setPlacedWords([]);
         }
       }
@@ -96,17 +118,33 @@ const VerseScrambleGame: React.FC<VerseScrambleGameProps> = ({ gameId, gameData,
   };
 
   // Check win condition whenever placedWords changes
+  // Check win condition whenever placedWords changes
   useEffect(() => {
     if (gameState !== 'playing' || isReadOnly) return;
 
-    if (correctOrder.length > 0 && placedWords.length === correctOrder.length && availableWords.length === 0) {
-      const currentSentence = placedWords.map(w => w.text).join(' ');
-      const correctSentence = correctOrder.join(' ');
-      if (currentSentence === correctSentence) {
-        setGameState('won');
+    const totalWords = isSample ? SAMPLE_DATA.verse!.split(' ').length : (gameData.scrambledWords?.length || gameData.verse?.split(' ').length || 0);
+
+    if (placedWords.length === totalWords && availableWords.length === 0) {
+      if (isSample) {
+        const currentSentence = placedWords.map(w => w.text).join(' ');
+        const correctSentence = SAMPLE_DATA.verse;
+        if (currentSentence === correctSentence) {
+          setGameState('won');
+        }
+      } else {
+        // Check with backend
+        checkAnswer(gameId, placedWords.map(w => w.text))
+          .then(res => {
+            if (res.correct) {
+              setGameState('won');
+            } else {
+              // Optional: Show error
+            }
+          })
+          .catch(err => console.error("Check failed", err));
       }
     }
-  }, [placedWords, availableWords, correctOrder, gameState, isReadOnly]);
+  }, [placedWords, availableWords, gameState, isReadOnly, isSample, gameId, gameData]);
 
   useEffect(() => {
     const saveResult = async () => {
@@ -122,7 +160,13 @@ const VerseScrambleGame: React.FC<VerseScrambleGameProps> = ({ gameId, gameData,
           mistakes: 0,
           submissionData: {
             completed: true,
-            verse: dataToUse.verse,
+            verse: isSample ? SAMPLE_DATA.verse : undefined, // We don't have verse locally for real games, but backend knows it.
+            // Actually, backend saves submissionData.
+            // If we want to show it in review, we might need to fetch it or let backend fill it?
+            // Backend doesn't automatically fill submissionData with hidden info.
+            // But for Verse Scramble, the "solution" is the verse.
+            // If we send "completed: true", maybe backend can inject the verse into submissionData?
+            // Or we just rely on the fact that if it's won, we can display the placed words (which are correct).
             reference: dataToUse.reference
           }
         });

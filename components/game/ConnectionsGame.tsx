@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ConnectionsData, GameSubmission, GameType } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
-import { submitGame, getGameState, saveGameState, clearGameState } from '../../services/api';
+import { submitGame, getGameState, saveGameState, clearGameState, checkAnswer } from '../../services/api';
 import GameInstructionsModal from './GameInstructionsModal';
 
 interface ConnectionsGameProps {
@@ -29,38 +29,44 @@ const ConnectionsGame: React.FC<ConnectionsGameProps> = ({ gameId, gameData, sub
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
 
   const generateShuffledWords = useCallback((): string[] => {
-    const sampleData: ConnectionsData = {
-      words: ['APPLE', 'BANANA', 'CHERRY', 'DATE', 'RED', 'BLUE', 'GREEN', 'YELLOW', 'DOG', 'CAT', 'BIRD', 'FISH', 'ONE', 'TWO', 'THREE', 'FOUR'],
-      categories: [
-        { name: 'FRUITS', words: ['APPLE', 'BANANA', 'CHERRY', 'DATE'] },
-        { name: 'COLORS', words: ['RED', 'BLUE', 'GREEN', 'YELLOW'] },
-        { name: 'ANIMALS', words: ['DOG', 'CAT', 'BIRD', 'FISH'] },
-        { name: 'NUMBERS', words: ['ONE', 'TWO', 'THREE', 'FOUR'] }
-      ]
-    };
-    const dataToUse = isSample ? sampleData : gameData;
-    const original = [...dataToUse.words];
-    const categories = dataToUse.categories.map(c => new Set(c.words));
-    const maxAttempts = 20;
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      // Fisher-Yates shuffle
-      const arr = [...original];
-      for (let i = arr.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [arr[i], arr[j]] = [arr[j], arr[i]];
-      }
-      // Check no full category is contiguous in the shuffled order
-      let hasContiguousCategory = false;
-      for (let i = 0; i <= arr.length - 4 && !hasContiguousCategory; i++) {
-        const sliceSet = new Set(arr.slice(i, i + 4));
-        if (categories.some(cat => cat.size === sliceSet.size && [...cat].every(w => sliceSet.has(w)))) {
-          hasContiguousCategory = true;
+    if (isSample) {
+      const sampleData: ConnectionsData = {
+        words: ['APPLE', 'BANANA', 'CHERRY', 'DATE', 'RED', 'BLUE', 'GREEN', 'YELLOW', 'DOG', 'CAT', 'BIRD', 'FISH', 'ONE', 'TWO', 'THREE', 'FOUR'],
+        categories: [
+          { name: 'FRUITS', words: ['APPLE', 'BANANA', 'CHERRY', 'DATE'] },
+          { name: 'COLORS', words: ['RED', 'BLUE', 'GREEN', 'YELLOW'] },
+          { name: 'ANIMALS', words: ['DOG', 'CAT', 'BIRD', 'FISH'] },
+          { name: 'NUMBERS', words: ['ONE', 'TWO', 'THREE', 'FOUR'] }
+        ]
+      };
+      const original = [...sampleData.words];
+      const categories = sampleData.categories.map(c => new Set(c.words));
+      const maxAttempts = 20;
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        // Fisher-Yates shuffle
+        const arr = [...original];
+        for (let i = arr.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [arr[i], arr[j]] = [arr[j], arr[i]];
         }
+        // Check no full category is contiguous in the shuffled order
+        let hasContiguousCategory = false;
+        for (let i = 0; i <= arr.length - 4 && !hasContiguousCategory; i++) {
+          const sliceSet = new Set(arr.slice(i, i + 4));
+          if (categories.some(cat => cat.size === sliceSet.size && [...cat].every(w => sliceSet.has(w)))) {
+            hasContiguousCategory = true;
+          }
+        }
+        if (!hasContiguousCategory) return arr;
       }
-      if (!hasContiguousCategory) return arr;
+      return original.sort(() => Math.random() - 0.5); // fallback
     }
-    return original.sort(() => Math.random() - 0.5); // fallback
-  }, [gameData.words, gameData.categories, isSample]);
+    // For real game, use shuffledWords from backend if available
+    if (gameData.shuffledWords && gameData.shuffledWords.length > 0) {
+      return gameData.shuffledWords;
+    }
+    return gameData.words || [];
+  }, [gameData.words, gameData.shuffledWords, isSample]);
 
   useEffect(() => {
     const loadState = async () => {
@@ -128,56 +134,77 @@ const ConnectionsGame: React.FC<ConnectionsGameProps> = ({ gameId, gameData, sub
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (selected.length !== 4) return;
 
-    const sampleData: ConnectionsData = {
-      words: ['APPLE', 'BANANA', 'CHERRY', 'DATE', 'RED', 'BLUE', 'GREEN', 'YELLOW', 'DOG', 'CAT', 'BIRD', 'FISH', 'ONE', 'TWO', 'THREE', 'FOUR'],
-      categories: [
-        { name: 'FRUITS', words: ['APPLE', 'BANANA', 'CHERRY', 'DATE'] },
-        { name: 'COLORS', words: ['RED', 'BLUE', 'GREEN', 'YELLOW'] },
-        { name: 'ANIMALS', words: ['DOG', 'CAT', 'BIRD', 'FISH'] },
-        { name: 'NUMBERS', words: ['ONE', 'TWO', 'THREE', 'FOUR'] }
-      ]
-    };
-    const dataToUse = isSample ? sampleData : gameData;
+    if (isSample) {
+      const sampleData: ConnectionsData = {
+        words: ['APPLE', 'BANANA', 'CHERRY', 'DATE', 'RED', 'BLUE', 'GREEN', 'YELLOW', 'DOG', 'CAT', 'BIRD', 'FISH', 'ONE', 'TWO', 'THREE', 'FOUR'],
+        categories: [
+          { name: 'FRUITS', words: ['APPLE', 'BANANA', 'CHERRY', 'DATE'] },
+          { name: 'COLORS', words: ['RED', 'BLUE', 'GREEN', 'YELLOW'] },
+          { name: 'ANIMALS', words: ['DOG', 'CAT', 'BIRD', 'FISH'] },
+          { name: 'NUMBERS', words: ['ONE', 'TWO', 'THREE', 'FOUR'] }
+        ]
+      };
+      const correctGroup = sampleData.categories.find(category =>
+        category.words.every(word => selected.includes(word)) &&
+        selected.every(word => category.words.includes(word))
+      );
 
-    const correctGroup = dataToUse.categories.find(category =>
-      category.words.every(word => selected.includes(word)) &&
-      selected.every(word => category.words.includes(word))
-    );
+      if (correctGroup) {
+        setFoundGroups(prev => [...prev, correctGroup]);
+        setWords(prev => prev.filter(w => !selected.includes(w)));
+        setSelected([]);
+        if (foundGroups.length === 3) {
+          setGameState('won');
+        }
+      } else {
+        // Check for "One away"
+        const isOneAway = sampleData.categories.some(category => {
+          if (foundGroups.some(found => found.name === category.name)) return false;
+          const matchCount = selected.filter(word => category.words.includes(word)).length;
+          return matchCount === 3;
+        });
 
-    if (correctGroup) {
-      setFoundGroups(prev => [...prev, correctGroup]);
-      setWords(prev => prev.filter(w => !selected.includes(w)));
-      setSelected([]);
-      if (foundGroups.length === 3) {
-        setGameState('won');
+        if (isOneAway) {
+          setFeedbackMessage("One away!");
+          setTimeout(() => setFeedbackMessage(null), 2000);
+        }
+
+        setIsShaking(true);
+        setTimeout(() => setIsShaking(false), 500);
+
+        setMistakes(prev => prev + 1);
+        if (mistakes + 1 >= 4) {
+          setGameState('lost');
+        }
       }
     } else {
-      // Check for "One away"
-      const isOneAway = dataToUse.categories.some(category => {
-        // Only check against categories that haven't been found yet
-        if (foundGroups.some(found => found.name === category.name)) return false;
-
-        // Count how many of the selected words are in this category
-        const matchCount = selected.filter(word => category.words.includes(word)).length;
-        return matchCount === 3;
-      });
-
-      if (isOneAway) {
-        setFeedbackMessage("One away!");
-        // Clear message after 2 seconds
-        setTimeout(() => setFeedbackMessage(null), 2000);
-      }
-
-      // Trigger shake animation
-      setIsShaking(true);
-      setTimeout(() => setIsShaking(false), 500);
-
-      setMistakes(prev => prev + 1);
-      if (mistakes + 1 >= 4) {
-        setGameState('lost');
+      // Backend check
+      try {
+        const response = await checkAnswer(gameId, selected);
+        if (response.correct) {
+          setFoundGroups(prev => [...prev, response.group]);
+          setWords(prev => prev.filter(w => !selected.includes(w)));
+          setSelected([]);
+          if (foundGroups.length === 3) {
+            setGameState('won');
+          }
+        } else {
+          if (response.oneAway) {
+            setFeedbackMessage("One away!");
+            setTimeout(() => setFeedbackMessage(null), 2000);
+          }
+          setIsShaking(true);
+          setTimeout(() => setIsShaking(false), 500);
+          setMistakes(prev => prev + 1);
+          if (mistakes + 1 >= 4) {
+            setGameState('lost');
+          }
+        }
+      } catch (e) {
+        console.error("Check failed", e);
       }
     }
   };
@@ -197,7 +224,7 @@ const ConnectionsGame: React.FC<ConnectionsGameProps> = ({ gameId, gameData, sub
           submissionData: {
             foundGroups: foundGroups.map(g => g.name),
             categoriesFound: foundGroups.length,
-            assignedCategories: gameData.categories.map(c => c.name)
+            assignedCategories: isSample ? ['FRUITS', 'COLORS', 'ANIMALS', 'NUMBERS'] : undefined // We don't have categories locally for real game.
           }
         });
         setTimeout(onComplete, 3000);
