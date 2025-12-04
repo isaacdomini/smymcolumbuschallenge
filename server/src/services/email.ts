@@ -132,7 +132,7 @@ export const sendPasswordResetEmail = async (email: string, token: string, host?
 
 // NEW: Account deletion request email to admin
 export const sendAccountDeletionRequestEmail = async (userEmail: string, userId: string, userName: string) => {
-  const adminEmail = 'me@isaacdomini.com'; // Admin's email address
+  const adminEmail = process.env.ADMIN_EMAIL || 'me@isaacdomini.com'; // Admin's email address
 
   try {
     await transporter.sendMail({
@@ -234,7 +234,7 @@ export const sendAdminTicketNotification = async (ticketId: string, userEmail: s
 
 // NEW: Cheating Alert (to Admin)
 export const sendCheatingAlert = async (userEmail: string, userName: string, details: string) => {
-  const adminEmail = 'me@isaacdomini.com'; // Admin's email address
+  const adminEmail = process.env.ADMIN_EMAIL || 'me@isaacdomini.com'; // Admin's email address
 
   try {
     await transporter.sendMail({
