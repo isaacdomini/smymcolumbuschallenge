@@ -281,6 +281,10 @@ export const getChallenge = async (): Promise<Challenge | null> => {
     } else {
         const response = await fetch(`${API_BASE_URL}/challenge`);
         if (!response.ok) {
+            if (response.status === 503) {
+                const err = await response.json().catch(() => ({ error: 'Service Unavailable' }));
+                throw new Error(err.error || 'Service Unavailable');
+            }
             throw new Error('Failed to fetch challenge');
         }
         return await response.json();

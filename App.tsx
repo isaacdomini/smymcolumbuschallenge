@@ -28,6 +28,7 @@ import { getChallenge, getDailyGame, getLeaderboard, getSubmissionForToday, getG
 import ScoringCriteria from './components/dashboard/ScoringCriteria';
 import AddToHomeScreen from './components/ui/AddToHomeScreen';
 import DailyMessage from './components/dashboard/DailyMessage';
+import MaintenanceScreen from './components/MaintenanceScreen';
 import { Capacitor } from '@capacitor/core';
 // Import Style enum along with StatusBar
 import { StatusBar, Style } from '@capacitor/status-bar';
@@ -70,6 +71,7 @@ const MainContent: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [globalMessage, setGlobalMessage] = useState<string | null>(null);
+  const [isMaintenance, setIsMaintenance] = useState(false);
 
   useEffect(() => {
     // This effect runs once on app load
@@ -252,8 +254,10 @@ const MainContent: React.FC = () => {
           console.error("Failed to fetch daily message", e);
         }
       }
-    } catch (err) {
-      if (window.location.pathname === '/') {
+    } catch (err: any) {
+      if (err.message && (err.message.includes('Service Unavailable') || err.message.includes('503'))) {
+        setIsMaintenance(true);
+      } else if (window.location.pathname === '/') {
         setError('Failed to load challenge data.');
       }
       console.error(err);
@@ -286,6 +290,9 @@ const MainContent: React.FC = () => {
   const challengeStarted = challenge && new Date(challenge.startDate) <= now;
 
   const renderContent = () => {
+    if (isMaintenance) {
+      return <MaintenanceScreen />;
+    }
     if (locationPath.startsWith('/reset-password')) {
       return <ResetPassword />;
     }
