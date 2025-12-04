@@ -277,7 +277,6 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
       // Ensure startTime is present before submitting
       if ((gameState === 'won' || gameState === 'lost') && !isReadOnly && startTime !== null && !isSample && !isPreview) {
         if (!user) return;
-        await clearGameState(user.id, gameId);
         const timeTaken = Math.round((Date.now() - startTime) / 1000);
         const mistakes = gameState === 'won' ? activeGuessIndex : maxGuesses;
         await submitGame({
@@ -288,6 +287,7 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
           mistakes,
           submissionData: { guesses: guesses.filter(g => g), guessResults }
         });
+        await clearGameState(user.id, gameId);
         setTimeout(onComplete, 2000);
       }
     }

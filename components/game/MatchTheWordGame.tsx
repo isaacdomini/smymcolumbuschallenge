@@ -230,7 +230,6 @@ const MatchTheWordGame: React.FC<MatchTheWordGameProps> = ({ gameId, gameData, s
     const saveResult = async () => {
       if ((gameState === 'won' || gameState === 'lost') && !isReadOnly && startTime !== null && !isSample) {
         if (!user) return;
-        await clearGameState(user.id, gameId);
         const timeTaken = Math.round((Date.now() - startTime) / 1000);
         await submitGame({
           userId: user.id,
@@ -243,6 +242,7 @@ const MatchTheWordGame: React.FC<MatchTheWordGameProps> = ({ gameId, gameData, s
             assignedPairs: isSample ? SAMPLE_DATA.pairs.map(p => p.word) : undefined // We don't have pairs locally for real game.
           }
         });
+        await clearGameState(user.id, gameId);
         setTimeout(onComplete, 3000);
       }
     };
