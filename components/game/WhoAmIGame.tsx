@@ -184,7 +184,6 @@ const WhoAmIGame: React.FC<WhoAmIGameProps> = ({ gameId, gameData, submission, o
     const saveResult = async () => {
       if ((gameState === 'won' || gameState === 'lost') && !isReadOnly && startTime !== null && !isSample) {
         if (!user) return;
-        await clearGameState(user.id, gameId);
         const timeTaken = Math.round((Date.now() - startTime) / 1000);
         await submitGame({
           userId: user.id,
@@ -194,6 +193,7 @@ const WhoAmIGame: React.FC<WhoAmIGameProps> = ({ gameId, gameData, submission, o
           mistakes,
           submissionData: { solved: gameState === 'won', answer: isSample ? SAMPLE_DATA.answer : undefined } // Backend will fill answer if won? Or we don't need it.
         });
+        await clearGameState(user.id, gameId);
         setTimeout(onComplete, 3000);
       }
     };

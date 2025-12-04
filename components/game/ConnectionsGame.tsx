@@ -213,7 +213,6 @@ const ConnectionsGame: React.FC<ConnectionsGameProps> = ({ gameId, gameData, sub
     const saveResult = async () => {
       if ((gameState === 'won' || gameState === 'lost') && !isReadOnly && startTime !== null && !isSample && !isPreview) {
         if (!user) return;
-        await clearGameState(user.id, gameId);
         const timeTaken = Math.round((Date.now() - startTime) / 1000);
         await submitGame({
           userId: user.id,
@@ -227,6 +226,7 @@ const ConnectionsGame: React.FC<ConnectionsGameProps> = ({ gameId, gameData, sub
             assignedCategories: isSample ? ['FRUITS', 'COLORS', 'ANIMALS', 'NUMBERS'] : undefined // We don't have categories locally for real game.
           }
         });
+        await clearGameState(user.id, gameId);
         setTimeout(onComplete, 3000);
       }
     }
