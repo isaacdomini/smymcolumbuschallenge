@@ -1,7 +1,9 @@
 
+import * as dotenv from 'dotenv';
+dotenv.config();
 import { Pool } from 'pg';
 const pool = new Pool({
-  connectionString: 'postgresql://postgres:postgres@10.0.0.3:5432/smym_bible_games',
+  connectionString: process.env.TEST_DATABASE_URL,
 });
 
 async function run() {

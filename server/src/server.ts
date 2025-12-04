@@ -17,7 +17,7 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.set('trust proxy', false);
+app.set('trust proxy', true);
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -31,11 +31,8 @@ app.use(cors());
 app.use(express.json());
 app.use(visitLogger);
 
-app.use(visitLogger);
-
 import { maintenanceCheck } from './middleware/maintenance.js';
 app.use(maintenanceCheck);
-
 app.use('/api', limiter);
 
 // Routes
