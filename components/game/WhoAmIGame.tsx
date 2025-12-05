@@ -191,7 +191,7 @@ const WhoAmIGame: React.FC<WhoAmIGameProps> = ({ gameId, gameData, submission, o
           startedAt: new Date(startTime).toISOString(),
           timeTaken,
           mistakes,
-          submissionData: { solved: gameState === 'won', answer: isSample ? SAMPLE_DATA.answer : undefined } // Backend will fill answer if won? Or we don't need it.
+          submissionData: { solved: gameState === 'won', guessedLetters, answer: isSample ? SAMPLE_DATA.answer : undefined } // Backend will fill answer if won? Or we don't need it.
         });
         await clearGameState(user.id, gameId);
         setTimeout(onComplete, 3000);

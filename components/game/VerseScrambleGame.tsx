@@ -159,6 +159,7 @@ const VerseScrambleGame: React.FC<VerseScrambleGameProps> = ({ gameId, gameData,
           mistakes: 0,
           submissionData: {
             completed: true,
+            placedWords: placedWords.map(w => w.text),
             verse: isSample ? SAMPLE_DATA.verse : undefined, // We don't have verse locally for real games, but backend knows it.
             // Actually, backend saves submissionData.
             // If we want to show it in review, we might need to fetch it or let backend fill it?

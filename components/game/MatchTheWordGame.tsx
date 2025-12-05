@@ -238,7 +238,7 @@ const MatchTheWordGame: React.FC<MatchTheWordGameProps> = ({ gameId, gameData, s
           timeTaken,
           mistakes,
           submissionData: {
-            foundPairsCount: foundPairs.length,
+            foundPairs: foundPairs,
             assignedPairs: isSample ? SAMPLE_DATA.pairs.map(p => p.word) : undefined // We don't have pairs locally for real game.
           }
         });

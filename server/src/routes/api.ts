@@ -72,10 +72,15 @@ const calculateScore = (game: any, submissionData: any, timeTaken: number, mista
       if (!submissionData?.completed) {
         baseScore = 0;
       } else {
-        const completionScore = 50;
-        const accuracyScore = Math.max(0, 30 - (mistakes * 5));
-        const timeBonus = Math.max(0, 20 - Math.floor(timeTaken / 10));
-        baseScore = completionScore + accuracyScore + timeBonus;
+        // Max 60 points, purely time based. 10 minutes (600s) limit.
+        // Formula: 60 - (timeTaken / 10).
+        // At 0s: 60. At 600s: 0.
+        const maxTime = 600;
+        if (timeTaken > maxTime) {
+          baseScore = 0;
+        } else {
+          baseScore = Math.max(0, Math.round(60 - (timeTaken / 10)));
+        }
       }
       break;
     }
@@ -1949,31 +1954,67 @@ router.post('/submit', async (req: Request, res: Response) => {
       feedback.incorrectCells = incorrectCells;
     } else if (gameType === 'connections') {
       // Validate connections
-      // Submission data usually has 'foundGroups'.
-      // We can trust foundGroups if we validated them during check?
-      // But better to re-validate.
-      // However, connections submission usually just sends the final state.
-      // Let's assume for now we trust client for Connections as it requires step-by-step validation which is hard to reconstruct without history.
-      // But we can check if foundGroups are valid.
-      if (submissionData.foundGroups) {
-        const validGroups = submissionData.foundGroups.filter((group: any) => {
-          const match = gameData.categories.find((cat: any) => cat.name === group.name);
-          return !!match;
+      if (submissionData.foundGroups && Array.isArray(submissionData.foundGroups)) {
+        const validGroups = submissionData.foundGroups.filter((groupName: string) => {
+          return gameData.categories.some((cat: any) => cat.name === groupName);
         });
-        // If client sent invalid groups, we might want to correct score.
-        // But let's stick to trusting client mistakes for now for Connections as it's complex state.
-        // Or just use client mistakes.
+
+        // Update submission data with only valid groups
+        submissionData.foundGroups = validGroups;
+        submissionData.categoriesFound = validGroups.length;
+
+        // If user claims to have won but hasn't found all groups, it's invalid.
+        // We can't easily reconstruct mistakes without history, but we can ensure the final state is valid.
       }
     } else if (gameType === 'match_the_word') {
-      // Similar to connections
+      if (submissionData.foundPairs && Array.isArray(submissionData.foundPairs)) {
+        // foundPairs is list of words.
+        // Verify each word exists in gameData.pairs
+        const validPairs = submissionData.foundPairs.filter((word: string) => {
+          return gameData.pairs.some((p: any) => p.word === word);
+        });
+        submissionData.foundPairs = validPairs;
+        submissionData.foundPairsCount = validPairs.length;
+      }
     } else if (gameType === 'who_am_i') {
-      // Check if solved
-      if (submissionData.solved) {
-        // Verify?
+      if (submissionData.guessedLetters && Array.isArray(submissionData.guessedLetters)) {
+        const answer = gameData.answer.toUpperCase();
+        const guesses = submissionData.guessedLetters.map((l: string) => l.toUpperCase());
+
+        // Re-calculate mistakes based on guesses
+        calculatedMistakes = 0;
+        const uniqueAnswerChars = new Set(answer.split('').filter((c: string) => /[A-Z]/.test(c)));
+        const correctGuesses = new Set();
+
+        guesses.forEach((guess: string) => {
+          if (answer.includes(guess)) {
+            correctGuesses.add(guess);
+          } else {
+            calculatedMistakes++;
+          }
+        });
+
+        // Cap mistakes at 6 as per game rules
+        if (calculatedMistakes > 6) calculatedMistakes = 6;
+
+        // Validate solved status
+        const isSolved = uniqueAnswerChars.size === correctGuesses.size;
+        submissionData.solved = isSolved;
       }
     } else if (gameType === 'verse_scramble') {
-      if (submissionData.completed) {
-        // Verify?
+      if (submissionData.placedWords && Array.isArray(submissionData.placedWords)) {
+        const submittedVerse = submissionData.placedWords.join(' ');
+        const correctVerse = gameData.verse;
+
+        const isCorrect = submittedVerse === correctVerse;
+        submissionData.completed = isCorrect;
+
+        // If not correct, they haven't completed it.
+        if (!isCorrect) {
+          // Maybe set mistakes to 1 to indicate failure if they claimed success?
+          // But Verse Scramble doesn't really have "mistakes" in the same way.
+          // Just ensure completed is false.
+        }
       }
     }
 

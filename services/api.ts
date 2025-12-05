@@ -1076,9 +1076,8 @@ export const getScoringCriteria = async (): Promise<any[]> => {
             description: 'Unscramble the Bible verse by dragging words into the correct order.',
             hidden: false,
             points: [
-                'Completion Score: 50 points for completing the verse.',
-                'Accuracy Bonus: Up to 30 points for minimal mistakes.',
-                'Time Bonus: Up to 20 points for fast completion.'
+                'Time Score: Up to 60 points based on speed.',
+                'Time Limit: 10 minutes. Score is 0 if time exceeds limit.'
             ]
         },
         {
