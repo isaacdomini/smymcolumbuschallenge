@@ -169,7 +169,6 @@ const WordSearchGame: React.FC<WordSearchGameProps> = ({ gameId, gameData, submi
     const saveResult = async () => {
       if (gameState === 'won' && !isReadOnly && startTime !== null && !isSample) {
         if (!user) return;
-        await clearGameState(user.id, gameId);
         const timeTaken = Math.round((Date.now() - startTime) / 1000);
         await submitGame({
           userId: user.id,
@@ -185,6 +184,7 @@ const WordSearchGame: React.FC<WordSearchGameProps> = ({ gameId, gameData, submi
             words: dataToUse.words
           }
         });
+        await clearGameState(user.id, gameId);
         setTimeout(onComplete, 3000);
       }
     };

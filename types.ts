@@ -5,6 +5,7 @@ export interface User {
   isAdmin?: boolean;
   isVerified?: boolean;
   createdAt?: string;
+  token?: string;
 }
 
 export enum GameType {
@@ -19,7 +20,9 @@ export enum GameType {
 }
 
 export interface WordleData {
-  solution: string;
+  solution?: string;
+  solutions?: string[];
+  wordLength?: number;
 }
 
 export interface ConnectionsData {
@@ -28,6 +31,8 @@ export interface ConnectionsData {
     name: string;
     words: string[];
   }[];
+  // For frontend (masked)
+  shuffledWords?: string[];
 }
 
 export type Direction = 'across' | 'down';
@@ -35,10 +40,11 @@ export type Direction = 'across' | 'down';
 export interface Clue {
   number: number;
   clue: string;
-  answer: string;
+  answer?: string; // Made optional
   row: number;
   col: number;
   direction: Direction;
+  length?: number; // Added length
 }
 
 export interface CrosswordData {
@@ -53,18 +59,26 @@ export interface MatchTheWordData {
     word: string;
     match: string;
   }[];
+  // For frontend (masked)
+  shuffledWords?: string[];
+  shuffledMatches?: string[];
 }
 
 export interface VerseScrambleData {
   verse?: string;
   reference?: string;
   verses?: { verse: string; reference: string }[];
+  // For frontend (masked)
+  scrambledWords?: string[];
 }
 
 export interface WhoAmIData {
   answer?: string;
   hint?: string;
   solutions?: { answer: string; hint?: string }[];
+  // For frontend (masked)
+  wordLength?: number;
+  maskedAnswer?: string;
 }
 
 export interface WordSearchData {
@@ -140,6 +154,7 @@ export interface GameSubmission {
   mistakes: number;
   score: number;
   submissionData?: any;
+  feedback?: any;
 }
 
 export interface SubmitGamePayload {
