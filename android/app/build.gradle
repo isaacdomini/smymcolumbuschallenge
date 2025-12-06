@@ -1,14 +1,14 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace "com.tesarsoft.smym.biblegames"
+    namespace "com.tesarsoft.smym.christiangames"
     compileSdk rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.tesarsoft.smym.biblegames"
+        applicationId "com.tesarsoft.smym.christiangames"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 8
-        versionName "1.3.1"
+        versionCode 9
+        versionName "1.3.2"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

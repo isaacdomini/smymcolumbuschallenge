@@ -1,21 +1,21 @@
 {
   "project_info": {
-    "project_number": "485103089458",
-    "project_id": "smym-games",
-    "storage_bucket": "smym-games.firebasestorage.app"
+    "project_number": "367245189584",
+    "project_id": "smym-christian-games",
+    "storage_bucket": "smym-christian-games.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:485103089458:android:ca7a32a99c12ae11d7492b",
+        "mobilesdk_app_id": "1:367245189584:android:0424675c99dc253135d9d5",
         "android_client_info": {
-          "package_name": "com.tesarsoft.smym.biblegames"
+          "package_name": "com.tesarsoft.smym.christiangames"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyDv5Fg28qvHUwimFHvGIS-bxA3CRI1IN84"
+          "current_key": "AIzaSyDJK6uG1v25EfZQ-Vs5qGtI-UL98OVnFDc"
         }
       ],
       "services": {
