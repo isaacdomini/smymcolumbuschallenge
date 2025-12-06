@@ -10,6 +10,7 @@
     "build:server": "tsc -p server/tsconfig.json",
     "preview": "vite preview",
     "server": "node server/dist/server.js",
+    "cleanup:progress": "node server/scripts/cleanup-progress.js",
     "migrate": "node server/dist/migrate.js",
     "seed": "node server/dist/seed.js",
     "test:push": "node server/dist/test-push.js",
