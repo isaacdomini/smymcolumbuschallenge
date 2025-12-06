@@ -1075,12 +1075,6 @@ const resolveGameData = async (game: any, userId: string | undefined) => {
       const submissionResult = await pool.query('SELECT submission_data FROM game_submissions WHERE user_id = $1 AND game_id = $2 ORDER BY completed_at DESC LIMIT 1', [userId, game.id]);
       if (submissionResult.rows.length > 0) {
         const submissionData = submissionResult.rows[0].submission_data;
-        console.log('Connections Revisit Debug:', {
-          hasSubmission: true,
-          submissionDataType: typeof submissionData,
-          keys: submissionData ? Object.keys(submissionData) : 'null',
-          assignedCategories: submissionData?.assignedCategories
-        });
         if (submissionData) {
           if (submissionData.assignedCategories) {
             assignedCategories = submissionData.assignedCategories;
@@ -1088,8 +1082,6 @@ const resolveGameData = async (game: any, userId: string | undefined) => {
             assignedCategories = submissionData.categories.map((c: any) => c.name);
           }
         }
-      } else {
-        console.log('Connections Revisit Debug: No submission found for user', userId, 'game', game.id);
       }
 
       // 2. Check progress

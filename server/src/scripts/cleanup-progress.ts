@@ -1,15 +1,13 @@
 
-import pg from 'pg';
-const { Pool } = pg;
+import pool from '../db/pool.js';
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-// Configuration matching docker-compose defaults
-const pool = new Pool({
-  user: 'postgres',
-  host: 'localhost',
-  database: 'smym_bible_games',
-  password: 'postgres',
-  port: 5432,
-});
+// Load environment variables from the root .env file
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
 const isDryRun = process.argv.includes('--dry-run');
 
@@ -29,11 +27,11 @@ async function cleanupProgress() {
         AND gs.game_id = gp.game_id
       )
     `);
-    
+
     const count = findRes.rowCount;
     console.log(`Found ${count} redundant progress records.`);
 
-    if (count > 0) {
+    if (count !== null && count > 0) {
       if (isDryRun) {
         console.log('Records that would be deleted:');
         console.table(findRes.rows);
@@ -54,10 +52,10 @@ async function cleanupProgress() {
       console.log('No records to delete.');
     }
 
+    process.exit(0);
   } catch (err) {
     console.error('Cleanup Error:', err);
-  } finally {
-    await pool.end();
+    process.exit(1);
   }
 }
 
