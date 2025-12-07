@@ -42,6 +42,7 @@ interface DarkModeCrosswordProps {
   initialGrid?: (string | null)[][];
   isReviewMode?: boolean;
   incorrectCells?: { row: number, col: number }[];
+  onSubmit?: () => void;
 }
 
 export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
@@ -51,6 +52,7 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
   initialGrid,
   isReviewMode = false,
   incorrectCells,
+  onSubmit,
 }) => {
   const { rows, cols } = puzzleData;
   const gridRef = useRef<HTMLDivElement>(null);
@@ -332,7 +334,7 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
               const isHighlighted = activeClueInfo.cells.some(c => c.row === row && c.col === col);
 
               // Increased base font size for mobile for better legibility without zooming
-              let cellClasses = 'relative flex items-center justify-center uppercase font-bold text-base sm:text-lg md:text-2xl border-zinc-700 border select-none overflow-hidden w-full h-full';
+              let cellClasses = 'relative border-zinc-700 border select-none overflow-hidden w-full h-full';
 
               if (isBlack) {
                 cellClasses += ' bg-zinc-950';
@@ -384,7 +386,11 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
               return (
                 <div key={`${row}-${col}`} className={cellClasses} onClick={(e) => { e.stopPropagation(); handleCellClick(row, col); }}>
                   {number && <span className="absolute top-0.5 left-0.5 text-[8px] md:text-xs leading-none text-zinc-400 font-normal pointer-events-none">{number}</span>}
-                  {!isBlack && <span className="pointer-events-none">{charToShow}</span>}
+                  {!isBlack && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <span className="uppercase font-bold text-base sm:text-lg md:text-2xl">{charToShow}</span>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -457,6 +463,16 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
           {/* Keyboard */}
           <div className="w-full bg-gray-900 p-1 border-t border-zinc-800 safe-area-bottom">
             <CrosswordKeyboard onKeyPress={handleKeyPress} />
+            {onSubmit && !isReviewMode && !isCompleted && (
+              <div className="px-1 pb-1 pt-2">
+                <button
+                  onClick={onSubmit}
+                  className="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold py-3 rounded-lg text-lg transition-colors shadow-lg"
+                >
+                  Submit Puzzle
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

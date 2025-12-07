@@ -64,8 +64,17 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
 
     useEffect(() => {
         if (isReadOnly && submission) {
-            // When reviewing, show the perfect SOLUTION grid, not just what they submitted
-            setUserGrid(solutionGrid);
+            if (isReadOnly && submission) {
+                // When reviewing, show the user's submitted grid
+                if (submission.submissionData?.grid) {
+                    setUserGrid(submission.submissionData.grid);
+                } else {
+                    setUserGrid(solutionGrid);
+                }
+                setIsSubmitted(true);
+                setShowInstructions(false);
+                return;
+            }
             setIsSubmitted(true);
             setShowInstructions(false);
             return;
@@ -170,25 +179,47 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
         return <GameInstructionsModal gameType={GameType.CROSSWORD} onStart={handleInstructionsClose} onClose={handleInstructionsClose} />;
     }
 
+    const [elapsedSeconds, setElapsedSeconds] = useState(0);
+
+    useEffect(() => {
+        if (!startTime || isSubmitted || isReadOnly || showInstructions) return;
+
+        const interval = setInterval(() => {
+            setElapsedSeconds(Math.floor((Date.now() - startTime) / 1000));
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, [startTime, isSubmitted, isReadOnly, showInstructions]);
+
+    const formatTime = (seconds: number) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    };
+
     return (
         <div className="w-full max-w-5xl mx-auto flex flex-col items-center pb-8">
-            <div className="flex items-center justify-between w-full max-w-md mb-4">
-                <h2 className="text-2xl font-bold text-yellow-400">
-                    Crossword
-                    {isSample && <span className="text-sm bg-blue-600 px-2 py-1 rounded ml-2 text-white">Sample</span>}
-                    {isPreview && <span className="text-sm bg-purple-600 px-2 py-1 rounded ml-2 text-white">Preview</span>}
-                </h2>
-                <div className="flex space-x-2">
-                    {!isReadOnly && !isSubmitted && (
-                        <button
-                            onClick={handleSubmit}
-                            className="md:hidden bg-blue-600 hover:bg-blue-700 text-white font-bold py-1.5 px-4 rounded-lg text-sm transition-colors"
-                        >
-                            Submit
-                        </button>
-                    )}
-                    <button onClick={() => setShowInstructions(true)} className="text-gray-400 hover:text-white p-1" title="Show Instructions">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+            <div className="flex items-center justify-between w-full max-w-md mb-4 bg-zinc-800 p-3 rounded-xl shadow-lg border border-zinc-700">
+                <div className="flex flex-col">
+                    <h2 className="text-xl font-bold text-yellow-400 leading-none">
+                        Crossword
+                    </h2>
+                    <div className="flex gap-2 mt-1">
+                        {isSample && <span className="text-xs bg-blue-600 px-1.5 py-0.5 rounded text-white font-medium">Sample</span>}
+                        {isPreview && <span className="text-xs bg-purple-600 px-1.5 py-0.5 rounded text-white font-medium">Preview</span>}
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2 bg-zinc-900 px-3 py-1.5 rounded-lg border border-zinc-700/50">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-400"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                        <span className="font-mono text-zinc-100 font-bold tracking-wider">
+                            {isReadOnly && submission ? formatTime(submission.timeTaken) : formatTime(elapsedSeconds)}
+                        </span>
+                    </div>
+
+                    <button onClick={() => setShowInstructions(true)} className="text-zinc-400 hover:text-white p-2 hover:bg-zinc-700 rounded-lg transition-colors" title="Show Instructions">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
                     </button>
                 </div>
             </div>
@@ -200,6 +231,7 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
                 initialGrid={userGrid}
                 isReviewMode={isReadOnly}
                 incorrectCells={feedback?.incorrectCells || submission?.submissionData?.incorrectCells}
+                onSubmit={isReadOnly ? undefined : handleSubmit}
             />
 
             <div className="mt-6 w-full max-w-md flex flex-col items-center">
