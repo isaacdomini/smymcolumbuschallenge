@@ -198,21 +198,42 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
         return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     };
 
+    const [isHeaderExpanded, setIsHeaderExpanded] = useState(true);
+
     return (
         <div className="w-full max-w-5xl mx-auto flex flex-col items-center pb-8">
-            <div className="flex flex-col w-full max-w-md mb-4 bg-zinc-800 p-3 rounded-xl shadow-lg border border-zinc-700 gap-3 sticky top-0 z-30">
-                <div className="flex items-center justify-between border-b border-zinc-700/50 pb-2">
-                    <div className="flex flex-col">
-                        <h2 className="text-xl font-bold text-yellow-400 leading-none">
+            <div className={`flex flex-col w-full max-w-md mb-4 bg-zinc-800 rounded-xl shadow-lg border border-zinc-700 transition-all duration-300 sticky top-0 z-30 ${isHeaderExpanded ? 'p-3 gap-2' : 'p-2'}`}>
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <h2 className={`font-bold text-yellow-400 leading-none transition-all ${isHeaderExpanded ? 'text-xl' : 'text-lg'}`}>
                             Crossword
                         </h2>
-                        <div className="flex gap-2 mt-1">
+                        {!isHeaderExpanded && (
+                            <span className="font-mono text-zinc-300 font-bold text-sm bg-zinc-900 px-2 py-0.5 rounded border border-zinc-700/50">
+                                {isReadOnly && submission ? formatTime(submission.timeTaken) : formatTime(elapsedSeconds)}
+                            </span>
+                        )}
+                        <div className="flex gap-2">
                             {isSample && <span className="text-xs bg-blue-600 px-1.5 py-0.5 rounded text-white font-medium">Sample</span>}
                             {isPreview && <span className="text-xs bg-purple-600 px-1.5 py-0.5 rounded text-white font-medium">Preview</span>}
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => setIsHeaderExpanded(!isHeaderExpanded)}
+                        className="text-zinc-400 hover:text-white p-1 hover:bg-zinc-700 rounded transition-colors"
+                        title={isHeaderExpanded ? "Collapse Header" : "Expand Header"}
+                    >
+                        {isHeaderExpanded ? (
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
+                        ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                        )}
+                    </button>
+                </div>
+
+                {isHeaderExpanded && (
+                    <div className="flex items-center justify-between animate-fade-in gap-2 border-t border-zinc-700/50 pt-2">
                         <div className="flex items-center gap-1 bg-zinc-900 rounded-lg p-1 border border-zinc-700/50">
                             <button onClick={() => setZoom(z => Math.max(z - 0.25, 1.0))} className="p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-700 rounded transition-colors" title="Zoom Out">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
@@ -223,18 +244,18 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
                             </button>
                         </div>
 
-                        <div className="flex items-center gap-2 bg-zinc-900 px-3 py-1.5 rounded-lg border border-zinc-700/50">
+                        <div className="flex items-center gap-2 bg-zinc-900 px-3 py-1.5 rounded-lg border border-zinc-700/50 flex-grow justify-center">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-400"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
                             <span className="font-mono text-zinc-100 font-bold tracking-wider">
                                 {isReadOnly && submission ? formatTime(submission.timeTaken) : formatTime(elapsedSeconds)}
                             </span>
                         </div>
 
-                        <button onClick={() => setShowInstructions(true)} className="text-zinc-400 hover:text-white p-2 hover:bg-zinc-700 rounded-lg transition-colors" title="Show Instructions">
+                        <button onClick={() => setShowInstructions(true)} className="text-zinc-400 hover:text-white p-2 hover:bg-zinc-700 rounded-lg transition-colors border border-zinc-700/50 bg-zinc-900" title="Show Instructions">
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
                         </button>
                     </div>
-                </div>
+                )}
             </div>
 
             <DarkModeCrossword
