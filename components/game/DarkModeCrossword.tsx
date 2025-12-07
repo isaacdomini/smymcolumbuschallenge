@@ -43,6 +43,7 @@ interface DarkModeCrosswordProps {
   isReviewMode?: boolean;
   incorrectCells?: { row: number, col: number }[];
   onSubmit?: () => void;
+  zoom?: number;
 }
 
 export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
@@ -53,11 +54,12 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
   isReviewMode = false,
   incorrectCells,
   onSubmit,
+  zoom = 1,
 }) => {
   const { rows, cols } = puzzleData;
   const gridRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
-  const [zoom, setZoom] = useState(1);
+  // zoom state removed in favor of prop
 
   const [grid, setGrid] = useState<(string | null)[][]>(() =>
     initialGrid || Array(rows).fill(null).map(() => Array(cols).fill(null))
@@ -395,14 +397,6 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
               );
             })}
           </div>
-
-          {/* Zoom Controls for Mobile */}
-          {isMobile && !isReviewMode && (
-            <div className="absolute right-2 top-2 flex flex-col gap-2 z-20 opacity-60">
-              <button onClick={(e) => { e.stopPropagation(); setZoom(z => Math.min(z + 0.25, 2.5)); }} className="w-10 h-10 bg-zinc-800 border border-zinc-600 rounded-full text-white flex items-center justify-center shadow-lg active:bg-zinc-700">+</button>
-              <button onClick={(e) => { e.stopPropagation(); setZoom(z => Math.max(z - 0.25, 1.0)); }} className="w-10 h-10 bg-zinc-800 border border-zinc-600 rounded-full text-white flex items-center justify-center shadow-lg active:bg-zinc-700">-</button>
-            </div>
-          )}
         </div>
 
         {/* Desktop Clue Lists */}
