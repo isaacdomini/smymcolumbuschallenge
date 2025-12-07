@@ -449,6 +449,7 @@ const MainContent: React.FC = () => {
               </svg>
               <span className="ml-1 font-medium">Back</span>
             </button>
+            <div id="game-header-target" className="flex-1 flex justify-end items-center"></div>
           </div>
         </header>
       ) : (
