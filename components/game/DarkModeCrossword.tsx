@@ -332,7 +332,7 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
               const isHighlighted = activeClueInfo.cells.some(c => c.row === row && c.col === col);
 
               // Increased base font size for mobile for better legibility without zooming
-              let cellClasses = 'relative flex items-center justify-center uppercase font-bold text-base sm:text-lg md:text-2xl border-zinc-700 border select-none';
+              let cellClasses = 'relative flex items-center justify-center uppercase font-bold text-base sm:text-lg md:text-2xl border-zinc-700 border select-none overflow-hidden w-full h-full';
 
               if (isBlack) {
                 cellClasses += ' bg-zinc-950';
