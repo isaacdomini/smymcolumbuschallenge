@@ -177,6 +177,7 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
 
     const [elapsedSeconds, setElapsedSeconds] = useState(0);
     const [zoom, setZoom] = useState(1);
+    const [isHeaderExpanded, setIsHeaderExpanded] = useState(true);
 
     useEffect(() => {
         if (!startTime || isSubmitted || isReadOnly || showInstructions) return;
@@ -197,8 +198,6 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
         const secs = seconds % 60;
         return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     };
-
-    const [isHeaderExpanded, setIsHeaderExpanded] = useState(true);
 
     return (
         <div className="w-full max-w-5xl mx-auto flex flex-col items-center pb-8">
