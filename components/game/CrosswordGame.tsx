@@ -50,6 +50,7 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
         const grid: (string | null)[][] = Array(activeData.rows).fill(null).map(() => Array(activeData.cols).fill(null));
         const allClues: Clue[] = [...activeData.acrossClues, ...activeData.downClues];
         allClues.forEach(clue => {
+            if (!clue.answer) return;
             for (let i = 0; i < clue.answer.length; i++) {
                 const r = clue.direction === 'across' ? clue.row : clue.row + i;
                 const c = clue.direction === 'across' ? clue.col + i : clue.col;
