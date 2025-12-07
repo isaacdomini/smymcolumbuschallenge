@@ -176,6 +176,7 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
     };
 
     const [elapsedSeconds, setElapsedSeconds] = useState(0);
+    const [zoom, setZoom] = useState(1);
 
     useEffect(() => {
         if (!startTime || isSubmitted || isReadOnly || showInstructions) return;
@@ -190,8 +191,6 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
     if (showInstructions) {
         return <GameInstructionsModal gameType={GameType.CROSSWORD} onStart={handleInstructionsClose} onClose={handleInstructionsClose} />;
     }
-
-    const [zoom, setZoom] = useState(1);
 
     const formatTime = (seconds: number) => {
         const mins = Math.floor(seconds / 60);
