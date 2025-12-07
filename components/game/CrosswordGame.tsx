@@ -175,10 +175,6 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
         setShowInstructions(false);
     };
 
-    if (showInstructions) {
-        return <GameInstructionsModal gameType={GameType.CROSSWORD} onStart={handleInstructionsClose} onClose={handleInstructionsClose} />;
-    }
-
     const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
     useEffect(() => {
@@ -190,6 +186,10 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
 
         return () => clearInterval(interval);
     }, [startTime, isSubmitted, isReadOnly, showInstructions]);
+
+    if (showInstructions) {
+        return <GameInstructionsModal gameType={GameType.CROSSWORD} onStart={handleInstructionsClose} onClose={handleInstructionsClose} />;
+    }
 
     const formatTime = (seconds: number) => {
         const mins = Math.floor(seconds / 60);
