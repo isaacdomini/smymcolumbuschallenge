@@ -178,6 +178,11 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
 
     const [elapsedSeconds, setElapsedSeconds] = useState(0);
     const [zoom, setZoom] = useState(1);
+    const [headerTarget, setHeaderTarget] = useState<HTMLElement | null>(null);
+
+    useEffect(() => {
+        setHeaderTarget(document.getElementById('game-header-target'));
+    }, []);
 
     useEffect(() => {
         if (!startTime || isSubmitted || isReadOnly || showInstructions) return;
@@ -226,12 +231,6 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
             </button>
         </div>
     );
-
-    const [headerTarget, setHeaderTarget] = useState<HTMLElement | null>(null);
-
-    useEffect(() => {
-        setHeaderTarget(document.getElementById('game-header-target'));
-    }, []);
 
     return (
         <div className="w-full max-w-5xl mx-auto flex flex-col items-center pb-8 pt-4">
