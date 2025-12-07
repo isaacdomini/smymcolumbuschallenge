@@ -65,16 +65,11 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
 
     useEffect(() => {
         if (isReadOnly && submission) {
-            if (isReadOnly && submission) {
-                // When reviewing, show the user's submitted grid
-                if (submission.submissionData?.grid) {
-                    setUserGrid(submission.submissionData.grid);
-                } else {
-                    setUserGrid(solutionGrid);
-                }
-                setIsSubmitted(true);
-                setShowInstructions(false);
-                return;
+            // When reviewing, show the user's submitted grid
+            if (submission.submissionData?.grid) {
+                setUserGrid(submission.submissionData.grid);
+            } else {
+                setUserGrid(solutionGrid);
             }
             setIsSubmitted(true);
             setShowInstructions(false);
@@ -239,7 +234,8 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
 
 
             <DarkModeCrossword
-                puzzleData={isSample ? SAMPLE_DATA : gameData}
+                key={submission ? submission.id : gameId}
+                puzzleData={isSample ? SAMPLE_DATA : activeData}
                 onCellChange={isReadOnly || isSubmitted ? undefined : handleCellChange}
                 onPuzzleComplete={isReadOnly ? undefined : handleSubmit}
                 initialGrid={userGrid}
