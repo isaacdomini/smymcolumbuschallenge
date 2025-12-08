@@ -3,6 +3,8 @@ import pool from './db/pool.js';
 import { sendDailyReminder } from './services/email.js';
 import { sendPushNotification } from './services/push.js';
 
+import { getGameName } from './utils/game.js';
+
 export const initScheduler = () => {
     console.log('Initializing daily reminder scheduler...');
 
@@ -35,7 +37,7 @@ export const initScheduler = () => {
                 return;
             }
             const game = gameResult.rows[0];
-            const gameType = game.type.charAt(0).toUpperCase() + game.type.slice(1);
+            const gameType = getGameName(game.type);
 
             const usersToRemind = await pool.query(`
                 SELECT u.id, u.name, u.email, u.email_notifications 
