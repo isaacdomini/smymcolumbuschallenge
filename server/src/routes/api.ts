@@ -1261,13 +1261,17 @@ export const resolveGameData = async (game: any, userId?: string, stripSolution:
         // If they submitted, they must have had a puzzle assigned.
         // We rely on game_progress or re-assign the same one if possible.
         const submissionData = submissionResult.rows[0].submission_data;
-        if (submissionData && submissionData.puzzle) {
-          assignedPuzzle = submissionData.puzzle;
-        } else if (submissionData && submissionData.assignedCrosswordIndex !== undefined) {
+
+        // Prioritize index to ensure we get the full puzzle with answers (stored puzzle might be stripped)
+        if (submissionData && submissionData.assignedCrosswordIndex !== undefined) {
           const index = submissionData.assignedCrosswordIndex;
           if (gameData.puzzles[index]) {
             assignedPuzzle = gameData.puzzles[index];
           }
+        }
+
+        if (!assignedPuzzle && submissionData && submissionData.puzzle) {
+          assignedPuzzle = submissionData.puzzle;
         }
       }
 
