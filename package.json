@@ -17,7 +17,7 @@
     "resend-verification": "node server/dist/scripts/resend-verification.js",
     "send-reminders": "node server/dist/scripts/send-reminders.js",
     "generate-vapid": "node -e \"console.log(require('web-push').generateVAPIDKeys())\"",
-    "recalculate-scores": "JWT_SECRET=temp-secret tsx server/src/scripts/recalculate_scores.ts"
+    "recalculate-scores": "npx tsx server/src/scripts/recalculate_scores.ts"
   },
   "dependencies": {
     "@capacitor/android": "^7.4.4",
