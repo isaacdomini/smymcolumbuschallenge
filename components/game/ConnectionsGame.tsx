@@ -71,7 +71,7 @@ const ConnectionsGame: React.FC<ConnectionsGameProps> = ({ gameId, gameData, sub
   useEffect(() => {
     const loadState = async () => {
       if (isReadOnly && submission) {
-        setFoundGroups(gameData.categories);
+        setFoundGroups(gameData.categories || []);
         setWords([]);
         setMistakes(submission.mistakes);
         setGameState(submission.mistakes >= 4 ? 'lost' : 'won');

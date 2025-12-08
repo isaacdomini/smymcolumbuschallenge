@@ -1573,11 +1573,20 @@ export const resolveGameData = async (game: any, userId?: string, stripSolution:
     }
   }
 
+  // Check if user has submitted to potentially allow solution reveal
+  let hasSubmitted = false;
+  if (userId) {
+    const subCheck = await pool.query('SELECT id FROM game_submissions WHERE user_id = $1 AND game_id = $2', [userId, game.id]);
+    hasSubmitted = subCheck.rows.length > 0;
+  }
+
   // Strip solutions if requested
   if (stripSolution) {
     if (gameType === 'wordle' || gameType === 'wordle_advanced') {
       if (gameData.solution) {
         gameData.wordLength = gameData.solution.length;
+        // Optional: reveal solution if submitted?
+        // if (!hasSubmitted) delete gameData.solution;
         delete gameData.solution;
       }
     } else if (gameType === 'connections') {
@@ -1585,10 +1594,15 @@ export const resolveGameData = async (game: any, userId?: string, stripSolution:
         const allWords = gameData.categories.flatMap((c: any) => c.words);
         gameData.shuffledWords = shuffleArray(allWords);
 
-        if (stripSolution) {
+        // Only strip categories if user hasn't submitted
+        if (!hasSubmitted) {
           gameData.words = gameData.shuffledWords;
           delete gameData.categories;
           delete gameData.shuffledWords;
+        } else {
+          // If submitted, we might still want shuffledWords provided as 'words' for consistency, but keep categories
+          gameData.words = gameData.shuffledWords;
+          // Keep categories!
         }
       }
 
