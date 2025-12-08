@@ -14,7 +14,7 @@ if (!process.env.JWT_SECRET) {
 const JWT_SECRET = process.env.JWT_SECRET;
 
 // Helper to get 'YYYY-MM-DD' in Eastern Time
-const getTodayEST = () => {
+export const getTodayEST = () => {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
 };
 
@@ -29,7 +29,7 @@ const shuffleArray = <T>(array: T[]): T[] => {
 };
 
 // --- HELPER: Score Calculation ---
-const calculateScore = (game: any, submissionData: any, timeTaken: number, mistakes: number): number => {
+export const calculateScore = (game: any, submissionData: any, timeTaken: number, mistakes: number): number => {
   let baseScore = 0;
   const gameType = game.type;
 
@@ -1019,23 +1019,31 @@ export const resolveGameData = async (game: any, userId?: string, stripSolution:
         if (progressResult.rows.length > 0 && progressResult.rows[0].game_state.assignedWord) {
           assignedWord = progressResult.rows[0].game_state.assignedWord;
         } else {
-          // No word assigned yet. Pick one.
+          // No word assigned yet. Pick one safely.
           const solutions = gameData.solutions || [];
           if (solutions.length > 0) {
             const candidateWord = solutions[Math.floor(Math.random() * solutions.length)];
 
-            // Get existing state (if any) to merge
-            const existingState = progressResult.rows.length > 0 ? progressResult.rows[0].game_state : {};
-            const newState = { ...existingState, assignedWord: candidateWord };
+            const progressId = `progress-${userId}-${game.id}`;
+            const initialGameState = JSON.stringify({ assignedWord: candidateWord });
 
             await pool.query(
               `INSERT INTO game_progress (id, user_id, game_id, game_state, updated_at) 
                VALUES ($1, $2, $3, $4, NOW()) 
-               ON CONFLICT (user_id, game_id) DO UPDATE SET game_state = $4, updated_at = NOW()`,
-              [`progress-${userId}-${game.id}`, userId, game.id, JSON.stringify(newState)]
+               ON CONFLICT (user_id, game_id) 
+               DO UPDATE SET 
+                 game_state = jsonb_set(COALESCE(game_progress.game_state, '{}'::jsonb), '{assignedWord}', to_jsonb($5::text)), 
+                 updated_at = NOW()
+               WHERE (game_progress.game_state->>'assignedWord') IS NULL`,
+              [progressId, userId, game.id, initialGameState, candidateWord]
             );
 
-            assignedWord = candidateWord;
+            const finalResult = await pool.query('SELECT game_state FROM game_progress WHERE user_id = $1 AND game_id = $2', [userId, game.id]);
+            if (finalResult.rows.length > 0 && finalResult.rows[0].game_state.assignedWord) {
+              assignedWord = finalResult.rows[0].game_state.assignedWord;
+            } else {
+              assignedWord = candidateWord;
+            }
 
           } else {
             assignedWord = "ERROR";
@@ -1204,21 +1212,32 @@ export const resolveGameData = async (game: any, userId?: string, stripSolution:
         }
 
         if (!assignedPuzzle) {
-          // Assign new
+          // Assign new (safely)
           const puzzles = gameData.puzzles;
           const randomIndex = Math.floor(Math.random() * puzzles.length);
-          const candidate = puzzles[randomIndex];
 
-          const existingState = progressResult.rows.length > 0 ? progressResult.rows[0].game_state : {};
-          const newState = { ...existingState, assignedWordSearchIndex: randomIndex };
+          const progressId = `progress-${userId}-${game.id}`;
+          const initialGameState = JSON.stringify({ assignedWordSearchIndex: randomIndex });
 
           await pool.query(
             `INSERT INTO game_progress (id, user_id, game_id, game_state, updated_at)
-               VALUES ($1, $2, $3, $4, NOW())
-               ON CONFLICT (user_id, game_id) DO UPDATE SET game_state = $4, updated_at = NOW()`,
-            [`progress-${userId}-${game.id}`, userId, game.id, JSON.stringify(newState)]
+             VALUES ($1, $2, $3, $4, NOW())
+             ON CONFLICT (user_id, game_id) 
+             DO UPDATE SET 
+               game_state = jsonb_set(COALESCE(game_progress.game_state, '{}'::jsonb), '{assignedWordSearchIndex}', to_jsonb($5::int)), 
+               updated_at = NOW()
+             WHERE (game_progress.game_state->>'assignedWordSearchIndex') IS NULL`,
+            [progressId, userId, game.id, initialGameState, randomIndex]
           );
-          assignedPuzzle = candidate;
+
+          // Re-fetch
+          const finalResult = await pool.query('SELECT game_state FROM game_progress WHERE user_id = $1 AND game_id = $2', [userId, game.id]);
+          if (finalResult.rows.length > 0 && finalResult.rows[0].game_state.assignedWordSearchIndex !== undefined) {
+            const finalIndex = finalResult.rows[0].game_state.assignedWordSearchIndex;
+            assignedPuzzle = puzzles[finalIndex];
+          } else {
+            assignedPuzzle = puzzles[randomIndex];
+          }
         }
       }
 
@@ -1264,21 +1283,33 @@ export const resolveGameData = async (game: any, userId?: string, stripSolution:
         }
 
         if (!assignedPuzzle) {
-          // Assign new
+          // Assign new (safely handling concurrency)
           const puzzles = gameData.puzzles;
           const randomIndex = Math.floor(Math.random() * puzzles.length);
-          const candidate = puzzles[randomIndex];
 
-          const existingState = progressResult.rows.length > 0 ? progressResult.rows[0].game_state : {};
-          const newState = { ...existingState, assignedCrosswordIndex: randomIndex };
+          const progressId = `progress-${userId}-${game.id}`;
+          const initialGameState = JSON.stringify({ assignedCrosswordIndex: randomIndex });
 
           await pool.query(
             `INSERT INTO game_progress (id, user_id, game_id, game_state, updated_at) 
-               VALUES ($1, $2, $3, $4, NOW()) 
-               ON CONFLICT (user_id, game_id) DO UPDATE SET game_state = $4, updated_at = NOW()`,
-            [`progress-${userId}-${game.id}`, userId, game.id, JSON.stringify(newState)]
+             VALUES ($1, $2, $3, $4, NOW()) 
+             ON CONFLICT (user_id, game_id) 
+             DO UPDATE SET 
+               game_state = jsonb_set(COALESCE(game_progress.game_state, '{}'::jsonb), '{assignedCrosswordIndex}', to_jsonb($5::int)), 
+               updated_at = NOW()
+             WHERE (game_progress.game_state->>'assignedCrosswordIndex') IS NULL`,
+            [progressId, userId, game.id, initialGameState, randomIndex]
           );
-          assignedPuzzle = candidate;
+
+          // Fetch the definitive state
+          const finalResult = await pool.query('SELECT game_state FROM game_progress WHERE user_id = $1 AND game_id = $2', [userId, game.id]);
+          if (finalResult.rows.length > 0 && finalResult.rows[0].game_state.assignedCrosswordIndex !== undefined) {
+            const finalIndex = finalResult.rows[0].game_state.assignedCrosswordIndex;
+            assignedPuzzle = puzzles[finalIndex];
+          } else {
+            // Should not happen, but safe fallback
+            assignedPuzzle = puzzles[randomIndex];
+          }
         }
       }
 
