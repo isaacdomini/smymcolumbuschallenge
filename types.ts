@@ -11,6 +11,7 @@ export interface User {
 export enum GameType {
   WORDLE = 'wordle',
   WORDLE_ADVANCED = 'wordle_advanced',
+  WORDLE_BANK = 'wordle_bank',
   CONNECTIONS = 'connections',
   CROSSWORD = 'crossword',
   MATCH_THE_WORD = 'match_the_word',
@@ -104,6 +105,10 @@ export type Game = {
       data: WordleData;
     }
     | {
+      type: GameType.WORDLE_BANK;
+      data: WordleData;
+    }
+    | {
       type: GameType.CONNECTIONS;
       data: ConnectionsData;
     }
@@ -134,6 +139,7 @@ export interface Challenge {
   name: string;
   startDate: string; // ISO string
   endDate: string; // ISO string
+  wordBank?: string[]; // Added for centralized word bank
 }
 
 export interface DailyMessage {

@@ -191,7 +191,10 @@ CREATE TABLE IF NOT EXISTS user_message_dismissals (
   )`,
   `ALTER TABLE banner_messages ADD COLUMN IF NOT EXISTS link_url TEXT`,
   `ALTER TABLE banner_messages ADD COLUMN IF NOT EXISTS link_text TEXT`,
-  `ALTER TABLE banner_messages ADD COLUMN IF NOT EXISTS priority VARCHAR(20) DEFAULT 'normal'`
+  `ALTER TABLE banner_messages ADD COLUMN IF NOT EXISTS priority VARCHAR(20) DEFAULT 'normal'`,
+
+  // ADDED: Word Bank for Challenges
+  `ALTER TABLE challenges ADD COLUMN IF NOT EXISTS word_bank JSONB`
 ];
 
 async function runMigrations() {

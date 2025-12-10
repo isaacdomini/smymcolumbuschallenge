@@ -2,6 +2,7 @@ export const getGameName = (gameType: string): string => {
   switch (gameType) {
     case 'wordle':
     case 'wordle_advanced':
+    case 'wordle_bank':
       return "Wordle";
     case 'connections':
       return "Connections";

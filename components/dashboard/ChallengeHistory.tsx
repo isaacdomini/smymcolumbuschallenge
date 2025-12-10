@@ -15,6 +15,7 @@ interface ChallengeHistoryProps {
 const getScoringTooltipText = (gameType: GameType): string => {
   switch (gameType) {
     case GameType.WORDLE:
+    case GameType.WORDLE_BANK:
       return "Score based on guesses and speed. Fewer guesses earn more points. 0 for a loss.";
     case GameType.CONNECTIONS:
       return "Score based on categories found and mistakes made. Each category adds points, mistakes subtract.";

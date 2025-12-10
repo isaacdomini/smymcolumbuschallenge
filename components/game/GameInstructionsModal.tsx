@@ -156,7 +156,8 @@ const GameInstructionsModal: React.FC<GameInstructionsModalProps> = ({ gameType,
 
   const getTitle = () => {
     switch (gameType) {
-      case GameType.WORDLE: return 'How to Play Wordle';
+      case GameType.WORDLE:
+      case GameType.WORDLE_BANK: return 'How to Play Wordle';
       case GameType.CONNECTIONS: return 'How to Play Connect the Words';
       case GameType.CROSSWORD: return 'How to Play Crossword';
       case GameType.MATCH_THE_WORD: return 'How to Play Match the Word';
@@ -169,7 +170,8 @@ const GameInstructionsModal: React.FC<GameInstructionsModalProps> = ({ gameType,
 
   const getContent = () => {
     switch (gameType) {
-      case GameType.WORDLE: return renderWordleInstructions();
+      case GameType.WORDLE:
+      case GameType.WORDLE_BANK: return renderWordleInstructions();
       case GameType.CONNECTIONS: return renderConnectionsInstructions();
       case GameType.CROSSWORD: return renderCrosswordInstructions();
       case GameType.MATCH_THE_WORD: return renderMatchTheWordInstructions();

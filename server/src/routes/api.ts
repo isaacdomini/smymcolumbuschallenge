@@ -989,20 +989,43 @@ router.get('/challenge', async (req: Request, res: Response) => {
   }
 });
 
+router.put('/challenges/:id/wordbank', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { words } = req.body; // Expecting array of strings
+
+    // Basic validation
+    if (!Array.isArray(words)) {
+      return res.status(400).json({ error: 'Words must be an array of strings' });
+    }
+
+    await pool.query(
+      'UPDATE challenges SET word_bank = $1 WHERE id = $2',
+      [JSON.stringify(words), id]
+    );
+
+    res.json({ success: true, count: words.length });
+  } catch (error) {
+    console.error('Update word bank error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Helper to resolve game data (specifically for Wordle Advanced)
 export const resolveGameData = async (game: any, userId?: string, stripSolution: boolean = true) => {
   console.log('resolveGameData called for game:', game.id, 'type:', game.type, 'userId:', userId);
   let gameData = game.data;
   let gameType = game.type;
 
-  if (gameType === 'wordle_advanced') {
+  if (gameType === 'wordle_advanced' || gameType === 'wordle_bank') {
     // Mask as 'wordle' so frontend doesn't know the difference
+    const isBank = gameType === 'wordle_bank';
     gameType = 'wordle';
 
     if (userId) {
       let assignedWord;
 
-      // 1. Check if the user has already submitted the game (completed)
+      // 1. Check if the user has already submitted this specific game
       const submissionResult = await pool.query('SELECT submission_data FROM game_submissions WHERE user_id = $1 AND game_id = $2', [userId, game.id]);
 
       if (submissionResult.rows.length > 0) {
@@ -1020,9 +1043,59 @@ export const resolveGameData = async (game: any, userId?: string, stripSolution:
           assignedWord = progressResult.rows[0].game_state.assignedWord;
         } else {
           // No word assigned yet. Pick one safely.
-          const solutions = gameData.solutions || [];
+          let solutions = gameData.solutions || [];
+
+          if (isBank) {
+            // WORDLE BANK LOGIC: Fetch centralized bank from challenge
+            const challengeResult = await pool.query('SELECT word_bank FROM challenges WHERE id = $1', [game.challenge_id]);
+            if (challengeResult.rows.length > 0 && challengeResult.rows[0].word_bank) {
+              solutions = challengeResult.rows[0].word_bank;
+            }
+          }
+
           if (solutions.length > 0) {
-            const candidateWord = solutions[Math.floor(Math.random() * solutions.length)];
+            let candidateWord;
+
+            if (isBank) {
+              // WORDLE BANK LOGIC: Filter out used words
+              // Get all words this user has ever played in wordle, wordle_advanced, or wordle_bank
+              // We check game_submissions for completed games
+              // And game_progress for ongoing games (assignedWord)
+
+              const usedWordsResult = await pool.query(`
+                 SELECT DISTINCT word FROM (
+                   SELECT submission_data->>'solution' as word 
+                   FROM game_submissions 
+                   JOIN games ON game_submissions.game_id = games.id
+                   WHERE user_id = $1 
+                     AND (games.type = 'wordle' OR games.type = 'wordle_advanced' OR games.type = 'wordle_bank')
+                     AND submission_data->>'solution' IS NOT NULL
+                   
+                   UNION
+                   
+                   SELECT game_state->>'assignedWord' as word
+                   FROM game_progress
+                   JOIN games ON game_progress.game_id = games.id
+                   WHERE user_id = $1
+                     AND (games.type = 'wordle' OR games.type = 'wordle_advanced' OR games.type = 'wordle_bank')
+                     AND game_state->>'assignedWord' IS NOT NULL
+                 ) as all_words
+               `, [userId]);
+
+              const usedWords = new Set(usedWordsResult.rows.map(r => r.word.toUpperCase()));
+              const availableSolutions = solutions.filter((w: string) => !usedWords.has(w.toUpperCase()));
+
+              if (availableSolutions.length > 0) {
+                candidateWord = availableSolutions[Math.floor(Math.random() * availableSolutions.length)];
+              } else {
+                // Fallback if they played ALL words? Just pick random from full list to avoid crash.
+                candidateWord = solutions[Math.floor(Math.random() * solutions.length)];
+              }
+
+            } else {
+              // Standard Wordle Advanced: just pick random
+              candidateWord = solutions[Math.floor(Math.random() * solutions.length)];
+            }
 
             const progressId = `progress-${userId}-${game.id}`;
             const initialGameState = JSON.stringify({ assignedWord: candidateWord });

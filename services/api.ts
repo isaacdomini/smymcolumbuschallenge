@@ -155,13 +155,25 @@ const simulateDelay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
 export const migrateSession = async (userId: string): Promise<User> => {
     const useMock = USE_MOCK_DATA || await isTestUser(); // Simple check for mock/test users
-    if (useMock && USE_MOCK_DATA) {
+    if (useMock) {
         await simulateDelay(500);
         const user = MOCK_USERS.find(u => u.id === userId);
         if (user) {
             // Mock token generation
             return { ...user, token: 'mock-jwt-token' };
         }
+
+        // Fallback: Check storage for persisted test user
+        try {
+            const stored = await storage.get('user');
+            if (stored) {
+                const storedUser = JSON.parse(stored);
+                if (storedUser.id === userId) {
+                    return { ...storedUser, token: 'mock-jwt-token' };
+                }
+            }
+        } catch (e) { }
+
         throw new Error("User not found");
     } else {
         const response = await fetch(`${API_BASE_URL}/migrate-session`, {
@@ -728,6 +740,21 @@ export const deleteChallenge = async (userId: string, challengeId: string): Prom
     if (!response.ok) {
         const err = await response.json();
         throw new Error(err.error || 'Failed to delete challenge');
+    }
+}
+
+export const updateChallengeWordBank = async (userId: string, challengeId: string, words: string[]): Promise<void> => {
+    if (USE_MOCK_DATA || await isTestUser()) return; // Not implemented for mock
+
+    const response = await fetch(`${API_BASE_URL}/challenges/${challengeId}/wordbank`, {
+        method: 'PUT',
+        headers: await getAuthHeaders(userId),
+        body: JSON.stringify({ words })
+    });
+
+    if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to update word bank');
     }
 }
 
