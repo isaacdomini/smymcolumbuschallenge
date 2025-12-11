@@ -157,10 +157,14 @@ export const migrateSession = async (userId: string): Promise<User> => {
     const useMock = USE_MOCK_DATA || await isTestUser(); // Simple check for mock/test users
     if (useMock) {
         await simulateDelay(500);
+        // Valid-looking mock JWT to pass jwt-decode checks (header.payload.signature)
+        // Valid-looking mock JWT to pass jwt-decode checks
+        const mockToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6Ik1vY2sgVXNlciIsImlhdCI6MTUxNjIzOTAyMn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c";
+        console.log("Migrating session for test user:", userId, "Token:", mockToken);
+
         const user = MOCK_USERS.find(u => u.id === userId);
         if (user) {
-            // Mock token generation
-            return { ...user, token: 'mock-jwt-token' };
+            return { ...user, token: mockToken };
         }
 
         // Fallback: Check storage for persisted test user
@@ -169,7 +173,7 @@ export const migrateSession = async (userId: string): Promise<User> => {
             if (stored) {
                 const storedUser = JSON.parse(stored);
                 if (storedUser.id === userId) {
-                    return { ...storedUser, token: 'mock-jwt-token' };
+                    return { ...storedUser, token: mockToken };
                 }
             }
         } catch (e) { }
@@ -199,12 +203,14 @@ export const login = async (email: string, pass: string): Promise<User> => {
         if (user) {
             // MOCK ONLY: Map is_admin to isAdmin if it existed in a different format in legacy mock data, 
             // but here we defined it correctly above.
-            return user;
+            const mockToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6Ik1vY2sgVXNlciIsImlhdCI6MTUxNjIzOTAyMn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c";
+            return { ...user, token: mockToken };
         }
         if (email.split('@')[0] === 'test') {
+            const mockToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6Ik1vY2sgVXNlciIsImlhdCI6MTUxNjIzOTAyMn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c";
             const newUser: User = { id: `user-${Date.now()}`, name: 'Test User', email, isAdmin: true };
             MOCK_USERS.push(newUser);
-            return newUser;
+            return { ...newUser, token: mockToken };
         }
         throw new Error("Invalid credentials");
     } else {
