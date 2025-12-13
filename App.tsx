@@ -55,8 +55,11 @@ const App: React.FC = () => {
   );
 };
 
+import { useDevToolsDetection } from './hooks/useDevToolsDetection';
+
 const MainContent: React.FC = () => {
   useLogger();
+  useDevToolsDetection();
   const { user } = useAuth();
   const [challenge, setChallenge] = useState<Challenge | null>(null);
   const [todaysGame, setTodaysGame] = useState<Game | null>(null);
@@ -356,6 +359,28 @@ const MainContent: React.FC = () => {
       }
 
       if (!gameToPlay) return <div className="text-center p-10">Loading game... (or game not found)</div>;
+
+      // Check for Revisit Block
+      if (gameToPlay.revisitBlocked) {
+        return (
+          <div className="flex flex-col items-center justify-center min-h-[50vh] p-8 text-center animate-fade-in">
+            <div className="bg-gray-800 p-8 rounded-xl shadow-2xl max-w-md w-full border border-gray-700">
+              <div className="text-5xl mb-6">🔒</div>
+              <h2 className="text-2xl font-bold text-white mb-4">Access Restricted</h2>
+              <p className="text-gray-300 text-lg mb-8">
+                {gameToPlay.message || "You have already completed this game. Come back tomorrow!"}
+              </p>
+              <button
+                onClick={() => navigate('/')}
+                className="bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold py-3 px-8 rounded-lg transition-transform transform hover:scale-105"
+              >
+                Back to Dashboard
+              </button>
+            </div>
+          </div>
+        );
+      }
+
       const onComplete = () => {
         fetchInitialData();
         navigate('/');
@@ -446,6 +471,7 @@ const MainContent: React.FC = () => {
               </svg>
               <span className="ml-1 font-medium">Back</span>
             </button>
+            <div id="game-header-target" className="flex-1 flex justify-end items-center"></div>
           </div>
         </header>
       ) : (

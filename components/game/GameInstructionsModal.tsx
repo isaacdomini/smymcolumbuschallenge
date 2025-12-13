@@ -84,6 +84,9 @@ const GameInstructionsModal: React.FC<GameInstructionsModalProps> = ({ gameType,
         <li>Use keyboard to type answers. Arrow keys navigate the grid.</li>
         <li>Your score is based on accuracy and completion time.</li>
       </ul>
+      <p className="text-yellow-400 text-sm italic border-l-2 border-yellow-400 pl-3 py-1 bg-yellow-400/10 rounded-r">
+        <strong>Note:</strong> The timer starts immediately when you begin and continues running even if you leave the page.
+      </p>
       <div className="my-4 flex justify-center">
         {/* Simple SVG Diagram for Crossword interaction */}
         <svg width="120" height="120" viewBox="0 0 120 120" className="bg-gray-900 rounded-lg">
@@ -125,6 +128,9 @@ const GameInstructionsModal: React.FC<GameInstructionsModalProps> = ({ gameType,
         <li>Continue swapping until the verse is in the correct order.</li>
         <li>The game will automatically complete when the order is correct.</li>
       </ul>
+      <p className="text-yellow-400 text-sm italic border-l-2 border-yellow-400 pl-3 py-1 bg-yellow-400/10 rounded-r">
+        <strong>Note:</strong> The timer starts immediately when you begin and continues running even if you leave the page.
+      </p>
     </div>
   );
 
@@ -153,7 +159,8 @@ const GameInstructionsModal: React.FC<GameInstructionsModalProps> = ({ gameType,
 
   const getTitle = () => {
     switch (gameType) {
-      case GameType.WORDLE: return 'How to Play Wordle';
+      case GameType.WORDLE:
+      case GameType.WORDLE_BANK: return 'How to Play Wordle';
       case GameType.CONNECTIONS: return 'How to Play Connect the Words';
       case GameType.CROSSWORD: return 'How to Play Crossword';
       case GameType.MATCH_THE_WORD: return 'How to Play Match the Word';
@@ -166,7 +173,8 @@ const GameInstructionsModal: React.FC<GameInstructionsModalProps> = ({ gameType,
 
   const getContent = () => {
     switch (gameType) {
-      case GameType.WORDLE: return renderWordleInstructions();
+      case GameType.WORDLE:
+      case GameType.WORDLE_BANK: return renderWordleInstructions();
       case GameType.CONNECTIONS: return renderConnectionsInstructions();
       case GameType.CROSSWORD: return renderCrosswordInstructions();
       case GameType.MATCH_THE_WORD: return renderMatchTheWordInstructions();

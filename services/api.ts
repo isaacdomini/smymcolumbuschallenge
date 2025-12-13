@@ -125,6 +125,15 @@ const MOCK_GAME_PROGRESS: GameProgress[] = [];
 // --- HELPER for Auth Headers ---
 const getAuthHeaders = async (userId?: string) => {
     const headers: HeadersInit = { 'Content-Type': 'application/json' };
+
+    // Add JWT token if available
+    try {
+        const token = await storage.get('token');
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+    } catch (e) { }
+
     if (userId) {
         headers['X-User-ID'] = userId;
     }
@@ -144,6 +153,48 @@ const simulateDelay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
 // --- API FUNCTIONS ---
 
+export const migrateSession = async (userId: string): Promise<User> => {
+    const useMock = USE_MOCK_DATA || await isTestUser(); // Simple check for mock/test users
+    if (useMock) {
+        await simulateDelay(500);
+        // Valid-looking mock JWT to pass jwt-decode checks (header.payload.signature)
+        // Valid-looking mock JWT to pass jwt-decode checks
+        const mockToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6Ik1vY2sgVXNlciIsImlhdCI6MTUxNjIzOTAyMn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c";
+        console.log("Migrating session for test user:", userId, "Token:", mockToken);
+
+        const user = MOCK_USERS.find(u => u.id === userId);
+        if (user) {
+            return { ...user, token: mockToken };
+        }
+
+        // Fallback: Check storage for persisted test user
+        try {
+            const stored = await storage.get('user');
+            if (stored) {
+                const storedUser = JSON.parse(stored);
+                if (storedUser.id === userId) {
+                    return { ...storedUser, token: mockToken };
+                }
+            }
+        } catch (e) { }
+
+        throw new Error("User not found");
+    } else {
+        const response = await fetch(`${API_BASE_URL}/migrate-session`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId }),
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Session migration failed');
+        }
+
+        return await response.json();
+    }
+};
+
 export const login = async (email: string, pass: string): Promise<User> => {
     const useMock = USE_MOCK_DATA || email.split('@')[0] === 'test';
     if (useMock) {
@@ -152,12 +203,14 @@ export const login = async (email: string, pass: string): Promise<User> => {
         if (user) {
             // MOCK ONLY: Map is_admin to isAdmin if it existed in a different format in legacy mock data, 
             // but here we defined it correctly above.
-            return user;
+            const mockToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6Ik1vY2sgVXNlciIsImlhdCI6MTUxNjIzOTAyMn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c";
+            return { ...user, token: mockToken };
         }
         if (email.split('@')[0] === 'test') {
+            const mockToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6Ik1vY2sgVXNlciIsImlhdCI6MTUxNjIzOTAyMn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c";
             const newUser: User = { id: `user-${Date.now()}`, name: 'Test User', email, isAdmin: true };
             MOCK_USERS.push(newUser);
-            return newUser;
+            return { ...newUser, token: mockToken };
         }
         throw new Error("Invalid credentials");
     } else {
@@ -624,6 +677,28 @@ export const getAdminStats = async (userId: string): Promise<AdminStats> => {
     return await response.json();
 }
 
+// Feature Flags
+export const getFeatureFlags = async (userId: string) => {
+    const response = await fetch(`${API_BASE_URL}/admin/feature-flags`, {
+        headers: { 'x-user-id': userId }
+    });
+    if (!response.ok) throw new Error('Failed to fetch feature flags');
+    return response.json();
+};
+
+export const updateFeatureFlag = async (userId: string, key: string, enabled: boolean) => {
+    const response = await fetch(`${API_BASE_URL}/admin/feature-flags/${key}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'x-user-id': userId
+        },
+        body: JSON.stringify({ enabled })
+    });
+    if (!response.ok) throw new Error('Failed to update feature flag');
+    return response.json();
+};
+
 export const getChallenges = async (userId: string): Promise<Challenge[]> => {
     if (USE_MOCK_DATA || await isTestUser()) {
         return [MOCK_CHALLENGE];
@@ -696,6 +771,21 @@ export const deleteChallenge = async (userId: string, challengeId: string): Prom
     }
 }
 
+export const updateChallengeWordBank = async (userId: string, challengeId: string, words: string[]): Promise<void> => {
+    if (USE_MOCK_DATA || await isTestUser()) return; // Not implemented for mock
+
+    const response = await fetch(`${API_BASE_URL}/challenges/${challengeId}/wordbank`, {
+        method: 'PUT',
+        headers: await getAuthHeaders(userId),
+        body: JSON.stringify({ words })
+    });
+
+    if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to update word bank');
+    }
+}
+
 export const getUsers = async (userId: string, limit = 50, offset = 0): Promise<User[]> => {
     if (USE_MOCK_DATA || await isTestUser()) return MOCK_USERS;
     const response = await fetch(`${API_BASE_URL}/admin/users?limit=${limit}&offset=${offset}`, {
@@ -747,6 +837,20 @@ export const updateUserProfile = async (userId: string, data: { name: string }):
     return await response.json();
 }
 
+export const reportCheating = async (userId: string, details: string): Promise<void> => {
+    try {
+        await fetch(`${API_BASE_URL}/report-cheating`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId, details }),
+        });
+    } catch (e) {
+        console.error("Failed to report cheating", e);
+    }
+};
+
+
+
 export const deleteUser = async (userId: string): Promise<void> => {
     if (USE_MOCK_DATA || await isTestUser()) {
         await simulateDelay(500);
@@ -778,6 +882,24 @@ export const getGames = async (userId: string, challengeId: string): Promise<Gam
     });
     if (!response.ok) throw new Error('Failed to fetch games');
     return await response.json();
+};
+
+export const checkAnswer = async (gameId: string, guess: any): Promise<any> => {
+    if (USE_MOCK_DATA || await isTestUser()) {
+        await simulateDelay(200);
+        // Mock simple success for testing UI
+        return { result: Array(5).fill('correct'), correct: true };
+    } else {
+        const response = await fetch(`${API_BASE_URL}/games/${gameId}/check`, {
+            method: 'POST',
+            headers: await getAuthHeaders(),
+            body: JSON.stringify({ guess })
+        });
+        if (!response.ok) {
+            throw new Error('Failed to check answer');
+        }
+        return await response.json();
+    }
 };
 
 export const deleteGame = async (userId: string, gameId: string): Promise<void> => {
@@ -1009,9 +1131,8 @@ export const getScoringCriteria = async (): Promise<any[]> => {
             description: 'Unscramble the Bible verse by dragging words into the correct order.',
             hidden: false,
             points: [
-                'Completion Score: 50 points for completing the verse.',
-                'Accuracy Bonus: Up to 30 points for minimal mistakes.',
-                'Time Bonus: Up to 20 points for fast completion.'
+                'Time Score: Up to 60 points based on speed.',
+                'Time Limit: 10 minutes. Score is 0 if time exceeds limit.'
             ]
         },
         {

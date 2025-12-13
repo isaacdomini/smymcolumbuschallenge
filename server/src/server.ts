@@ -31,11 +31,8 @@ app.use(cors());
 app.use(express.json());
 app.use(visitLogger);
 
-app.use(visitLogger);
-
 import { maintenanceCheck } from './middleware/maintenance.js';
 app.use(maintenanceCheck);
-
 app.use('/api', limiter);
 
 // Routes

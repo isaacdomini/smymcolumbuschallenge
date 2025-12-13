@@ -527,4 +527,43 @@ router.post('/banner-messages', async (req: Request, res: Response) => {
     }
 });
 
+
+// --- FEATURE FLAGS ---
+
+// Get all feature flags
+router.get('/feature-flags', async (req: Request, res: Response) => {
+    try {
+        const { getAllFeatureFlags } = await import('../utils/featureFlags.js');
+        const flags = await getAllFeatureFlags();
+        res.json(flags);
+    } catch (error) {
+        console.error('Error fetching feature flags:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Update a feature flag
+router.put('/feature-flags/:key', async (req: Request, res: Response) => {
+    try {
+        const { key } = req.params;
+        const { enabled } = req.body;
+        const { updateFeatureFlag } = await import('../utils/featureFlags.js');
+
+        if (typeof enabled !== 'boolean') {
+            return res.status(400).json({ error: 'Enabled status must be a boolean' });
+        }
+
+        const updatedFlag = await updateFeatureFlag(key, enabled);
+
+        if (!updatedFlag) {
+            return res.status(404).json({ error: 'Feature flag not found' });
+        }
+
+        res.json(updatedFlag);
+    } catch (error) {
+        console.error('Error updating feature flag:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 export default router;
