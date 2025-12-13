@@ -95,6 +95,8 @@ export type Game = {
   id: string;
   challengeId: string;
   date: string; // ISO string
+  revisitBlocked?: boolean;
+  message?: string;
 } & (
     | {
       type: GameType.WORDLE;

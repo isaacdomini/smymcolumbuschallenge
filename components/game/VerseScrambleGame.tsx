@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { VerseScrambleData, GameSubmission, GameType } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
 import { submitGame, getGameState, saveGameState, clearGameState, checkAnswer } from '../../services/api';
@@ -182,18 +183,53 @@ const VerseScrambleGame: React.FC<VerseScrambleGameProps> = ({ gameId, gameData,
     setShowInstructions(false);
   };
 
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [headerTarget, setHeaderTarget] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    setHeaderTarget(document.getElementById('game-header-target'));
+  }, []);
+
+  useEffect(() => {
+    if (!startTime || gameState !== 'playing' || isReadOnly || showInstructions) return;
+    const interval = setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - startTime) / 1000));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [startTime, gameState, isReadOnly, showInstructions]);
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const headerControls = (
+    <div className="flex items-center gap-2">
+      <h2 className="text-lg font-bold text-yellow-400 leading-none mr-2 hidden sm:block">
+        Verse Scramble {isSample && <span className="text-xs bg-blue-600 text-white px-1.5 py-0.5 rounded ml-1 align-middle">Sample</span>}
+      </h2>
+
+      <div className="flex items-center gap-1.5 bg-zinc-900 px-2 py-1 rounded-lg border border-zinc-700/50">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-400"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+        <span className="font-mono text-zinc-100 font-bold text-sm tracking-wide">
+          {isReadOnly && submission ? formatTime(submission.timeTaken) : formatTime(elapsedSeconds)}
+        </span>
+      </div>
+
+      <button onClick={() => setShowInstructions(true)} className="text-zinc-400 hover:text-white p-1.5 hover:bg-zinc-700 rounded-lg transition-colors border border-zinc-700/50 bg-zinc-900" title="Show Instructions">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+      </button>
+    </div>
+  );
+
   if (showInstructions) {
     return <GameInstructionsModal gameType={GameType.VERSE_SCRAMBLE} onStart={handleStartGame} onClose={handleStartGame} />;
   }
 
   return (
     <div className="w-full max-w-2xl mx-auto flex flex-col items-center p-4">
-      <div className="flex items-center justify-between w-full mb-6">
-        <h2 className="text-2xl font-bold text-yellow-400">Verse Scramble {isSample && <span className="text-sm bg-blue-600 text-white px-2 py-1 rounded ml-2">Sample</span>}</h2>
-        <button onClick={() => setShowInstructions(true)} className="text-gray-400 hover:text-white" title="Show Instructions">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-        </button>
-      </div>
+      {headerTarget && createPortal(headerControls, headerTarget)}
 
       <p className="mb-4 text-gray-300 text-center">Tap words to move them between the solution box and the pool.</p>
 

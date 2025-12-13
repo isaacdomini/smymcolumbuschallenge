@@ -194,7 +194,20 @@ CREATE TABLE IF NOT EXISTS user_message_dismissals (
   `ALTER TABLE banner_messages ADD COLUMN IF NOT EXISTS priority VARCHAR(20) DEFAULT 'normal'`,
 
   // ADDED: Word Bank for Challenges
-  `ALTER TABLE challenges ADD COLUMN IF NOT EXISTS word_bank JSONB`
+  `ALTER TABLE challenges ADD COLUMN IF NOT EXISTS word_bank JSONB`,
+
+  // feature_flags table
+  `CREATE TABLE IF NOT EXISTS feature_flags (
+    key VARCHAR(255) PRIMARY KEY,
+    enabled BOOLEAN DEFAULT false,
+    description TEXT,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`,
+
+  // Seed default flag for game revisit
+  `INSERT INTO feature_flags (key, enabled, description) 
+   VALUES ('allow_game_revisit', true, 'Allow users to revisit completed games')
+   ON CONFLICT (key) DO NOTHING`
 ];
 
 async function runMigrations() {

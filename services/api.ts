@@ -677,6 +677,28 @@ export const getAdminStats = async (userId: string): Promise<AdminStats> => {
     return await response.json();
 }
 
+// Feature Flags
+export const getFeatureFlags = async (userId: string) => {
+    const response = await fetch(`${API_BASE_URL}/admin/feature-flags`, {
+        headers: { 'x-user-id': userId }
+    });
+    if (!response.ok) throw new Error('Failed to fetch feature flags');
+    return response.json();
+};
+
+export const updateFeatureFlag = async (userId: string, key: string, enabled: boolean) => {
+    const response = await fetch(`${API_BASE_URL}/admin/feature-flags/${key}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'x-user-id': userId
+        },
+        body: JSON.stringify({ enabled })
+    });
+    if (!response.ok) throw new Error('Failed to update feature flag');
+    return response.json();
+};
+
 export const getChallenges = async (userId: string): Promise<Challenge[]> => {
     if (USE_MOCK_DATA || await isTestUser()) {
         return [MOCK_CHALLENGE];

@@ -128,6 +128,9 @@ const GameInstructionsModal: React.FC<GameInstructionsModalProps> = ({ gameType,
         <li>Continue swapping until the verse is in the correct order.</li>
         <li>The game will automatically complete when the order is correct.</li>
       </ul>
+      <p className="text-yellow-400 text-sm italic border-l-2 border-yellow-400 pl-3 py-1 bg-yellow-400/10 rounded-r">
+        <strong>Note:</strong> The timer starts immediately when you begin and continues running even if you leave the page.
+      </p>
     </div>
   );
 

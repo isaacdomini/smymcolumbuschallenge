@@ -10,7 +10,9 @@ import DailyMessageManager from './DailyMessageManager';
 import SupportManager from './SupportManager';
 import BannerManager from './BannerManager';
 
-type Tab = 'challenges' | 'games' | 'users' | 'logs' | 'messages' | 'support' | 'banners';
+import FeatureFlagManager from './FeatureFlagManager';
+
+type Tab = 'challenges' | 'games' | 'users' | 'logs' | 'messages' | 'support' | 'banners' | 'features';
 
 const AdminDashboard: React.FC = () => {
     const { user } = useAuth();
@@ -40,6 +42,7 @@ const AdminDashboard: React.FC = () => {
         { id: 'messages', label: 'Daily Messages' },
         { id: 'banners', label: 'Banner Messages' },
         { id: 'users', label: 'Users' },
+        { id: 'features', label: 'Feature Flags' },
         { id: 'logs', label: 'Logs' },
         { id: 'support', label: 'Support' },
     ];
@@ -96,6 +99,7 @@ const AdminDashboard: React.FC = () => {
                 {activeTab === 'messages' && <DailyMessageManager />}
                 {activeTab === 'banners' && <BannerManager />}
                 {activeTab === 'users' && <UserManager />}
+                {activeTab === 'features' && <FeatureFlagManager />}
                 {activeTab === 'logs' && <LogViewer />}
                 {activeTab === 'support' && <SupportManager />}
             </div>

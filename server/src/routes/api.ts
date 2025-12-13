@@ -6,6 +6,7 @@ import jwt from 'jsonwebtoken';
 import { sendVerificationEmail, sendPasswordResetEmail, sendAccountDeletionRequestEmail, sendTicketCreatedEmail, sendAdminTicketNotification, sendCheatingAlert } from '../services/email.js'; // Added new email function
 import { getVapidPublicKey, saveSubscription } from '../services/push.js';
 import { manualLog, getClientIp } from '../middleware/logger.js';
+import { getFeatureFlag } from '../utils/featureFlags.js';
 
 const router = Router();
 if (!process.env.JWT_SECRET) {
@@ -1017,6 +1018,26 @@ export const resolveGameData = async (game: any, userId?: string, stripSolution:
   let gameData = game.data;
   let gameType = game.type;
 
+  // --- FEATURE FLAG: Revisit Block ---
+  if (userId) {
+    const isCompletedResult = await pool.query('SELECT 1 FROM game_submissions WHERE user_id = $1 AND game_id = $2', [userId, game.id]);
+    if (isCompletedResult.rows.length > 0) {
+      const allowRevisit = await getFeatureFlag('allow_game_revisit');
+      if (!allowRevisit) {
+        // Mask the game data completely
+        return {
+          id: game.id,
+          challengeId: game.challenge_id,
+          date: game.date,
+          type: gameType,
+          data: {}, // clear data
+          revisitBlocked: true
+        };
+      }
+    }
+  }
+  // -----------------------------------
+
   if (gameType === 'wordle_advanced' || gameType === 'wordle_bank') {
     // Mask as 'wordle' so frontend doesn't know the difference
     const isBank = gameType === 'wordle_bank';
@@ -1200,6 +1221,9 @@ export const resolveGameData = async (game: any, userId?: string, stripSolution:
             assignedCategories = submissionData.assignedCategories;
           } else if (submissionData.categories) {
             assignedCategories = submissionData.categories.map((c: any) => c.name);
+          } else if (submissionData.foundGroups) {
+            // Fallback for some submission formats
+            assignedCategories = submissionData.foundGroups;
           }
         }
       }
@@ -2161,12 +2185,13 @@ router.post('/submit', async (req: Request, res: Response) => {
           assignedWordSearchIndex: progressResult.rows[0].game_state.assignedWordSearchIndex
         };
       }
-    } else if (game.type === 'wordle' || game.type === 'wordle_advanced') {
+    } else if (game.type === 'wordle' || game.type === 'wordle_advanced' || game.type === 'wordle_bank') {
       const progressResult = await pool.query('SELECT game_state FROM game_progress WHERE user_id = $1 AND game_id = $2', [userId, gameId]);
-      if (progressResult.rows.length > 0 && progressResult.rows[0].game_state.assignedSolution) {
+      // 'assignedWord' is used by resolveGameData for these types
+      if (progressResult.rows.length > 0 && progressResult.rows[0].game_state.assignedWord) {
         finalSubmissionData = {
           ...submissionData,
-          solution: progressResult.rows[0].game_state.assignedSolution
+          solution: progressResult.rows[0].game_state.assignedWord
         };
       }
     } else if (game.type === 'verse_scramble') {
