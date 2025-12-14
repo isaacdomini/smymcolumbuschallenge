@@ -73,8 +73,10 @@ const GameBuilder: React.FC<GameBuilderProps> = ({
             setGameType(initialData.type);
             if (initialData.type === GameType.WORDLE && initialData.data?.solution) {
                 setWordleSolution(initialData.data.solution);
-            } else if ((initialData.type === GameType.WORDLE_ADVANCED || initialData.type === GameType.WORDLE_BANK) && initialData.data?.solutions) {
+            } else if (initialData.type === GameType.WORDLE_ADVANCED && initialData.data?.solutions) {
                 setWordleAdvancedSolutions(initialData.data.solutions);
+            } else if (initialData.type === GameType.WORDLE_BANK) {
+                // No specific data load needed for Bank as it comes from Challenge
             } else if (initialData.type === GameType.CONNECTIONS && initialData.data?.categories) {
                 setConnectionsCategories(initialData.data.categories);
             } else if (initialData.type === GameType.CROSSWORD && initialData.data) {
@@ -126,8 +128,10 @@ const GameBuilder: React.FC<GameBuilderProps> = ({
         let gameData: any = {};
         if (gameType === GameType.WORDLE) {
             gameData = { solution: wordleSolution.toUpperCase() };
-        } else if (gameType === GameType.WORDLE_ADVANCED || gameType === GameType.WORDLE_BANK) {
+        } else if (gameType === GameType.WORDLE_ADVANCED) {
             gameData = { solutions: wordleAdvancedSolutions.filter(w => w.trim() !== '').map(w => w.toUpperCase()) };
+        } else if (gameType === GameType.WORDLE_BANK) {
+            gameData = {}; // Solutions sourced from challenge
         } else if (gameType === GameType.CONNECTIONS) {
             gameData = {
                 categories: connectionsCategories.map(c => ({
@@ -321,7 +325,7 @@ const GameBuilder: React.FC<GameBuilderProps> = ({
                         </div>
                     )}
 
-                    {(gameType === GameType.WORDLE_ADVANCED || gameType === GameType.WORDLE_BANK) && (
+                    {gameType === GameType.WORDLE_ADVANCED && (
                         <div className="space-y-4">
                             <label className="block text-sm font-medium text-gray-300 mb-1">Solution Bank (5-letters each)</label>
                             <p className="text-xs text-gray-400 mb-2">Enter multiple words. One will be randomly assigned to each user.</p>
@@ -346,6 +350,16 @@ const GameBuilder: React.FC<GameBuilderProps> = ({
                             >
                                 + Add Word
                             </button>
+                        </div>
+                    )}
+
+                    {gameType === GameType.WORDLE_BANK && (
+                        <div className="p-4 bg-gray-900/50 rounded border border-yellow-700/50 mb-4">
+                            <p className="text-yellow-400 font-bold mb-2">Word Bank Mode</p>
+                            <p className="text-sm text-gray-300">
+                                Words for this game will be randomly selected from the <strong>Challenge's Word Bank</strong>.
+                                No specific words need to be entered here.
+                            </p>
                         </div>
                     )}
 

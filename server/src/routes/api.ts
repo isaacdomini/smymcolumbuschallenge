@@ -1080,6 +1080,9 @@ export const resolveGameData = async (game: any, userId?: string, stripSolution:
             const challengeResult = await pool.query('SELECT word_bank FROM challenges WHERE id = $1', [game.challenge_id]);
             if (challengeResult.rows.length > 0 && challengeResult.rows[0].word_bank) {
               solutions = challengeResult.rows[0].word_bank;
+            } else {
+              // Fallback if challenge bank is empty
+              solutions = ["FAITH", "GRACE", "JESUS", "MERCY", "PEACE", "TRUST", "GLORY", "TRUTH"];
             }
           }
 
