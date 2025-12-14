@@ -12,6 +12,7 @@
     "server": "node server/dist/server.js",
     "cleanup:progress": "node server/dist/scripts/cleanup-progress.js",
     "backfill:wordle": "node server/dist/scripts/backfill-wordle-solutions.js",
+    "backfill:connections": "node server/dist/scripts/backfill-connections-categories.js",
     "migrate": "node server/dist/migrate.js",
     "seed": "node server/dist/seed.js",
     "test:push": "node server/dist/test-push.js",

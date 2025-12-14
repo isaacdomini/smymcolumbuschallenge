@@ -795,6 +795,47 @@ export const getUsers = async (userId: string, limit = 50, offset = 0): Promise<
     return await response.json();
 };
 
+export const getAdminSubmissions = async (userId: string, limit = 20, offset = 0, filters: { gameId?: string, gameType?: string, userId?: string } = {}): Promise<{ submissions: any[], total: number }> => {
+    if (USE_MOCK_DATA || await isTestUser()) {
+        // Mock data logic for submissions
+        let filtered = [...MOCK_SUBMISSIONS];
+        if (filters.gameId) filtered = filtered.filter(s => s.gameId === filters.gameId);
+        if (filters.userId) filtered = filtered.filter(s => s.userId === filters.userId);
+        // Note: Mock doesn't easily support gameType filtering without joining, skipping for mock simplicity
+
+        filtered.sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime());
+
+        const sliced = filtered.slice(offset, offset + limit);
+
+        const mapped = sliced.map(s => {
+            const user = MOCK_USERS.find(u => u.id === s.userId);
+            const game = MOCK_GAMES.find(g => g.id === s.gameId);
+            return {
+                ...s,
+                userName: user?.name,
+                userEmail: user?.email,
+                gameType: game?.type,
+                gameDate: game?.date
+            };
+        });
+
+        return { submissions: mapped, total: filtered.length };
+    }
+
+    const queryParams = new URLSearchParams({
+        limit: limit.toString(),
+        offset: offset.toString(),
+        ...filters
+    });
+
+    const response = await fetch(`${API_BASE_URL}/admin/submissions?${queryParams}`, {
+        headers: await getAuthHeaders(userId)
+    });
+
+    if (!response.ok) throw new Error('Failed to fetch submissions');
+    return await response.json();
+};
+
 export const updateUserAsAdmin = async (adminUserId: string, targetUserId: string, data: { isAdmin?: boolean, isVerified?: boolean }): Promise<void> => {
     if (USE_MOCK_DATA || await isTestUser()) return;
     const response = await fetch(`${API_BASE_URL}/admin/users/${targetUserId}`, {

@@ -10,33 +10,31 @@ import { resolveGameData } from './routes/api.js';
 export const initScheduler = () => {
     console.log('Initializing scheduler...');
 
-    // 1. Daily Maintenance Job at 11:59 PM EST
-    // Ensures a game exists for tomorrow and pre-assigns words to users
-    cron.schedule('59 23 * * *', async () => {
+    // 1. Daily Maintenance Job at 12:01 AM EST
+    // Ensures a game exists for today and pre-assigns words to users
+    cron.schedule('1 0 * * *', async () => {
         console.log('Running daily game maintenance job...');
         try {
-            // Calculate tomorrow in Eastern Time
+            // Calculate today in Eastern Time
             const now = new Date();
-            const tomorrow = new Date(now);
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            const tomorrowStr = tomorrow.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+            const todayStr = now.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
 
-            // 1. Check if a game exists for tomorrow
+            // 1. Check if a game exists for today
             // We need to find the active challenge first
             const challengeResult = await pool.query(
                 'SELECT id FROM challenges WHERE start_date <= $1 AND end_date >= $1 LIMIT 1',
-                [tomorrow]
+                [now]
             );
 
             if (challengeResult.rows.length === 0) {
-                console.log('No active challenge for tomorrow, skipping game creation.');
+                console.log('No active challenge for today, skipping game creation.');
                 return;
             }
             const challengeId = challengeResult.rows[0].id;
 
             const gameResult = await pool.query(
                 'SELECT id, type, data FROM games WHERE challenge_id = $1 AND DATE(date) = $2',
-                [challengeId, tomorrowStr]
+                [challengeId, todayStr]
             );
 
             let gameId;
@@ -44,7 +42,7 @@ export const initScheduler = () => {
             let gameData;
 
             if (gameResult.rows.length === 0) {
-                console.log(`No game found for tomorrow (${tomorrowStr}). Creating default Wordle Bank game.`);
+                console.log(`No game found for today (${todayStr}). Creating default Wordle Bank game.`);
 
                 // For Wordle Bank, we don't insert solutions here; 
                 // they are fetched from the challenge's word_bank at runtime in resolveGameData.
@@ -52,7 +50,7 @@ export const initScheduler = () => {
                     `INSERT INTO games (id, challenge_id, date, type, data, created_at, updated_at)
                      VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
                      RETURNING id, type, data`,
-                    [`game-${challengeId}-${tomorrowStr}`, challengeId, tomorrowStr, 'wordle_bank', {}]
+                    [`game-${challengeId}-${todayStr}`, challengeId, todayStr, 'wordle_bank', {}]
                 );
 
                 gameId = newGameResult.rows[0].id;
@@ -62,7 +60,7 @@ export const initScheduler = () => {
                 gameId = gameResult.rows[0].id;
                 gameType = gameResult.rows[0].type;
                 gameData = gameResult.rows[0].data;
-                console.log(`Game already exists for tomorrow: ${gameType} (${gameId})`);
+                console.log(`Game already exists for today: ${gameType} (${gameId})`);
             }
 
             // 2. Pre-assign words for all verified users

@@ -12,7 +12,9 @@ import BannerManager from './BannerManager';
 
 import FeatureFlagManager from './FeatureFlagManager';
 
-type Tab = 'challenges' | 'games' | 'users' | 'logs' | 'messages' | 'support' | 'banners' | 'features';
+import SubmissionViewer from './SubmissionViewer';
+
+type Tab = 'challenges' | 'games' | 'submissions' | 'users' | 'logs' | 'messages' | 'support' | 'banners' | 'features';
 
 const AdminDashboard: React.FC = () => {
     const { user } = useAuth();
@@ -39,6 +41,7 @@ const AdminDashboard: React.FC = () => {
     const tabs: { id: Tab; label: string }[] = [
         { id: 'challenges', label: 'Challenges' },
         { id: 'games', label: 'Game Builder' },
+        { id: 'submissions', label: 'Submissions' },
         { id: 'messages', label: 'Daily Messages' },
         { id: 'banners', label: 'Banner Messages' },
         { id: 'users', label: 'Users' },
@@ -96,6 +99,7 @@ const AdminDashboard: React.FC = () => {
                         challenges={challenges}
                     />
                 )}
+                {activeTab === 'submissions' && <SubmissionViewer />}
                 {activeTab === 'messages' && <DailyMessageManager />}
                 {activeTab === 'banners' && <BannerManager />}
                 {activeTab === 'users' && <UserManager />}
