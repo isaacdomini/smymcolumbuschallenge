@@ -123,9 +123,8 @@ const GameInstructionsModal: React.FC<GameInstructionsModalProps> = ({ gameType,
     <div className="space-y-4">
       <p>Rearrange the scrambled words to form the correct Bible verse.</p>
       <ul className="list-disc pl-5 space-y-2 text-gray-300">
-        <li>Tap on a word to select it.</li>
-        <li>Tap on another word to swap their positions.</li>
-        <li>Continue swapping until the verse is in the correct order.</li>
+        <li>Drag words from the pool to the solution area.</li>
+        <li>Arrrange them in the correct order to form the verse.</li>
         <li>The game will automatically complete when the order is correct.</li>
       </ul>
       <p className="text-yellow-400 text-sm italic border-l-2 border-yellow-400 pl-3 py-1 bg-yellow-400/10 rounded-r">
