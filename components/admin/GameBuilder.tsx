@@ -73,7 +73,7 @@ const GameBuilder: React.FC<GameBuilderProps> = ({
             setGameType(initialData.type);
             if (initialData.type === GameType.WORDLE && initialData.data?.solution) {
                 setWordleSolution(initialData.data.solution);
-            } else if (initialData.type === GameType.WORDLE_ADVANCED && initialData.data?.solutions) {
+            } else if ((initialData.type === GameType.WORDLE_ADVANCED || initialData.type === GameType.WORDLE_BANK) && initialData.data?.solutions) {
                 setWordleAdvancedSolutions(initialData.data.solutions);
             } else if (initialData.type === GameType.CONNECTIONS && initialData.data?.categories) {
                 setConnectionsCategories(initialData.data.categories);
@@ -126,7 +126,7 @@ const GameBuilder: React.FC<GameBuilderProps> = ({
         let gameData: any = {};
         if (gameType === GameType.WORDLE) {
             gameData = { solution: wordleSolution.toUpperCase() };
-        } else if (gameType === GameType.WORDLE_ADVANCED) {
+        } else if (gameType === GameType.WORDLE_ADVANCED || gameType === GameType.WORDLE_BANK) {
             gameData = { solutions: wordleAdvancedSolutions.filter(w => w.trim() !== '').map(w => w.toUpperCase()) };
         } else if (gameType === GameType.CONNECTIONS) {
             gameData = {
@@ -294,7 +294,8 @@ const GameBuilder: React.FC<GameBuilderProps> = ({
                             className="w-full p-2 bg-gray-900 border border-gray-700 rounded focus:ring-yellow-500 focus:border-yellow-500 text-white"
                         >
                             <option value={GameType.WORDLE}>Wordle</option>
-                            <option value={GameType.WORDLE_ADVANCED}>Wordle Advanced (Word Bank)</option>
+                            <option value={GameType.WORDLE_ADVANCED}>Wordle Advanced</option>
+                            <option value={GameType.WORDLE_BANK}>Wordle Bank</option>
                             <option value={GameType.CONNECTIONS}>Connect the Words</option>
                             <option value={GameType.CROSSWORD}>Crossword (JSON)</option>
                             <option value={GameType.MATCH_THE_WORD}>Match the Word</option>
@@ -320,7 +321,7 @@ const GameBuilder: React.FC<GameBuilderProps> = ({
                         </div>
                     )}
 
-                    {gameType === GameType.WORDLE_ADVANCED && (
+                    {(gameType === GameType.WORDLE_ADVANCED || gameType === GameType.WORDLE_BANK) && (
                         <div className="space-y-4">
                             <label className="block text-sm font-medium text-gray-300 mb-1">Solution Bank (5-letters each)</label>
                             <p className="text-xs text-gray-400 mb-2">Enter multiple words. One will be randomly assigned to each user.</p>

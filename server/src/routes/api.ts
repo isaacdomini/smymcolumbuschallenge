@@ -83,6 +83,17 @@ export const calculateScore = (game: any, submissionData: any, timeTaken: number
       }
       break;
     }
+    case 'wordle':
+    case 'wordle_advanced':
+    case 'wordle_bank': {
+      const maxGuesses = 6;
+      if (mistakes >= maxGuesses) {
+        baseScore = 0;
+      } else {
+        baseScore = (maxGuesses - mistakes) * 10;
+      }
+      break;
+    }
     case 'who_am_i': {
       const maxGuesses = 6;
       if (mistakes >= maxGuesses) {
@@ -1677,7 +1688,7 @@ export const resolveGameData = async (game: any, userId?: string, stripSolution:
 
   // Strip solutions if requested
   if (stripSolution) {
-    if (gameType === 'wordle' || gameType === 'wordle_advanced') {
+    if (gameType === 'wordle' || gameType === 'wordle_advanced' || gameType === 'wordle_bank') {
       if (gameData.solution) {
         gameData.wordLength = gameData.solution.length;
         // Optional: reveal solution if submitted?
@@ -1762,7 +1773,7 @@ router.post('/games/:gameId/check', async (req: Request, res: Response) => {
     const gameData = resolvedGame.data;
     const gameType = resolvedGame.type;
 
-    if (gameType === 'wordle' || gameType === 'wordle_advanced') {
+    if (gameType === 'wordle' || gameType === 'wordle_advanced' || gameType === 'wordle_bank') {
       const solution = gameData.solution.toUpperCase();
       const guessUpper = (guess as string).toUpperCase();
       const statuses: ('correct' | 'present' | 'absent')[] = Array(guessUpper.length).fill('absent');

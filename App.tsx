@@ -429,7 +429,7 @@ const MainContent: React.FC = () => {
                   {todaysGame
                     ? (todaysSubmission
                       ? "Revisit Today's Game"
-                      : (todaysProgress ? "Continue Today's Game" : "Play Today's Game"))
+                      : (todaysProgress && todaysProgress.gameState && todaysProgress.gameState.startTime ? "Continue Today's Game" : "Play Today's Game"))
                     : "No Game Today"}
                 </button>
                 <button onClick={() => navigate('/history')} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg text-xl shadow-lg transition-transform transform hover:scale-105">
