@@ -73,15 +73,13 @@ export const calculateScore = (game: any, submissionData: any, timeTaken: number
       if (!submissionData?.completed) {
         baseScore = 0;
       } else {
-        // Max 60 points, purely time based. 10 minutes (600s) limit.
-        // Formula: 60 - (timeTaken / 10).
-        // At 0s: 60. At 600s: 0.
-        const maxTime = 600;
-        if (timeTaken > maxTime) {
-          baseScore = 0;
-        } else {
-          baseScore = Math.max(0, Math.round(60 - (timeTaken / 10)));
-        }
+        // Max 80 points (20 base + 60 time bonus).
+        // Formula: 20 + Math.max(0, 60 - (timeTaken / 10)).
+        // 0s: 20 + 60 = 80.
+        // 600s (10m): 20 + 0 = 20.
+        // >600s: 20 + 0 = 20.
+        const timeBonus = Math.max(0, 60 - (timeTaken / 10));
+        baseScore = Math.round(20 + timeBonus);
       }
       break;
     }

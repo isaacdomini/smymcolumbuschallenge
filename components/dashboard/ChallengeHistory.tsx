@@ -21,6 +21,8 @@ const getScoringTooltipText = (gameType: GameType): string => {
       return "Score based on categories found and mistakes made. Each category adds points, mistakes subtract.";
     case GameType.CROSSWORD:
       return "Score based on accuracy and speed. A higher percentage of correct cells and a faster time result in a higher score.";
+    case GameType.VERSE_SCRAMBLE:
+      return "Score based on time. Max 80 points. Minimum 20 points for completion.";
     default:
       return "Scoring is based on performance in the game.";
   }
