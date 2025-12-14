@@ -361,7 +361,7 @@ const VerseScrambleGame: React.FC<VerseScrambleGameProps> = ({ gameId, gameData,
   }
 
   return (
-    <div className="w-full max-w-2xl mx-auto flex flex-col items-center p-4 select-none touch-none">
+    <div className="w-full max-w-2xl mx-auto flex flex-col items-center p-4 select-none">
       {headerTarget && createPortal(headerControls, headerTarget)}
 
       {/* Drag Overlay */}
@@ -375,61 +375,66 @@ const VerseScrambleGame: React.FC<VerseScrambleGameProps> = ({ gameId, gameData,
         document.body
       )}
 
-      {/* Solution Area */}
-      <div className="w-full mb-8">
-        <p className="mb-2 text-gray-400 text-sm text-center uppercase tracking-wider font-bold">Solution Area</p>
-        <div
-          id="verse-solution-area"
-          className={`w-full min-h-[140px] bg-gray-800/80 border-2 border-dashed ${gameState === 'won' ? 'border-green-500 bg-green-900/20' : 'border-gray-600'} rounded-xl p-4 flex flex-wrap gap-3 justify-center items-start content-start transition-colors duration-300`}
-        >
-          {placedWords.length === 0 && !draggingItem && (
-            <span className="text-gray-500 italic mt-8 pointer-events-none">Drag words here...</span>
-          )}
-          {placedWords.map((word, index) => (
-            <button
-              key={word.id}
-              data-solution-index={index}
-              onPointerDown={(e) => handlePointerDown(e, 'solution', index, word)}
-              onPointerMove={handlePointerMove}
-              onPointerUp={handlePointerUp}
-              onPointerCancel={handlePointerUp}
-              disabled={gameState === 'won' || isReadOnly}
-              className={`
-                    px-3 py-2 rounded-lg font-semibold text-lg bg-yellow-500 text-gray-900 shadow-md transition-all 
-                    ${draggingItem?.word.id === word.id ? 'opacity-0' : 'hover:scale-105 active:scale-95'}
-                `}
+      {/* Game Board - Only show if playing */}
+      {gameState === 'playing' && (
+        <>
+          {/* Solution Area */}
+          <div className="w-full mb-8">
+            <p className="mb-2 text-gray-400 text-sm text-center uppercase tracking-wider font-bold">Solution Area</p>
+            <div
+              id="verse-solution-area"
+              className="w-full min-h-[140px] bg-gray-800/80 border-2 border-dashed border-gray-600 rounded-xl p-4 flex flex-wrap gap-3 justify-center items-start content-start transition-colors duration-300"
             >
-              {word.text}
-            </button>
-          ))}
-        </div>
-      </div>
+              {placedWords.length === 0 && !draggingItem && (
+                <span className="text-gray-500 italic mt-8 pointer-events-none">Drag words here...</span>
+              )}
+              {placedWords.map((word, index) => (
+                <button
+                  key={word.id}
+                  data-solution-index={index}
+                  onPointerDown={(e) => handlePointerDown(e, 'solution', index, word)}
+                  onPointerMove={handlePointerMove}
+                  onPointerUp={handlePointerUp}
+                  onPointerCancel={handlePointerUp}
+                  disabled={isReadOnly}
+                  className={`
+                        px-3 py-2 rounded-lg font-semibold text-lg bg-yellow-500 text-gray-900 shadow-md transition-all touch-none
+                        ${draggingItem?.word.id === word.id ? 'opacity-0' : 'hover:scale-105 active:scale-95'}
+                    `}
+                >
+                  {word.text}
+                </button>
+              ))}
+            </div>
+          </div>
 
-      {/* Word Pool */}
-      <div className="w-full">
-        <p className="mb-2 text-gray-400 text-sm text-center uppercase tracking-wider font-bold">Word Pool</p>
-        <div
-          id="verse-pool-area"
-          className="flex flex-wrap gap-3 justify-center min-h-[100px] bg-gray-900/50 p-4 rounded-xl border border-gray-800"
-        >
-          {availableWords.map((word, index) => (
-            <button
-              key={word.id}
-              onPointerDown={(e) => handlePointerDown(e, 'pool', index, word)}
-              onPointerMove={handlePointerMove}
-              onPointerUp={handlePointerUp}
-              onPointerCancel={handlePointerUp}
-              disabled={gameState === 'won' || isReadOnly}
-              className={`
-                    px-4 py-3 rounded-lg font-semibold text-lg bg-gray-700 text-gray-100 shadow transition-all
-                    ${draggingItem?.word.id === word.id ? 'opacity-0' : 'hover:bg-gray-600 hover:scale-105 active:scale-95'}
-                `}
+          {/* Word Pool */}
+          <div className="w-full">
+            <p className="mb-2 text-gray-400 text-sm text-center uppercase tracking-wider font-bold">Word Pool</p>
+            <div
+              id="verse-pool-area"
+              className="flex flex-wrap gap-3 justify-center min-h-[100px] bg-gray-900/50 p-4 rounded-xl border border-gray-800"
             >
-              {word.text}
-            </button>
-          ))}
-        </div>
-      </div>
+              {availableWords.map((word, index) => (
+                <button
+                  key={word.id}
+                  onPointerDown={(e) => handlePointerDown(e, 'pool', index, word)}
+                  onPointerMove={handlePointerMove}
+                  onPointerUp={handlePointerUp}
+                  onPointerCancel={handlePointerUp}
+                  disabled={isReadOnly}
+                  className={`
+                        px-4 py-3 rounded-lg font-semibold text-lg bg-gray-700 text-gray-100 shadow transition-all touch-none
+                        ${draggingItem?.word.id === word.id ? 'opacity-0' : 'hover:bg-gray-600 hover:scale-105 active:scale-95'}
+                    `}
+                >
+                  {word.text}
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
 
       {gameState === 'won' && (
         <div className="text-center animate-fade-in mt-8 p-6 bg-gray-800 rounded-2xl border border-gray-700 shadow-xl max-w-md">
