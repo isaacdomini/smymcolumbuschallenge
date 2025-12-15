@@ -23,13 +23,14 @@ export const runDailyGameMaintenance = async (targetDate?: Date) => {
     const challengeId = challengeResult.rows[0].id;
 
     const gameResult = await pool.query(
-      'SELECT id, type, data FROM games WHERE challenge_id = $1 AND DATE(date) = $2',
+      'SELECT id, type, data, date FROM games WHERE challenge_id = $1 AND DATE(date) = $2',
       [challengeId, dateStr]
     );
 
     let gameId;
     let gameType;
     let gameData;
+    let gameDate;
 
     if (gameResult.rows.length === 0) {
       console.log(`No game found for ${dateStr}. Creating default Wordle Bank game.`);
@@ -39,17 +40,19 @@ export const runDailyGameMaintenance = async (targetDate?: Date) => {
       const newGameResult = await pool.query(
         `INSERT INTO games (id, challenge_id, date, type, data, created_at)
                      VALUES ($1, $2, $3, $4, $5, NOW())
-                     RETURNING id, type, data`,
-        [`game-${challengeId}-${dateStr}`, challengeId, dateStr, 'wordle_bank', {}]
+                     RETURNING id, type, data, date`,
+        [`game-wordle_bank-${dateStr}`, challengeId, dateStr, 'wordle_bank', {}]
       );
 
       gameId = newGameResult.rows[0].id;
       gameType = newGameResult.rows[0].type;
       gameData = newGameResult.rows[0].data;
+      gameDate = newGameResult.rows[0].date;
     } else {
       gameId = gameResult.rows[0].id;
       gameType = gameResult.rows[0].type;
       gameData = gameResult.rows[0].data;
+      gameDate = gameResult.rows[0].date;
       console.log(`Game already exists for ${dateStr}: ${gameType} (${gameId})`);
     }
 
@@ -59,7 +62,7 @@ export const runDailyGameMaintenance = async (targetDate?: Date) => {
     console.log(`Pre-assigning games for ${users.rows.length} users...`);
 
     let assignedCount = 0;
-    const gameObj = { id: gameId, type: gameType, data: gameData };
+    const gameObj = { id: gameId, type: gameType, data: gameData, date: gameDate };
 
     for (const user of users.rows) {
       try {
