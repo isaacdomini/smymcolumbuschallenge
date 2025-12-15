@@ -62,7 +62,7 @@ export const runDailyGameMaintenance = async (targetDate?: Date) => {
     console.log(`Pre-assigning games for ${users.rows.length} users...`);
 
     let assignedCount = 0;
-    const gameObj = { id: gameId, type: gameType, data: gameData, date: gameDate };
+    const gameObj = { id: gameId, type: gameType, data: gameData, date: gameDate, challenge_id: challengeId };
 
     for (const user of users.rows) {
       try {
