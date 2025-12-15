@@ -2,6 +2,7 @@ import cron from 'node-cron';
 import pool from './db/pool.js';
 import { sendDailyReminder } from './services/email.js';
 import { sendPushNotification } from './services/push.js';
+import { runDailyGameMaintenance } from './services/maintenance.js';
 
 import { getGameName } from './utils/game.js';
 
@@ -12,80 +13,10 @@ export const initScheduler = () => {
 
     // 1. Daily Maintenance Job at 12:01 AM EST
     // Ensures a game exists for today and pre-assigns words to users
+    // 1. Daily Maintenance Job at 12:01 AM EST
+    // Ensures a game exists for today and pre-assigns words to users
     cron.schedule('1 0 * * *', async () => {
-        console.log('Running daily game maintenance job...');
-        try {
-            // Calculate today in Eastern Time
-            const now = new Date();
-            const todayStr = now.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
-
-            // 1. Check if a game exists for today
-            // We need to find the active challenge first
-            const challengeResult = await pool.query(
-                'SELECT id FROM challenges WHERE start_date <= $1 AND end_date >= $1 LIMIT 1',
-                [now]
-            );
-
-            if (challengeResult.rows.length === 0) {
-                console.log('No active challenge for today, skipping game creation.');
-                return;
-            }
-            const challengeId = challengeResult.rows[0].id;
-
-            const gameResult = await pool.query(
-                'SELECT id, type, data FROM games WHERE challenge_id = $1 AND DATE(date) = $2',
-                [challengeId, todayStr]
-            );
-
-            let gameId;
-            let gameType;
-            let gameData;
-
-            if (gameResult.rows.length === 0) {
-                console.log(`No game found for today (${todayStr}). Creating default Wordle Bank game.`);
-
-                // For Wordle Bank, we don't insert solutions here; 
-                // they are fetched from the challenge's word_bank at runtime in resolveGameData.
-                const newGameResult = await pool.query(
-                    `INSERT INTO games (id, challenge_id, date, type, data, created_at, updated_at)
-                     VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
-                     RETURNING id, type, data`,
-                    [`game-${challengeId}-${todayStr}`, challengeId, todayStr, 'wordle_bank', {}]
-                );
-
-                gameId = newGameResult.rows[0].id;
-                gameType = newGameResult.rows[0].type;
-                gameData = newGameResult.rows[0].data;
-            } else {
-                gameId = gameResult.rows[0].id;
-                gameType = gameResult.rows[0].type;
-                gameData = gameResult.rows[0].data;
-                console.log(`Game already exists for today: ${gameType} (${gameId})`);
-            }
-
-            // 2. Pre-assign words for all verified users
-            // This ensures every user has their random variant "locked in" before the day starts
-            const users = await pool.query('SELECT id FROM users WHERE is_verified = true');
-            console.log(`Pre-assigning games for ${users.rows.length} users...`);
-
-            let assignedCount = 0;
-            const gameObj = { id: gameId, type: gameType, data: gameData };
-
-            for (const user of users.rows) {
-                try {
-                    // resolveGameData handles the logic of creating/updating game_progress
-                    // with the assigned variant (if applicable for the game type)
-                    await resolveGameData(gameObj, user.id);
-                    assignedCount++;
-                } catch (err) {
-                    console.error(`Failed to assign game for user ${user.id}:`, err);
-                }
-            }
-            console.log(`Daily maintenance complete. Assigned ${assignedCount} games.`);
-
-        } catch (error) {
-            console.error('Error running daily maintenance job:', error);
-        }
+        await runDailyGameMaintenance();
     }, {
         scheduled: true,
         timezone: "America/New_York"
