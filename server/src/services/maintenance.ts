@@ -37,8 +37,8 @@ export const runDailyGameMaintenance = async (targetDate?: Date) => {
       // For Wordle Bank, we don't insert solutions here; 
       // they are fetched from the challenge's word_bank at runtime in resolveGameData.
       const newGameResult = await pool.query(
-        `INSERT INTO games (id, challenge_id, date, type, data, created_at, updated_at)
-                     VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+        `INSERT INTO games (id, challenge_id, date, type, data, created_at)
+                     VALUES ($1, $2, $3, $4, $5, NOW())
                      RETURNING id, type, data`,
         [`game-${challengeId}-${dateStr}`, challengeId, dateStr, 'wordle_bank', {}]
       );
