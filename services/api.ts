@@ -678,9 +678,10 @@ export const getAdminStats = async (userId: string): Promise<AdminStats> => {
 }
 
 // Feature Flags
+// Feature Flags
 export const getFeatureFlags = async (userId: string) => {
     const response = await fetch(`${API_BASE_URL}/admin/feature-flags`, {
-        headers: { 'x-user-id': userId }
+        headers: await getAuthHeaders(userId)
     });
     if (!response.ok) throw new Error('Failed to fetch feature flags');
     return response.json();
@@ -698,11 +699,12 @@ export const getPublicFeatureFlags = async () => {
 };
 
 export const updateFeatureFlag = async (userId: string, key: string, enabled: boolean) => {
+    const headers = await getAuthHeaders(userId);
     const response = await fetch(`${API_BASE_URL}/admin/feature-flags/${key}`, {
         method: 'PUT',
         headers: {
+            ...headers as Record<string, string>,
             'Content-Type': 'application/json',
-            'x-user-id': userId
         },
         body: JSON.stringify({ enabled })
     });
@@ -833,11 +835,15 @@ export const getAdminSubmissions = async (userId: string, limit = 20, offset = 0
         return { submissions: mapped, total: filtered.length };
     }
 
-    const queryParams = new URLSearchParams({
+    const params: any = {
         limit: limit.toString(),
         offset: offset.toString(),
-        ...filters
-    });
+    };
+    if (filters.gameId) params.gameId = filters.gameId;
+    if (filters.gameType) params.gameType = filters.gameType;
+    if (filters.userId) params.userId = filters.userId;
+
+    const queryParams = new URLSearchParams(params);
 
     const response = await fetch(`${API_BASE_URL}/admin/submissions?${queryParams}`, {
         headers: await getAuthHeaders(userId)

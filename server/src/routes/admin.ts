@@ -155,8 +155,8 @@ router.get('/submissions', async (req: Request, res: Response) => {
         let query = `
             SELECT gs.*, u.name as user_name, u.email as user_email, g.type as game_type, g.date as game_date 
             FROM game_submissions gs
-            JOIN users u ON gs.user_id = u.id
-            JOIN games g ON gs.game_id = g.id
+            LEFT JOIN users u ON gs.user_id = u.id
+            LEFT JOIN games g ON gs.game_id = g.id
         `;
         const params: any[] = [];
         const conditions: string[] = [];
@@ -165,7 +165,7 @@ router.get('/submissions', async (req: Request, res: Response) => {
             conditions.push(`gs.game_id = $${params.length + 1}`);
             params.push(gameId);
         }
-        if (gameType) {
+        if (gameType && gameType !== 'all') {
             conditions.push(`g.type = $${params.length + 1}`);
             params.push(gameType);
         }
@@ -187,7 +187,7 @@ router.get('/submissions', async (req: Request, res: Response) => {
         let countQuery = `
             SELECT COUNT(*) 
             FROM game_submissions gs
-            JOIN games g ON gs.game_id = g.id
+            LEFT JOIN games g ON gs.game_id = g.id
         `;
         if (conditions.length > 0) {
             countQuery += ' WHERE ' + conditions.join(' AND ');
