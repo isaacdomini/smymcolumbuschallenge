@@ -194,14 +194,28 @@ const WhoAmIGame: React.FC<WhoAmIGameProps> = ({ gameId, gameData, submission, o
       if ((gameState === 'won' || gameState === 'lost') && !isReadOnly && startTime !== null && !isSample) {
         if (!user) return;
         const timeTaken = Math.round((Date.now() - startTime) / 1000);
-        await submitGame({
+        const result = await submitGame({
           userId: user.id,
           gameId,
           startedAt: new Date(startTime).toISOString(),
           timeTaken,
           mistakes,
-          submissionData: { solved: gameState === 'won', guessedLetters, answer: isSample ? SAMPLE_DATA.answer : undefined } // Backend will fill answer if won? Or we don't need it.
+          submissionData: { solved: gameState === 'won', guessedLetters, answer: isSample ? SAMPLE_DATA.answer : undefined }
         });
+
+        // Reveal answer if returned
+        if (result.submissionData?.answer) {
+          const answer = result.submissionData.answer;
+          const map: { [index: number]: string } = {};
+          const positions: number[] = [];
+          for (let i = 0; i < answer.length; i++) {
+            map[i] = answer[i];
+            positions.push(i);
+          }
+          setRevealedMap(map);
+          setRevealedPositions(positions);
+        }
+
         await clearGameState(user.id, gameId);
         setTimeout(onComplete, 3000);
       }

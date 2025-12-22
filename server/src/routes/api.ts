@@ -2216,12 +2216,11 @@ router.post('/submit', async (req: Request, res: Response) => {
         };
       }
     } else if (game.type === 'who_am_i') {
-      const progressResult = await pool.query('SELECT game_state FROM game_progress WHERE user_id = $1 AND game_id = $2', [userId, gameId]);
-      if (progressResult.rows.length > 0 && progressResult.rows[0].game_state.assignedSolution) {
+      if (gameData.answer) {
         finalSubmissionData = {
           ...submissionData,
-          answer: progressResult.rows[0].game_state.assignedSolution.answer,
-          hint: progressResult.rows[0].game_state.assignedSolution.hint
+          answer: gameData.answer,
+          hint: gameData.hint
         };
       }
     }
