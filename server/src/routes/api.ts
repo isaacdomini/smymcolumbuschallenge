@@ -2120,10 +2120,14 @@ router.post('/submit', async (req: Request, res: Response) => {
         // Update submission data with only valid groups
         submissionData.foundGroups = validGroups;
         submissionData.categoriesFound = validGroups.length;
-
-        // If user claims to have won but hasn't found all groups, it's invalid.
-        // We can't easily reconstruct mistakes without history, but we can ensure the final state is valid.
       }
+
+      // Persist assignedCategories
+      const progressResult = await pool.query('SELECT game_state FROM game_progress WHERE user_id = $1 AND game_id = $2', [userId, gameId]);
+      if (progressResult.rows.length > 0 && progressResult.rows[0].game_state.assignedCategories) {
+        submissionData.assignedCategories = progressResult.rows[0].game_state.assignedCategories;
+      }
+
     } else if (gameType === 'match_the_word') {
       if (submissionData.foundPairs && Array.isArray(submissionData.foundPairs)) {
         // foundPairs is list of words.
@@ -2134,6 +2138,13 @@ router.post('/submit', async (req: Request, res: Response) => {
         submissionData.foundPairs = validPairs;
         submissionData.foundPairsCount = validPairs.length;
       }
+
+      // Persist assignedPairs
+      const progressResult = await pool.query('SELECT game_state FROM game_progress WHERE user_id = $1 AND game_id = $2', [userId, gameId]);
+      if (progressResult.rows.length > 0 && progressResult.rows[0].game_state.assignedPairs) {
+        submissionData.assignedPairs = progressResult.rows[0].game_state.assignedPairs;
+      }
+
     } else if (gameType === 'who_am_i') {
       if (submissionData.guessedLetters && Array.isArray(submissionData.guessedLetters)) {
         const answer = gameData.answer.toUpperCase();
