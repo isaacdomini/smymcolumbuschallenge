@@ -124,8 +124,10 @@ const ConnectionsGame: React.FC<ConnectionsGameProps> = ({ gameId, gameData, sub
     return () => clearTimeout(handler);
   }, [words, foundGroups, mistakes, gameState, startTime, isReadOnly, user, gameId, isPreview]);
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const handleWordClick = (word: string) => {
-    if (gameState !== 'playing' || isReadOnly || showInstructions || isShaking || foundGroups.flatMap(g => g.words).includes(word)) return;
+    if (gameState !== 'playing' || isReadOnly || showInstructions || isShaking || isSubmitting || foundGroups.flatMap(g => g.words).includes(word)) return;
 
     if (selected.includes(word)) {
       setSelected(prev => prev.filter(w => w !== word));
@@ -135,77 +137,97 @@ const ConnectionsGame: React.FC<ConnectionsGameProps> = ({ gameId, gameData, sub
   };
 
   const handleSubmit = async () => {
-    if (selected.length !== 4) return;
+    if (selected.length !== 4 || isSubmitting) return;
 
-    if (isSample) {
-      const sampleData: ConnectionsData = {
-        words: ['APPLE', 'BANANA', 'CHERRY', 'DATE', 'RED', 'BLUE', 'GREEN', 'YELLOW', 'DOG', 'CAT', 'BIRD', 'FISH', 'ONE', 'TWO', 'THREE', 'FOUR'],
-        categories: [
-          { name: 'FRUITS', words: ['APPLE', 'BANANA', 'CHERRY', 'DATE'] },
-          { name: 'COLORS', words: ['RED', 'BLUE', 'GREEN', 'YELLOW'] },
-          { name: 'ANIMALS', words: ['DOG', 'CAT', 'BIRD', 'FISH'] },
-          { name: 'NUMBERS', words: ['ONE', 'TWO', 'THREE', 'FOUR'] }
-        ]
-      };
-      const correctGroup = sampleData.categories.find(category =>
-        category.words.every(word => selected.includes(word)) &&
-        selected.every(word => category.words.includes(word))
-      );
+    setIsSubmitting(true);
+    try {
+      if (isSample) {
+        const sampleData: ConnectionsData = {
+          words: ['APPLE', 'BANANA', 'CHERRY', 'DATE', 'RED', 'BLUE', 'GREEN', 'YELLOW', 'DOG', 'CAT', 'BIRD', 'FISH', 'ONE', 'TWO', 'THREE', 'FOUR'],
+          categories: [
+            { name: 'FRUITS', words: ['APPLE', 'BANANA', 'CHERRY', 'DATE'] },
+            { name: 'COLORS', words: ['RED', 'BLUE', 'GREEN', 'YELLOW'] },
+            { name: 'ANIMALS', words: ['DOG', 'CAT', 'BIRD', 'FISH'] },
+            { name: 'NUMBERS', words: ['ONE', 'TWO', 'THREE', 'FOUR'] }
+          ]
+        };
+        const correctGroup = sampleData.categories.find(category =>
+          category.words.every(word => selected.includes(word)) &&
+          selected.every(word => category.words.includes(word))
+        );
 
-      if (correctGroup) {
-        setFoundGroups(prev => [...prev, correctGroup]);
-        setWords(prev => prev.filter(w => !selected.includes(w)));
-        setSelected([]);
-        if (foundGroups.length === 3) {
-          setGameState('won');
-        }
-      } else {
-        // Check for "One away"
-        const isOneAway = sampleData.categories.some(category => {
-          if (foundGroups.some(found => found.name === category.name)) return false;
-          const matchCount = selected.filter(word => category.words.includes(word)).length;
-          return matchCount === 3;
-        });
-
-        if (isOneAway) {
-          setFeedbackMessage("One away!");
-          setTimeout(() => setFeedbackMessage(null), 2000);
-        }
-
-        setIsShaking(true);
-        setTimeout(() => setIsShaking(false), 500);
-
-        setMistakes(prev => prev + 1);
-        if (mistakes + 1 >= 4) {
-          setGameState('lost');
-        }
-      }
-    } else {
-      // Backend check
-      try {
-        const response = await checkAnswer(gameId, selected);
-        if (response.correct) {
-          setFoundGroups(prev => [...prev, response.group]);
-          setWords(prev => prev.filter(w => !selected.includes(w)));
-          setSelected([]);
-          if (foundGroups.length === 3) {
-            setGameState('won');
+        if (correctGroup) {
+          // Check for duplicates before adding
+          if (!foundGroups.some(g => g.name === correctGroup.name)) {
+            setFoundGroups(prev => [...prev, correctGroup]);
+            setWords(prev => prev.filter(w => !selected.includes(w)));
+            setSelected([]);
+            if (foundGroups.length + 1 === 4) { // Checked length + 1 because state update is async
+              setGameState('won');
+            }
+          } else {
+            setSelected([]);
           }
+
         } else {
-          if (response.oneAway) {
+          // Check for "One away"
+          const isOneAway = sampleData.categories.some(category => {
+            if (foundGroups.some(found => found.name === category.name)) return false;
+            const matchCount = selected.filter(word => category.words.includes(word)).length;
+            return matchCount === 3;
+          });
+
+          if (isOneAway) {
             setFeedbackMessage("One away!");
             setTimeout(() => setFeedbackMessage(null), 2000);
           }
+
           setIsShaking(true);
           setTimeout(() => setIsShaking(false), 500);
+
           setMistakes(prev => prev + 1);
           if (mistakes + 1 >= 4) {
             setGameState('lost');
           }
         }
-      } catch (e) {
-        console.error("Check failed", e);
+      } else {
+        // Backend check
+        try {
+          const response = await checkAnswer(gameId, selected);
+          if (response.correct) {
+            // Check for duplicates before adding
+            if (!foundGroups.some(g => g.name === response.group.name)) {
+              setFoundGroups(prev => [...prev, response.group]);
+              setWords(prev => prev.filter(w => !selected.includes(w)));
+              setSelected([]);
+              // Determine if won based on new length
+              // foundGroups isn't updated yet, so we check against expected length
+              // Actually, logic: current found + 1 == 4
+              if (foundGroups.length + 1 === 4) {
+                setGameState('won');
+              }
+            } else {
+              setSelected([]);
+            }
+
+          } else {
+            if (response.oneAway) {
+              setFeedbackMessage("One away!");
+              setTimeout(() => setFeedbackMessage(null), 2000);
+            }
+            setIsShaking(true);
+            setTimeout(() => setIsShaking(false), 500);
+            setMistakes(prev => prev + 1);
+            if (mistakes + 1 >= 4) {
+              setGameState('lost');
+            }
+          }
+        } catch (e) {
+          console.error("Check failed", e);
+        }
       }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -327,14 +349,14 @@ const ConnectionsGame: React.FC<ConnectionsGameProps> = ({ gameId, gameData, sub
           <div className="flex space-x-4">
             <button
               onClick={() => setSelected([])}
-              disabled={selected.length === 0 || isShaking}
+              disabled={selected.length === 0 || isShaking || isSubmitting}
               className="border border-zinc-600 text-zinc-300 hover:bg-zinc-800 font-bold py-2 px-6 rounded-full disabled:opacity-50 transition-colors"
             >
               Deselect All
             </button>
             <button
               onClick={handleSubmit}
-              disabled={selected.length !== 4 || isShaking}
+              disabled={selected.length !== 4 || isShaking || isSubmitting}
               className="bg-white hover:bg-gray-200 text-black font-bold py-2 px-6 rounded-full disabled:bg-zinc-600 disabled:text-zinc-400 transition-colors"
             >
               Submit

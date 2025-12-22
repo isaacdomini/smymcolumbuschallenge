@@ -165,10 +165,13 @@ const WordSearchGame: React.FC<WordSearchGameProps> = ({ gameId, gameData, submi
   }, [isSelecting, selectionStart, selectedCells]);
 
 
+  const isSubmittingRef = useRef(false);
   useEffect(() => {
     const saveResult = async () => {
       if (gameState === 'won' && !isReadOnly && startTime !== null && !isSample) {
-        if (!user) return;
+        if (!user || isSubmittingRef.current) return;
+        isSubmittingRef.current = true;
+
         const timeTaken = Math.round((Date.now() - startTime) / 1000);
         await submitGame({
           userId: user.id,

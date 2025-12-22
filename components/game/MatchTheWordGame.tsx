@@ -132,8 +132,10 @@ const MatchTheWordGame: React.FC<MatchTheWordGameProps> = ({ gameId, gameData, s
     setSelectedMatch(match);
   };
 
+  const [isChecking, setIsChecking] = useState(false);
+
   useEffect(() => {
-    if (selectedWord && selectedMatch) {
+    if (selectedWord && selectedMatch && !isChecking) {
       if (isSample) {
         const correctPair = SAMPLE_DATA.pairs.find(p => p.word === selectedWord && p.match === selectedMatch);
         if (correctPair) {
@@ -154,8 +156,11 @@ const MatchTheWordGame: React.FC<MatchTheWordGameProps> = ({ gameId, gameData, s
             setGameState('lost');
           }
         }
+        setSelectedWord(null);
+        setSelectedMatch(null);
       } else {
         // Backend check
+        setIsChecking(true);
         checkAnswer(gameId, { word: selectedWord, match: selectedMatch })
           .then(res => {
             if (res.correct) {
@@ -180,12 +185,16 @@ const MatchTheWordGame: React.FC<MatchTheWordGameProps> = ({ gameId, gameData, s
               }
             }
           })
-          .catch(err => console.error("Check failed", err));
+          .catch(err => console.error("Check failed", err))
+          .finally(() => {
+            setIsChecking(false);
+          });
+
+        setSelectedWord(null);
+        setSelectedMatch(null);
       }
-      setSelectedWord(null);
-      setSelectedMatch(null);
     }
-  }, [selectedWord, selectedMatch, foundPairs, mistakes, isSample, gameId, shuffledWords]);
+  }, [selectedWord, selectedMatch, foundPairs, mistakes, isSample, gameId, shuffledWords, isChecking]);
 
   useEffect(() => {
     const calculateCoords = () => {

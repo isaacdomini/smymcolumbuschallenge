@@ -103,8 +103,10 @@ const WhoAmIGame: React.FC<WhoAmIGameProps> = ({ gameId, gameData, submission, o
     return () => clearTimeout(handler);
   }, [guessedLetters, revealedPositions, revealedMap, correctLetters, mistakes, gameState, startTime, isReadOnly, user, gameId]);
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const handleGuess = useCallback(async (letter: string) => {
-    if (gameState !== 'playing' || isReadOnly || guessedLetters.includes(letter)) return;
+    if (gameState !== 'playing' || isReadOnly || guessedLetters.includes(letter) || isSubmitting) return;
 
     const newGuessed = [...guessedLetters, letter];
     setGuessedLetters(newGuessed);
@@ -112,11 +114,13 @@ const WhoAmIGame: React.FC<WhoAmIGameProps> = ({ gameId, gameData, submission, o
     if (isSample) {
       const answer = SAMPLE_DATA.answer.toUpperCase();
       if (!answer.includes(letter)) {
-        const newMistakes = mistakes + 1;
-        setMistakes(newMistakes);
-        if (newMistakes >= maxMistakes) {
-          setGameState('lost');
-        }
+        setMistakes(prev => {
+          const newMistakes = prev + 1;
+          if (newMistakes >= maxMistakes) {
+            setGameState('lost');
+          }
+          return newMistakes;
+        });
       } else {
         // Update revealed positions locally for sample
         const newRevealed = [...revealedPositions];
@@ -132,6 +136,7 @@ const WhoAmIGame: React.FC<WhoAmIGameProps> = ({ gameId, gameData, submission, o
       }
     } else {
       // Backend check
+      setIsSubmitting(true);
       try {
         const response = await checkAnswer(gameId, letter);
         if (response.correct) {
@@ -155,17 +160,21 @@ const WhoAmIGame: React.FC<WhoAmIGameProps> = ({ gameId, gameData, submission, o
           }
 
         } else {
-          const newMistakes = mistakes + 1;
-          setMistakes(newMistakes);
-          if (newMistakes >= maxMistakes) {
-            setGameState('lost');
-          }
+          setMistakes(prev => {
+            const newMistakes = prev + 1;
+            if (newMistakes >= maxMistakes) {
+              setGameState('lost');
+            }
+            return newMistakes;
+          });
         }
       } catch (e) {
         console.error("Check failed", e);
+      } finally {
+        setIsSubmitting(false);
       }
     }
-  }, [gameState, isReadOnly, guessedLetters, mistakes, isSample, gameId, maskedAnswer, revealedPositions]);
+  }, [gameState, isReadOnly, guessedLetters, mistakes, isSample, gameId, maskedAnswer, revealedPositions, isSubmitting]);
 
   // Handle physical keyboard
   useEffect(() => {

@@ -111,8 +111,10 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
         return () => clearTimeout(handler);
     }, [userGrid, startTime, isReadOnly, isSubmitted, user, gameId, isPreview]);
 
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
     const handleSubmit = useCallback(async () => {
-        if (!user || isReadOnly || isSubmitted || startTime === null) return;
+        if (!user || isReadOnly || isSubmitted || startTime === null || isSubmitting) return;
 
         if (isSample || isPreview) {
             setIsSubmitted(true);
@@ -125,35 +127,43 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
             return;
         }
 
-        const timeTaken = Math.round((Date.now() - startTime) / 1000);
+        setIsSubmitting(true);
+        try {
+            const timeTaken = Math.round((Date.now() - startTime) / 1000);
 
-        // Mistakes are calculated on server
-        const mistakes = 0;
-        const correctCells = 0;
-        const totalFillableCells = 0;
+            // Mistakes are calculated on server
+            const mistakes = 0;
+            const correctCells = 0;
+            const totalFillableCells = 0;
 
-        const response = await submitGame({
-            userId: user.id,
-            gameId,
-            startedAt: new Date(startTime).toISOString(),
-            timeTaken,
-            mistakes,
-            submissionData: {
-                grid: userGrid,
-                correctCells,
-                totalFillableCells,
-                puzzle: activeData // Store the puzzle definition with submission
-            },
-        });
+            const response = await submitGame({
+                userId: user.id,
+                gameId,
+                startedAt: new Date(startTime).toISOString(),
+                timeTaken,
+                mistakes,
+                submissionData: {
+                    grid: userGrid,
+                    correctCells,
+                    totalFillableCells,
+                    puzzle: activeData // Store the puzzle definition with submission
+                },
+            });
 
-        if (response.feedback) {
-            setFeedback(response.feedback);
+            if (response.feedback) {
+                setFeedback(response.feedback);
+            }
+
+            setIsSubmitted(true);
+            await clearGameState(user.id, gameId);
+            setTimeout(onComplete, 3000);
+        } catch (error) {
+            console.error("Submission failed", error);
+            // Optionally show error to user
+        } finally {
+            setIsSubmitting(false);
         }
-
-        setIsSubmitted(true);
-        await clearGameState(user.id, gameId);
-        setTimeout(onComplete, 3000);
-    }, [user, isReadOnly, isSubmitted, startTime, gameData.rows, gameData.cols, userGrid, solutionGrid, gameId, onComplete, isSample, isPreview]);
+    }, [user, isReadOnly, isSubmitted, startTime, gameData.rows, gameData.cols, userGrid, solutionGrid, gameId, onComplete, isSample, isPreview, isSubmitting]);
 
     const handleCellChange = useCallback((row: number, col: number, char: string | null) => {
         if (isSubmitted) return;

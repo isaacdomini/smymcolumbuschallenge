@@ -150,10 +150,13 @@ const VerseScrambleGame: React.FC<VerseScrambleGameProps> = ({ gameId, gameData,
   }, [placedWords, availableWords, gameState, isReadOnly, isSample, gameId, gameData]);
 
   // Submission
+  const isSubmittingRef = useRef(false);
   useEffect(() => {
     const saveResult = async () => {
       if (gameState === 'won' && !isReadOnly && startTime !== null && !isSample) {
-        if (!user) return;
+        if (!user || isSubmittingRef.current) return;
+        isSubmittingRef.current = true;
+
         const timeTaken = Math.round((Date.now() - startTime) / 1000);
         await submitGame({
           userId: user.id,

@@ -2369,10 +2369,35 @@ router.delete('/game-state/user/:userId/game/:gameId', async (req: Request, res:
   try {
     const { userId, gameId } = req.params;
     await pool.query('DELETE FROM game_progress WHERE user_id = $1 AND game_id = $2', [userId, gameId]);
-    res.status(204).send();
+    res.status(244).send();
   } catch (error) {
     console.error('Clear game state error:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// --- FEATURE FLAGS (Public) ---
+router.get('/feature-flags/public', async (req: Request, res: Response) => {
+  try {
+    const { getAllFeatureFlags } = await import('../utils/featureFlags.js');
+    const flags = await getAllFeatureFlags();
+    // Filter to only safe/public flags
+    const publicKeys = ['maintenance_mode'];
+    const publicFlags = flags.filter(f => publicKeys.includes(f.key)).reduce((acc: any, curr) => {
+      acc[curr.key] = curr.enabled;
+      return acc;
+    }, {});
+
+    // Ensure maintenance_mode is present (default to false if missing)
+    if (publicFlags.maintenance_mode === undefined) {
+      publicFlags.maintenance_mode = false;
+    }
+
+    res.json(publicFlags);
+  } catch (error) {
+    console.error('Error fetching public feature flags:', error);
+    // Default safe response
+    res.json({ maintenance_mode: false });
   }
 });
 

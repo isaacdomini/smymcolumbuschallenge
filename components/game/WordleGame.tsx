@@ -117,8 +117,12 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
   }, [isReadOnly, submission, maxGuesses]);
 
   const [extraWords, setExtraWords] = useState<Set<string> | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const checkWordValidity = async (word: string): Promise<boolean> => {
+    // Note: We don't set isLoading/isSubmitting here globally if we want to separate "checking valid word" vs "submitting guess"
+    // But for simplicity, we can reuse isLoading or just let the caller handle the lock.
+    // However, existing logic uses isLoading for UI feedback.
     setIsLoading(true);
     setError(null);
     try {
@@ -137,7 +141,6 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
             const res = await fetch('/valid_words.txt');
             if (res.ok) {
               const text = await res.text();
-              // Split by newlines, trim, and convert to uppercase for set
               const words = text.split(/\r?\n/).map(w => w.trim().toUpperCase()).filter(w => w.length > 0);
               currentExtraWords = new Set(words);
               setExtraWords(currentExtraWords);
@@ -169,69 +172,76 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
   };
 
   const handleKeyPress = useCallback(async (key: string) => {
-    if (gameState !== 'playing' || isRevealing || isReadOnly || isLoading || showInstructions) return;
+    // Added isSubmitting check
+    if (gameState !== 'playing' || isRevealing || isReadOnly || isLoading || showInstructions || isSubmitting) return;
 
     if (key === 'Enter') {
       if (currentGuess.length === wordLength) {
-        const isValid = await checkWordValidity(currentGuess);
-        if (!isValid) {
-          return;
-        }
+        setIsSubmitting(true);
+        try {
+          const isValid = await checkWordValidity(currentGuess);
+          if (!isValid) {
+            return;
+          }
+          // checkWordValidity sets isLoading to false, so we need to set it true again for the answer check
+          // BUT we are protected by isSubmitting now.
+          setIsLoading(true);
+          let results: ('correct' | 'present' | 'absent')[];
 
-        setIsLoading(true);
-        let results: ('correct' | 'present' | 'absent')[];
+          if (isSample || isPreview) {
+            // Local check
+            const solutionUpper = solution.toUpperCase();
+            const guessUpper = currentGuess.toUpperCase();
+            results = Array(wordLength).fill('absent');
+            const solutionChars = solutionUpper.split('');
+            const guessChars = guessUpper.split('');
 
-        if (isSample || isPreview) {
-          // Local check
-          const solutionUpper = solution.toUpperCase();
-          const guessUpper = currentGuess.toUpperCase();
-          results = Array(wordLength).fill('absent');
-          const solutionChars = solutionUpper.split('');
-          const guessChars = guessUpper.split('');
+            // First pass: correct
+            guessChars.forEach((char, i) => {
+              if (char === solutionChars[i]) {
+                results[i] = 'correct';
+                solutionChars[i] = '';
+              }
+            });
 
-          // First pass: correct
-          guessChars.forEach((char, i) => {
-            if (char === solutionChars[i]) {
-              results[i] = 'correct';
-              solutionChars[i] = '';
-            }
-          });
-
-          // Second pass: present
-          guessChars.forEach((char, i) => {
-            if (results[i] !== 'correct' && solutionChars.includes(char)) {
-              results[i] = 'present';
-              const index = solutionChars.indexOf(char);
-              solutionChars[index] = '';
-            }
-          });
-          setIsLoading(false);
-        } else {
-          // Backend check
-          try {
-            const response = await checkAnswer(gameId, currentGuess);
-            if (response.error) {
-              setError(response.error);
+            // Second pass: present
+            guessChars.forEach((char, i) => {
+              if (results[i] !== 'correct' && solutionChars.includes(char)) {
+                results[i] = 'present';
+                const index = solutionChars.indexOf(char);
+                solutionChars[index] = '';
+              }
+            });
+            setIsLoading(false);
+          } else {
+            // Backend check
+            try {
+              const response = await checkAnswer(gameId, currentGuess);
+              if (response.error) {
+                setError(response.error);
+                setIsLoading(false);
+                return;
+              }
+              results = response.result;
+              setIsLoading(false);
+            } catch (e) {
+              console.error("Check answer failed", e);
+              setError("Failed to check answer");
               setIsLoading(false);
               return;
             }
-            results = response.result;
-            setIsLoading(false);
-          } catch (e) {
-            console.error("Check answer failed", e);
-            setError("Failed to check answer");
-            setIsLoading(false);
-            return;
           }
+
+          const newGuesses = [...guesses];
+          newGuesses[activeGuessIndex] = currentGuess;
+          setGuesses(newGuesses);
+
+          setGuessResults(prev => [...prev, results]);
+
+          setIsRevealing(true);
+        } finally {
+          setIsSubmitting(false);
         }
-
-        const newGuesses = [...guesses];
-        newGuesses[activeGuessIndex] = currentGuess;
-        setGuesses(newGuesses);
-
-        setGuessResults(prev => [...prev, results]);
-
-        setIsRevealing(true);
       } else {
         setError(`Word must be ${wordLength} letters`);
       }
@@ -242,7 +252,7 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
       setError(null);
       setCurrentGuess(prev => prev + key.toUpperCase());
     }
-  }, [currentGuess, activeGuessIndex, guesses, gameState, isRevealing, isReadOnly, isLoading, wordLength, checkWordValidity, showInstructions, gameId, isSample, isPreview, solution]);
+  }, [currentGuess, activeGuessIndex, guesses, gameState, isRevealing, isReadOnly, isLoading, wordLength, checkWordValidity, showInstructions, gameId, isSample, isPreview, solution, isSubmitting]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => handleKeyPress(e.key);

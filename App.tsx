@@ -24,7 +24,7 @@ const DeleteAccount = lazy(() => import('./components/auth/DeleteAccount'));
 const Profile = lazy(() => import('./components/Profile'));
 import ChallengeIntro from './components/dashboard/ChallengeIntro';
 import { Game, GameType, Challenge, GameSubmission, User } from './types';
-import { getChallenge, getDailyGame, getLeaderboard, getSubmissionForToday, getGamesForChallenge, getSubmissionsForUser, getGameState, getDailyMessage, DailyMessage as DailyMessageType } from './services/api';
+import { getChallenge, getDailyGame, getLeaderboard, getSubmissionForToday, getGamesForChallenge, getSubmissionsForUser, getGameState, getDailyMessage, getPublicFeatureFlags, DailyMessage as DailyMessageType } from './services/api';
 import ScoringCriteria from './components/dashboard/ScoringCriteria';
 import AddToHomeScreen from './components/ui/AddToHomeScreen';
 import DailyMessage from './components/dashboard/DailyMessage';
@@ -212,6 +212,17 @@ const MainContent: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
+      // Check feature flags first
+      const flags = await getPublicFeatureFlags();
+      if (flags.maintenance_mode && (!user || !user.isAdmin)) {
+        setIsMaintenance(true);
+        // Important: Stop loading other data if in maintenance
+        setIsLoading(false);
+        return;
+      } else {
+        setIsMaintenance(false);
+      }
+
       const currentChallenge = await getChallenge();
       setChallenge(currentChallenge);
       if (currentChallenge) {

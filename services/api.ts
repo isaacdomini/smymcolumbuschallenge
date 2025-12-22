@@ -686,6 +686,17 @@ export const getFeatureFlags = async (userId: string) => {
     return response.json();
 };
 
+export const getPublicFeatureFlags = async () => {
+    try {
+        const response = await fetch(`${API_BASE_URL}/feature-flags/public`);
+        if (!response.ok) throw new Error('Failed to fetch public flags');
+        return await response.json();
+    } catch (error) {
+        console.error("Error loading public flags", error);
+        return { maintenance_mode: false };
+    }
+};
+
 export const updateFeatureFlag = async (userId: string, key: string, enabled: boolean) => {
     const response = await fetch(`${API_BASE_URL}/admin/feature-flags/${key}`, {
         method: 'PUT',
