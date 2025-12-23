@@ -17,7 +17,8 @@ const LongTextPage: React.FC<LongTextPageProps> = ({ navigate }) => {
 
   useEffect(() => {
     // Read state from history because we passed it via pushState/navigate
-    const currentState = window.history.state?.usr;
+    // Note: App.tsx uses vanilla pushState so we access .state directly, not .state.usr
+    const currentState = window.history.state;
     if (currentState && currentState.title && currentState.text) {
       setState(currentState as MessageState);
     } else {
