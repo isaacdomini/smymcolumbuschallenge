@@ -259,14 +259,24 @@ const WhoAmIGame: React.FC<WhoAmIGameProps> = ({ gameId, gameData, submission, o
           for (let w = 0; w < words.length; w++) {
             const word = words[w];
             const wordChars = word.split('');
+            const len = word.length;
+            let boxClass = "w-8 h-12";
+            let textClass = "text-2xl";
+            let gapClass = "gap-1";
 
-            const isLongWord = word.length > 9;
-            const boxClass = isLongWord ? "w-6 h-10 mx-0.5" : "w-8 h-12 mx-0.5";
-            const textClass = isLongWord ? "text-xl" : "text-2xl";
+            if (len > 11) {
+              boxClass = "w-5 h-8 sm:w-6 sm:h-10"; // Very compact for long words
+              textClass = "text-base sm:text-lg";
+              gapClass = "gap-[1px] sm:gap-0.5";
+            } else if (len > 8) {
+              boxClass = "w-6 h-10";
+              textClass = "text-xl";
+              gapClass = "gap-0.5";
+            }
 
             // Render word container
             const wordElement = (
-              <div key={`word-${w}`} className="flex flex-nowrap gap-0.5">
+              <div key={`word-${w}`} className={`flex flex-nowrap ${gapClass}`}>
                 {wordChars.map((char, charIndex) => {
                   const globalIndex = currentIndex + charIndex;
                   return (
