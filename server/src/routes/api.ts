@@ -895,7 +895,21 @@ router.get('/banner-messages', async (req: Request, res: Response) => {
     const params: any[] = [userId];
 
     const result = await pool.query(query, params);
-    res.json(result.rows);
+
+    // Map snake_case database fields to camelCase for frontend
+    const mappedMessages = result.rows.map(msg => ({
+      id: msg.id,
+      content: msg.content,
+      type: msg.type,
+      linkUrl: msg.link_url,
+      linkText: msg.link_text,
+      createdAt: msg.created_at,
+      priority: msg.priority,
+      active: msg.active,
+      expiresAt: msg.expires_at
+    }));
+
+    res.json(mappedMessages);
   } catch (error) {
     console.error('Fetch banner messages error:', error);
     res.status(500).json({ error: 'Internal server error' });
