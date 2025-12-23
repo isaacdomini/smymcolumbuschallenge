@@ -39,28 +39,27 @@ const LongTextPage: React.FC<LongTextPageProps> = ({ navigate }) => {
 
     const doc = new jsPDF({
       orientation: 'p',
-      unit: 'px',
-      format: 'a4'
+      unit: 'pt', // Use points for better font-size mapping
+      format: 'letter' // Letter size (8.5x11 in)
     });
 
-    // A4 width in px at 96dpi is roughly 794px, 
-    // but jsPDF defaults to 1 user unit = 1 px if specified, or points.
-    // Let's rely on the html scaling. 
-    // jsPDF 'a4' size is 595.28 x 841.89 points (approx pixels at 72dpi).
-    // If we use 'px' unit, it might differ. 
-    // Best practice for doc.html is to let it scale.
-    // The input div is 595px width to match A4 point width roughly.
+    // Letter width is 612 pt.
+    // Margin 40pt left/right -> Printable width 532pt.
 
     await doc.html(input, {
       callback: function (doc) {
         doc.save(`${state.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`);
       },
-      x: 30, // Margins
-      y: 30,
-      width: 450, // Target width in the PDF document
-      windowWidth: 650, // Window width to render the HTML at
+      x: 40,
+      y: 40,
+      width: 532,
+      windowWidth: 550, // Slightly larger window to render cleanly
+      autoPaging: 'text',
       html2canvas: {
-        scale: 2 // Improve quality
+        scale: 1, // Reset scale to 1 to prevent huge blowing up usually
+        logging: false,
+        letterRendering: true,
+        useCORS: true
       }
     });
   };
@@ -85,7 +84,6 @@ const LongTextPage: React.FC<LongTextPageProps> = ({ navigate }) => {
         <div className="flex justify-between items-start mb-6 border-b border-gray-700 pb-4">
           <div>
             <h2 className="text-2xl md:text-3xl font-bold text-yellow-500 mb-2">{state.title}</h2>
-            {state.date && <p className="text-sm text-gray-400">{state.date}</p>}
           </div>
           <button
             onClick={handleDownloadPDF}
@@ -114,20 +112,20 @@ const LongTextPage: React.FC<LongTextPageProps> = ({ navigate }) => {
       <div
         id="pdf-content"
         style={{
-          position: 'fixed',
+          position: 'absolute',
           top: '0',
-          left: '0',
-          zIndex: -1000,
-          width: '600px', // Fixed width for A4
+          left: '-1000vw', // Move it far off-screen horizontally
+          width: '532px', // Matches the target width in PDF (approx 532pt printable)
           backgroundColor: '#ffffff',
           color: '#000000',
-          padding: '40px',
-          fontFamily: 'serif' // Better for reading
+          padding: '0px', // Handle padding in PDF margins instead
+          fontFamily: 'serif',
+          fontSize: '12pt',
+          lineHeight: '1.4'
         }}
-        className="prose prose-lg max-w-none text-black"
+        className="prose max-w-none text-black"
       >
-        <h1 style={{ fontSize: '32px', marginBottom: '10px', color: '#000000' }}>{state.title}</h1>
-        {state.date && <p style={{ fontSize: '14px', color: '#666666', marginBottom: '30px' }}>{state.date}</p>}
+        <h1 style={{ fontSize: '24pt', marginBottom: '10pt', color: '#000000', lineHeight: '1.2' }}>{state.title}</h1>
         <div style={{ color: '#000000' }}>
           <ReactMarkdown components={{
             h1: ({ node, ...props }) => <h1 style={{ color: 'black', borderBottom: '1px solid #ddd', paddingBottom: '10px' }} {...props} />,
