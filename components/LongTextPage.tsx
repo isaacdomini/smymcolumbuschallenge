@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
+import { getDailyMessage } from '../services/api';
+import { DailyMessageBlock } from '../types';
 
 interface LongTextPageProps {
   navigate: (path: string, state?: any) => void;
@@ -14,22 +16,85 @@ interface MessageState {
 
 const LongTextPage: React.FC<LongTextPageProps> = ({ navigate }) => {
   const [state, setState] = useState<MessageState | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Read state from history because we passed it via pushState/navigate
-    // Note: App.tsx uses vanilla pushState so we access .state directly, not .state.usr
-    const currentState = window.history.state;
-    if (currentState && currentState.title && currentState.text) {
-      setState(currentState as MessageState);
-    } else {
-      // Fallback or redirect if no state
+    const loadContent = async () => {
+      // 1. Try reading from history state (fastest, no fetch needed)
+      // Note: App.tsx uses vanilla pushState so we access .state directly, not .state.usr
+      const currentState = window.history.state;
+      if (currentState && currentState.title && currentState.text) {
+        setState(currentState as MessageState);
+        setLoading(false);
+        return;
+      }
+
+      // 2. Fallback: specific fix for some browsers/routers where state might be nested
+      if (currentState?.usr?.title && currentState?.usr?.text) {
+        setState(currentState.usr as MessageState);
+        setLoading(false);
+        return;
+      }
+
+      // 3. Permalinks: Check URL query parameters
+      const params = new URLSearchParams(window.location.search);
+      const dateParam = params.get('date');
+      const titleParam = params.get('title');
+
+      if (dateParam && titleParam) {
+        try {
+          const dailyMessage = await getDailyMessage(dateParam);
+          if (dailyMessage && dailyMessage.content) {
+            let blocks: any[] = [];
+            try {
+              blocks = typeof dailyMessage.content === 'string'
+                ? JSON.parse(dailyMessage.content)
+                : dailyMessage.content;
+            } catch (e) {
+              console.error("Failed to parse daily message content", e);
+            }
+
+            // Find the block with the matching title
+            // Decode title param just in case (though searchParams handles most)
+            const targetBlock = blocks.find((b: any) =>
+              b.type === 'long_text' && b.title === titleParam
+            );
+
+            if (targetBlock) {
+              setState({
+                title: targetBlock.title,
+                text: targetBlock.text,
+                date: dailyMessage.date,
+                pdfUrl: targetBlock.pdfUrl
+              });
+              setLoading(false);
+              return;
+            }
+          }
+        } catch (err) {
+          console.error("Error fetching daily message for permalink", err);
+        }
+      }
+
+      // 4. Default: Redirect home if nothing worked
       navigate('/');
-    }
+    };
+
+    loadContent();
   }, [navigate]);
 
-  if (!state) {
-    return <div className="p-8 text-center text-gray-400">Loading...</div>;
+  if (loading) {
+    return (
+      <div className="container mx-auto p-4 md:p-6 min-h-screen flex items-center justify-center">
+        <div className="text-gray-400 flex flex-col items-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mb-4"></div>
+          Loading content...
+        </div>
+      </div>
+    );
   }
+
+  if (!state) return null; // Should have redirected by now
 
   const handleDownloadPDF = () => {
     if (state.pdfUrl) {

@@ -982,10 +982,22 @@ export interface DailyMessage {
 export const getDailyMessage = async (date?: string): Promise<DailyMessage | null> => {
     if (USE_MOCK_DATA || await isTestUser()) {
         // Mock data
+        const mockContent = JSON.stringify([
+            {
+                type: 'paragraph',
+                text: 'This is a mock daily message for testing purposes.'
+            },
+            {
+                type: 'long_text',
+                title: 'Mock Long Text',
+                text: 'This is a detailed mock long text content that allows testing of the permalink functionality. It simulates the structure of a real daily message with a long text block.',
+                pdfUrl: 'https://example.com/mock.pdf'
+            }
+        ]);
         return {
             id: 'msg-mock',
             date: date || new Date().toISOString().split('T')[0],
-            content: 'This is a mock daily message for testing purposes.'
+            content: mockContent
         };
     }
     const query = date ? `?date=${date}` : '';
