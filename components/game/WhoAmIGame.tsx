@@ -12,8 +12,8 @@ interface WhoAmIGameProps {
 }
 
 const SAMPLE_DATA: WhoAmIData = {
-  answer: "DAVID",
-  hint: "A man after God's own heart"
+  answer: "THE HOLY BIBLE",
+  hint: "Read it every day"
 };
 
 const KEYBOARD_ROWS = [

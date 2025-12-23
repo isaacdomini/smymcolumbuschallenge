@@ -114,7 +114,7 @@ const LongTextPage: React.FC<LongTextPageProps> = ({ navigate }) => {
         style={{
           position: 'absolute',
           top: '0',
-          left: '-1000vw', // Move it far off-screen horizontally
+          left: '-3000px', // Move it off-screen but within renderable limits
           width: '532px', // Matches the target width in PDF (approx 532pt printable)
           backgroundColor: '#ffffff',
           color: '#000000',
