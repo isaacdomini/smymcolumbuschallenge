@@ -128,6 +128,13 @@ const DailyMessageManager: React.FC = () => {
                 >
                   + Verse
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setBlocks([...blocks, { type: 'long_text', title: '', text: '' }])}
+                  className="bg-gray-700 hover:bg-gray-600 text-xs text-white px-3 py-1 rounded"
+                >
+                  + Long Text
+                </button>
               </div>
             </div>
 
@@ -171,60 +178,98 @@ const DailyMessageManager: React.FC = () => {
                   </button>
                 </div>
 
-                {block.type === 'paragraph' ? (
-                  <div>
-                    <label className="text-xs text-gray-500 mb-1 block">Paragraph (Markdown supported)</label>
-                    <textarea
-                      value={block.text}
-                      onChange={(e) => {
-                        const newBlocks = [...blocks];
-                        if (newBlocks[index].type === 'paragraph') {
-                          newBlocks[index].text = e.target.value;
-                          setBlocks(newBlocks);
-                        }
-                      }}
-                      rows={3}
-                      className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white focus:border-yellow-500 focus:outline-none"
-                      placeholder="Enter paragraph text..."
-                    />
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <label className="text-xs text-yellow-500/70 mb-1 block">Verse</label>
-                    <textarea
-                      value={block.text}
-                      onChange={(e) => {
-                        const newBlocks = [...blocks];
-                        if (newBlocks[index].type === 'verse') {
-                          newBlocks[index].text = e.target.value;
-                          setBlocks(newBlocks);
-                        }
-                      }}
-                      rows={2}
-                      className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white italic focus:border-yellow-500 focus:outline-none"
-                      placeholder="Enter verse text..."
-                    />
-                    <input
-                      type="text"
-                      value={block.reference}
-                      onChange={(e) => {
-                        const newBlocks = [...blocks];
-                        if (newBlocks[index].type === 'verse') {
-                          newBlocks[index].reference = e.target.value;
-                          setBlocks(newBlocks);
-                        }
-                      }}
-                      className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white text-sm focus:border-yellow-500 focus:outline-none"
-                      placeholder="Reference (e.g. John 3:16)"
-                    />
-                  </div>
-                )}
+                {(() => {
+                  if (block.type === 'paragraph') {
+                    return (
+                      <div>
+                        <label className="text-xs text-gray-500 mb-1 block">Paragraph (Markdown supported)</label>
+                        <textarea
+                          value={block.text}
+                          onChange={(e) => {
+                            const newBlocks = [...blocks];
+                            if (newBlocks[index].type === 'paragraph') {
+                              newBlocks[index].text = e.target.value;
+                              setBlocks(newBlocks);
+                            }
+                          }}
+                          rows={3}
+                          className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white focus:border-yellow-500 focus:outline-none"
+                          placeholder="Enter paragraph text..."
+                        />
+                      </div>
+                    );
+                  } else if (block.type === 'verse') {
+                    return (
+                      <div className="space-y-2">
+                        <label className="text-xs text-yellow-500/70 mb-1 block">Verse</label>
+                        <textarea
+                          value={block.text}
+                          onChange={(e) => {
+                            const newBlocks = [...blocks];
+                            if (newBlocks[index].type === 'verse') {
+                              newBlocks[index].text = e.target.value;
+                              setBlocks(newBlocks);
+                            }
+                          }}
+                          rows={2}
+                          className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white italic focus:border-yellow-500 focus:outline-none"
+                          placeholder="Enter verse text..."
+                        />
+                        <input
+                          type="text"
+                          value={block.reference}
+                          onChange={(e) => {
+                            const newBlocks = [...blocks];
+                            if (newBlocks[index].type === 'verse') {
+                              newBlocks[index].reference = e.target.value;
+                              setBlocks(newBlocks);
+                            }
+                          }}
+                          className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white text-sm focus:border-yellow-500 focus:outline-none"
+                          placeholder="Reference (e.g. John 3:16)"
+                        />
+                      </div>
+                    );
+                  } else {
+                    return (
+                      <div className="space-y-2">
+                        <label className="text-xs text-blue-400 mb-1 block">Long Text (Link)</label>
+                        <input
+                          type="text"
+                          value={block.title}
+                          onChange={(e) => {
+                            const newBlocks = [...blocks];
+                            if (newBlocks[index].type === 'long_text') {
+                              newBlocks[index].title = e.target.value;
+                              setBlocks(newBlocks);
+                            }
+                          }}
+                          className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white font-bold focus:border-yellow-500 focus:outline-none"
+                          placeholder="Title (e.g. Daily Reflection)"
+                        />
+                        <textarea
+                          value={block.text}
+                          onChange={(e) => {
+                            const newBlocks = [...blocks];
+                            if (newBlocks[index].type === 'long_text') {
+                              newBlocks[index].text = e.target.value;
+                              setBlocks(newBlocks);
+                            }
+                          }}
+                          rows={5}
+                          className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white focus:border-yellow-500 focus:outline-none font-mono text-sm"
+                          placeholder="Enter long text content (Markdown supported)..."
+                        />
+                      </div>
+                    );
+                  }
+                })()}
               </div>
             ))}
 
             {blocks.length === 0 && (
               <div className="text-center py-8 border-2 border-dashed border-gray-700 rounded-lg text-gray-500">
-                No content blocks. Add a paragraph or verse to start.
+                No content blocks. Add a paragraph, verse, or long text to start.
               </div>
             )}
           </div>

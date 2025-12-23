@@ -5,9 +5,10 @@ import ReactMarkdown from 'react-markdown';
 interface DailyMessageProps {
   message: DailyMessageType | null;
   isBlurred: boolean;
+  navigate: (path: string, state?: any) => void;
 }
 
-const DailyMessage: React.FC<DailyMessageProps> = ({ message, isBlurred }) => {
+const DailyMessage: React.FC<DailyMessageProps> = ({ message, isBlurred, navigate }) => {
   if (!message) return null;
 
   return (
@@ -28,6 +29,20 @@ const DailyMessage: React.FC<DailyMessageProps> = ({ message, isBlurred }) => {
                         </div>
                       </div>
                     );
+                  } else if (block.type === 'long_text') {
+                    return (
+                      <div key={i} className="mb-4">
+                        <button
+                          onClick={() => navigate('/message-viewer', { title: block.title, text: block.text, date: message.date })}
+                          className="w-full text-left bg-gray-700 hover:bg-gray-600 transition-colors p-4 rounded-lg border border-gray-600 group"
+                        >
+                          <div className="flex justify-between items-center">
+                            <span className="font-bold text-blue-300 group-hover:text-blue-200 text-lg">📄 {block.title}</span>
+                            <span className="text-gray-400 group-hover:text-white">Read & Download →</span>
+                          </div>
+                        </button>
+                      </div>
+                    )
                   } else {
                     return (
                       <div key={i} className="mb-4 text-gray-300 markdown-content">

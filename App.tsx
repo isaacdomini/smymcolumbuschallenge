@@ -22,6 +22,7 @@ const AdminDashboard = lazy(() => import('./components/admin/AdminDashboard'));
 const PrivacyPolicy = lazy(() => import('./components/PrivacyPolicy'));
 const DeleteAccount = lazy(() => import('./components/auth/DeleteAccount'));
 const Profile = lazy(() => import('./components/Profile'));
+const LongTextPage = lazy(() => import('./components/LongTextPage'));
 import ChallengeIntro from './components/dashboard/ChallengeIntro';
 import { Game, GameType, Challenge, GameSubmission, User } from './types';
 import { getChallenge, getDailyGame, getLeaderboard, getSubmissionForToday, getGamesForChallenge, getSubmissionsForUser, getGameState, getDailyMessage, getPublicFeatureFlags, DailyMessage as DailyMessageType } from './services/api';
@@ -188,8 +189,8 @@ const MainContent: React.FC = () => {
   }, []);
 
 
-  const navigate = useCallback((path: string) => {
-    window.history.pushState({}, '', path);
+  const navigate = useCallback((path: string, state?: any) => {
+    window.history.pushState(state || {}, '', path);
     setLocationPath(path);
   }, []);
 
@@ -204,7 +205,7 @@ const MainContent: React.FC = () => {
   }, []);
 
   const fetchInitialData = useCallback(async () => {
-    if (locationPath.startsWith('/reset-password') || locationPath.startsWith('/admin') || locationPath.startsWith('/privacy') || locationPath.startsWith('/request-deletion') || locationPath.startsWith('/profile')) {
+    if (locationPath.startsWith('/reset-password') || locationPath.startsWith('/admin') || locationPath.startsWith('/privacy') || locationPath.startsWith('/request-deletion') || locationPath.startsWith('/profile') || locationPath === '/message-viewer') {
       setIsLoading(false);
       return;
     }
@@ -318,6 +319,9 @@ const MainContent: React.FC = () => {
     }
     if (locationPath.startsWith('/profile')) {
       return <Profile onBack={() => navigate('/')} />;
+    }
+    if (locationPath === '/message-viewer') {
+      return <LongTextPage navigate={navigate} />;
     }
     if (locationPath.startsWith('/admin')) {
       if (!user || !user.isAdmin) {
@@ -455,7 +459,7 @@ const MainContent: React.FC = () => {
         <BannerMessage />
         {challengeStarted && challenge ? (
           <>
-            <DailyMessage message={dailyMessage} isBlurred={!todaysSubmission && !!todaysGame} />
+            <DailyMessage message={dailyMessage} isBlurred={!todaysSubmission && !!todaysGame} navigate={navigate} />
             <LeaderboardWrapper challengeId={challenge.id} />
           </>
         ) : null}
