@@ -112,9 +112,10 @@ const LongTextPage: React.FC<LongTextPageProps> = ({ navigate }) => {
       <div
         id="pdf-content"
         style={{
-          position: 'absolute',
+          position: 'fixed',
+          zIndex: -1000,
           top: '0',
-          left: '-3000px', // Move it off-screen but within renderable limits
+          left: '0', // Must be in viewport for html2canvas capture
           width: '532px', // Matches the target width in PDF (approx 532pt printable)
           backgroundColor: '#ffffff',
           color: '#000000',
