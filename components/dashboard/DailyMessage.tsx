@@ -1,5 +1,6 @@
 import React from 'react';
 import { DailyMessage as DailyMessageType } from '../../services/api';
+import ReactMarkdown from 'react-markdown';
 
 interface DailyMessageProps {
   message: DailyMessageType | null;
@@ -11,7 +12,7 @@ const DailyMessage: React.FC<DailyMessageProps> = ({ message, isBlurred }) => {
 
   return (
     <div className="mb-8 bg-gray-800 rounded-lg shadow-lg overflow-hidden border border-gray-700 relative">
-      <div className="p-6 text-center">
+      <div className="p-6 text-left">
         <div className={`text-gray-300 text-lg leading-relaxed ${isBlurred ? 'blur-md select-none pointer-events-none' : ''}`}>
           {(() => {
             try {
@@ -28,7 +29,18 @@ const DailyMessage: React.FC<DailyMessageProps> = ({ message, isBlurred }) => {
                       </div>
                     );
                   } else {
-                    return <p key={i} className="mb-4 text-gray-300">{block.text}</p>;
+                    return (
+                      <div key={i} className="mb-4 text-gray-300 markdown-content">
+                        <ReactMarkdown
+                          components={{
+                            a: ({ node, ...props }) => <a {...props} className="text-blue-400 hover:underline" target="_blank" rel="noopener noreferrer" />,
+                            p: ({ node, ...props }) => <p {...props} className="mb-2" />
+                          }}
+                        >
+                          {block.text}
+                        </ReactMarkdown>
+                      </div>
+                    );
                   }
                 });
               }

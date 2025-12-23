@@ -252,28 +252,26 @@ const WhoAmIGame: React.FC<WhoAmIGameProps> = ({ gameId, gameData, submission, o
       <div className="flex flex-wrap justify-center gap-x-6 gap-y-4 mb-10 w-full">
         {(() => {
           const displayElements = [];
-          
+
           let currentIndex = 0;
           const words = maskedAnswer.split(' ');
-          
+
           for (let w = 0; w < words.length; w++) {
             const word = words[w];
             const wordChars = word.split('');
-            
+
+            const isLongWord = word.length > 9;
+            const boxClass = isLongWord ? "w-6 h-10 mx-0.5" : "w-8 h-12 mx-0.5";
+            const textClass = isLongWord ? "text-xl" : "text-2xl";
+
             // Render word container
             const wordElement = (
-              <div key={`word-${w}`} className="flex flex-nowrap gap-1">
+              <div key={`word-${w}`} className="flex flex-nowrap gap-0.5">
                 {wordChars.map((char, charIndex) => {
                   const globalIndex = currentIndex + charIndex;
-                  const isSpace = char === ' '; 
-                  // Note: splitting by space removes spaces from 'word', so char won't be space here typically unless maskedAnswer has multiple spaces? 
-                  // maskedAnswer comes from .replace(/[a-zA-Z0-9]/g, '_') on original answer.
-                  // Original answer likely has single spaces. Splitting by ' ' consumes them.
-                  // So we assume these are non-space chars (underscores or revealed letters).
-                  
                   return (
-                    <div key={`char-${globalIndex}`} className="w-8 h-12 flex items-end justify-center border-b-4 border-gray-500 mx-0.5">
-                       <span className={`text-2xl font-bold ${revealedPositions.includes(globalIndex) ? 'visible' : 'invisible'}`}>
+                    <div key={`char-${globalIndex}`} className={`${boxClass} flex items-end justify-center border-b-4 border-gray-500`}>
+                      <span className={`${textClass} font-bold ${revealedPositions.includes(globalIndex) ? 'visible' : 'invisible'}`}>
                         {isSample ? SAMPLE_DATA.answer[globalIndex] : (revealedMap[globalIndex] || '?')}
                       </span>
                     </div>
@@ -281,19 +279,19 @@ const WhoAmIGame: React.FC<WhoAmIGameProps> = ({ gameId, gameData, submission, o
                 })}
               </div>
             );
-            
+
             displayElements.push(wordElement);
-            
+
             // Advance index by word length
             currentIndex += word.length;
-            
+
             // Add space logic if not last word
             if (w < words.length - 1) {
               // The original string had a space here. We need to account for its index.
-              currentIndex += 1; 
+              currentIndex += 1;
             }
           }
-          
+
           return displayElements;
         })()}
       </div>
@@ -380,7 +378,6 @@ const WhoAmIGame: React.FC<WhoAmIGameProps> = ({ gameId, gameData, submission, o
           {gameState === 'lost' && (
             <div className="mb-4">
               <p className="text-xl text-red-400 font-bold mb-2">Game Over</p>
-              <p className="text-gray-300">The answer was hidden.</p>
             </div>
           )}
           <button onClick={onComplete} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-full transition-transform hover:scale-105">

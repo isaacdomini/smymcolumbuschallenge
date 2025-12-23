@@ -173,7 +173,7 @@ const DailyMessageManager: React.FC = () => {
 
                 {block.type === 'paragraph' ? (
                   <div>
-                    <label className="text-xs text-gray-500 mb-1 block">Paragraph</label>
+                    <label className="text-xs text-gray-500 mb-1 block">Paragraph (Markdown supported)</label>
                     <textarea
                       value={block.text}
                       onChange={(e) => {
