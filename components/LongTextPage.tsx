@@ -58,7 +58,10 @@ const LongTextPage: React.FC<LongTextPageProps> = ({ navigate }) => {
       x: 30, // Margins
       y: 30,
       width: 450, // Target width in the PDF document
-      windowWidth: 650 // Window width to render the HTML at
+      windowWidth: 650, // Window width to render the HTML at
+      html2canvas: {
+        scale: 2 // Improve quality
+      }
     });
   };
 
@@ -107,12 +110,14 @@ const LongTextPage: React.FC<LongTextPageProps> = ({ navigate }) => {
       </div>
 
       {/* Hidden Light Mode Content for PDF Generation */}
+      {/* We use z-index -1000 and fixed position to ensure it renders but is hidden behind main content */}
       <div
         id="pdf-content"
         style={{
-          position: 'absolute',
-          top: '-10000px',
-          left: '-10000px',
+          position: 'fixed',
+          top: '0',
+          left: '0',
+          zIndex: -1000,
           width: '600px', // Fixed width for A4
           backgroundColor: '#ffffff',
           color: '#000000',
