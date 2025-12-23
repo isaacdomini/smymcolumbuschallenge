@@ -249,49 +249,53 @@ const WhoAmIGame: React.FC<WhoAmIGameProps> = ({ gameId, gameData, submission, o
       )}
 
       {/* Word Display */}
-      <div className="flex flex-wrap justify-center gap-2 mb-10">
-        {maskedAnswer.split('').map((char, i) => {
-          const isSpace = char === ' '; // maskedAnswer preserves spaces? Yes, we replaced [a-zA-Z0-9]/g, _.
-          // Wait, maskedAnswer in api.ts: `gameData.answer.replace(/[a-zA-Z0-9]/g, '_')`.
-          // So spaces remain spaces.
-          // If it's a space, we show space.
-          // If it's _, we show blank or letter if revealed.
-
-          // For sample, we have answer.
-          // For real game, we have maskedAnswer and revealedPositions.
-
-          let displayChar = '';
-          if (isSample) {
-            displayChar = SAMPLE_DATA.answer[i];
-          } else {
-            // We don't have the letter locally unless we revealed it!
-            // Wait, checkAnswer returns positions, but does it return the letter?
-            // No, checkAnswer returns { correct: true, positions: [...] }.
-            // It does NOT return the letter because we sent the letter!
-            // So we know the letter.
-            // But we need to map position to letter.
-            // We can reconstruct the word from guessedLetters and positions?
-            // Yes. If i is in revealedPositions, we need to find which guessed letter corresponds to it?
-            // No, we can just iterate guessedLetters and check if they are correct?
-            // But we don't know which letter is at position i unless we store it.
-            // We stored `revealedPositions`. But we didn't store "position i is letter X".
-            // We need to store that mapping.
-            // Or we can just use `guessedLetters` if I had the answer.
-            // But I don't have the answer.
-
-            // So I need `revealedMap`: { [index: number]: string }.
-            // I'll update the state to include `revealedMap` or derive it.
-            // I'll update handleGuess to update a map.
+      <div className="flex flex-wrap justify-center gap-x-6 gap-y-4 mb-10 w-full">
+        {(() => {
+          const displayElements = [];
+          
+          let currentIndex = 0;
+          const words = maskedAnswer.split(' ');
+          
+          for (let w = 0; w < words.length; w++) {
+            const word = words[w];
+            const wordChars = word.split('');
+            
+            // Render word container
+            const wordElement = (
+              <div key={`word-${w}`} className="flex flex-nowrap gap-1">
+                {wordChars.map((char, charIndex) => {
+                  const globalIndex = currentIndex + charIndex;
+                  const isSpace = char === ' '; 
+                  // Note: splitting by space removes spaces from 'word', so char won't be space here typically unless maskedAnswer has multiple spaces? 
+                  // maskedAnswer comes from .replace(/[a-zA-Z0-9]/g, '_') on original answer.
+                  // Original answer likely has single spaces. Splitting by ' ' consumes them.
+                  // So we assume these are non-space chars (underscores or revealed letters).
+                  
+                  return (
+                    <div key={`char-${globalIndex}`} className="w-8 h-12 flex items-end justify-center border-b-4 border-gray-500 mx-0.5">
+                       <span className={`text-2xl font-bold ${revealedPositions.includes(globalIndex) ? 'visible' : 'invisible'}`}>
+                        {isSample ? SAMPLE_DATA.answer[globalIndex] : (revealedMap[globalIndex] || '?')}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+            
+            displayElements.push(wordElement);
+            
+            // Advance index by word length
+            currentIndex += word.length;
+            
+            // Add space logic if not last word
+            if (w < words.length - 1) {
+              // The original string had a space here. We need to account for its index.
+              currentIndex += 1; 
+            }
           }
-
-          return (
-            <div key={i} className={`w-10 h-12 flex items-end justify-center border-b-4 ${isSpace ? 'border-transparent' : 'border-gray-500'} mx-1`}>
-              <span className={`text-3xl font-bold ${revealedPositions.includes(i) || isSpace ? 'visible' : 'invisible'}`}>
-                {isSpace ? ' ' : (isSample ? SAMPLE_DATA.answer[i] : (revealedMap[i] || '?'))}
-              </span>
-            </div>
-          );
-        })}
+          
+          return displayElements;
+        })()}
       </div>
 
       {/* Hangman Visual & Mistakes */}
