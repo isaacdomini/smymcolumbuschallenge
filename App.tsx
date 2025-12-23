@@ -320,7 +320,7 @@ const MainContent: React.FC = () => {
     if (locationPath.startsWith('/profile')) {
       return <Profile onBack={() => navigate('/')} />;
     }
-    if (locationPath === '/message-viewer') {
+    if (locationPath.startsWith('/message-viewer')) {
       return <LongTextPage navigate={navigate} />;
     }
     if (locationPath.startsWith('/admin')) {
