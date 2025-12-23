@@ -33,7 +33,7 @@ const DailyMessage: React.FC<DailyMessageProps> = ({ message, isBlurred, navigat
                     return (
                       <div key={i} className="mb-4">
                         <button
-                          onClick={() => navigate('/message-viewer', { title: block.title, text: block.text, date: message.date })}
+                          onClick={() => navigate('/message-viewer', { title: block.title, text: block.text, date: message.date, pdfUrl: block.pdfUrl })}
                           className="w-full text-left bg-gray-700 hover:bg-gray-600 transition-colors p-4 rounded-lg border border-gray-600 group"
                         >
                           <div className="flex justify-between items-center">

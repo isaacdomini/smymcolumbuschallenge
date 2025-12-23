@@ -260,6 +260,19 @@ const DailyMessageManager: React.FC = () => {
                           className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white focus:border-yellow-500 focus:outline-none font-mono text-sm"
                           placeholder="Enter long text content (Markdown supported)..."
                         />
+                        <input
+                          type="text"
+                          value={block.pdfUrl || ''}
+                          onChange={(e) => {
+                            const newBlocks = [...blocks];
+                            if (newBlocks[index].type === 'long_text') {
+                              newBlocks[index].pdfUrl = e.target.value;
+                              setBlocks(newBlocks);
+                            }
+                          }}
+                          className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white text-sm focus:border-yellow-500 focus:outline-none"
+                          placeholder="PDF Download URL (Optional) - e.g. https://example.com/file.pdf"
+                        />
                       </div>
                     );
                   }
