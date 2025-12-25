@@ -27,7 +27,7 @@ const LongTextPage = lazy(() => import('./components/LongTextPage'));
 import ChallengeIntro from './components/dashboard/ChallengeIntro';
 const ChristmasFlair = lazy(() => import('./components/ChristmasFlair'));
 import { Game, GameType, Challenge, GameSubmission, User } from './types';
-import { getChallenge, getDailyGame, getLeaderboard, getSubmissionForToday, getGamesForChallenge, getSubmissionsForUser, getGameState, getDailyMessage, getPublicFeatureFlags, DailyMessage as DailyMessageType } from './services/api';
+import { getChallenge, getDailyGame, getLeaderboard, getSubmissionForToday, getGamesForChallenge, getSubmissionsForUser, getGameState, getDailyMessage, getPublicFeatureFlags, getServerVersion, DailyMessage as DailyMessageType } from './services/api';
 import ScoringCriteria from './components/dashboard/ScoringCriteria';
 import AddToHomeScreen from './components/ui/AddToHomeScreen';
 import DailyMessage from './components/dashboard/DailyMessage';
@@ -37,10 +37,10 @@ import { Capacitor } from '@capacitor/core';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { App as CapacitorApp, URLOpenListenerEvent } from '@capacitor/app';
 import { PushNotifications } from '@capacitor/push-notifications';
-// --- FIXED: Import the CORRECT Badge plugin ---
 import { Badge } from '@capawesome/capacitor-badge';
 import { IonApp, IonContent, IonRefresher, IonRefresherContent } from '@ionic/react';
 import { RefresherEventDetail } from '@ionic/core';
+import { version as APP_VERSION } from './package.json';
 
 // A simple loading component for Suspense
 const LoadingFallback: React.FC = () => (
@@ -188,6 +188,31 @@ const MainContent: React.FC = () => {
     addResumeListener();
     addAppUrlOpenListener();
     clearBadgeOnLoad();
+
+    // Check version
+    const checkVersion = async () => {
+      if (import.meta.env.MODE === 'development') return; // Skip in dev
+
+      const serverData = await getServerVersion();
+      if (serverData && serverData.version && serverData.version !== APP_VERSION) {
+        console.log(`Version mismatch: Local ${APP_VERSION} vs Server ${serverData.version}. Reloading...`);
+        // Force reload
+        // Add timestamp to prevent infinite loop if server caches old version
+        // Force reload with cache busting
+        const url = new URL(window.location.href);
+        url.searchParams.set('v', serverData.version); // Track version
+        url.searchParams.set('t', Date.now().toString()); // Bust cache
+        window.location.replace(url.toString());
+      }
+    };
+
+    // Check on load
+    checkVersion();
+
+    // Check on resume
+    if (Capacitor.isNativePlatform()) {
+      CapacitorApp.addListener('resume', checkVersion);
+    }
 
   }, []);
 

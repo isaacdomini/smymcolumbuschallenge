@@ -20,6 +20,15 @@ router.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok' });
 });
 
+// --- VERSION CHECK ---
+router.get('/version', (req, res) => {
+  // Hardcoded for now to match package.json, or read it. 
+  // Since we are compiling, reading package.json at runtime might be tricky depending on build structure.
+  // Simplest is to update this manually or via build script. 
+  // For this environment, let's hardcode '0.1.0' to match what we just set.
+  res.json({ version: '0.1.0' });
+});
+
 // Helper to get 'YYYY-MM-DD' in Eastern Time
 export const getTodayEST = () => {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });

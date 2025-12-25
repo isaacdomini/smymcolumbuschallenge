@@ -1227,6 +1227,7 @@ export const getScoringCriteria = async (): Promise<any[]> => {
     ];
 };
 
+
 export const getUserChallenges = async (): Promise<Challenge[]> => {
     const response = await fetch(`${API_BASE_URL}/user/challenges`, {
         headers: await getAuthHeaders()
@@ -1235,4 +1236,16 @@ export const getUserChallenges = async (): Promise<Challenge[]> => {
         throw new Error('Failed to fetch user challenges');
     }
     return await response.json();
+};
+
+export const getServerVersion = async (): Promise<{ version: string }> => {
+    try {
+        const response = await fetch(`${API_BASE_URL}/version`);
+        if (!response.ok) throw new Error('Failed to fetch version');
+        return await response.json();
+    } catch (e) {
+        console.error("Failed to fetch server version", e);
+        // Return default or empty if fail, to avoid blocking app
+        return { version: '' };
+    }
 };
