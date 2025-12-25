@@ -1,17 +1,19 @@
 import React from 'react';
 import { DailyMessage as DailyMessageType } from '../../services/api';
+import ReactMarkdown from 'react-markdown';
 
 interface DailyMessageProps {
   message: DailyMessageType | null;
   isBlurred: boolean;
+  navigate: (path: string, state?: any) => void;
 }
 
-const DailyMessage: React.FC<DailyMessageProps> = ({ message, isBlurred }) => {
+const DailyMessage: React.FC<DailyMessageProps> = ({ message, isBlurred, navigate }) => {
   if (!message) return null;
 
   return (
     <div className="mb-8 bg-gray-800 rounded-lg shadow-lg overflow-hidden border border-gray-700 relative">
-      <div className="p-6 text-center">
+      <div className="p-6 text-left">
         <div className={`text-gray-300 text-lg leading-relaxed ${isBlurred ? 'blur-md select-none pointer-events-none' : ''}`}>
           {(() => {
             try {
@@ -27,8 +29,33 @@ const DailyMessage: React.FC<DailyMessageProps> = ({ message, isBlurred }) => {
                         </div>
                       </div>
                     );
+                  } else if (block.type === 'long_text') {
+                    return (
+                      <div key={i} className="mb-4">
+                        <button
+                          onClick={() => navigate(`/message-viewer?date=${message.date}&title=${encodeURIComponent(block.title)}`, { title: block.title, text: block.text, date: message.date, pdfUrl: block.pdfUrl })}
+                          className="w-full text-left bg-gray-700 hover:bg-gray-600 transition-colors p-4 rounded-lg border border-gray-600 group"
+                        >
+                          <div className="flex justify-between items-center">
+                            <span className="font-bold text-blue-300 group-hover:text-blue-200 text-lg">📄 {block.title}</span>
+                            <span className="text-gray-400 group-hover:text-white">Read & Download →</span>
+                          </div>
+                        </button>
+                      </div>
+                    )
                   } else {
-                    return <p key={i} className="mb-4 text-gray-300">{block.text}</p>;
+                    return (
+                      <div key={i} className="mb-4 text-gray-300 markdown-content">
+                        <ReactMarkdown
+                          components={{
+                            a: ({ node, ...props }) => <a {...props} className="text-blue-400 hover:underline" target="_blank" rel="noopener noreferrer" />,
+                            p: ({ node, ...props }) => <p {...props} className="mb-2" />
+                          }}
+                        >
+                          {block.text}
+                        </ReactMarkdown>
+                      </div>
+                    );
                   }
                 });
               }

@@ -191,7 +191,24 @@ CREATE TABLE IF NOT EXISTS user_message_dismissals (
   )`,
   `ALTER TABLE banner_messages ADD COLUMN IF NOT EXISTS link_url TEXT`,
   `ALTER TABLE banner_messages ADD COLUMN IF NOT EXISTS link_text TEXT`,
-  `ALTER TABLE banner_messages ADD COLUMN IF NOT EXISTS priority VARCHAR(20) DEFAULT 'normal'`
+  `ALTER TABLE banner_messages ADD COLUMN IF NOT EXISTS priority VARCHAR(20) DEFAULT 'normal'`,
+
+  // ADDED: Word Bank for Challenges
+  `ALTER TABLE challenges ADD COLUMN IF NOT EXISTS word_bank JSONB`,
+
+  // feature_flags table
+  `CREATE TABLE IF NOT EXISTS feature_flags (
+    key VARCHAR(255) PRIMARY KEY,
+    enabled BOOLEAN DEFAULT false,
+    description TEXT,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`,
+
+  // Seed default flag for game revisit
+  `INSERT INTO feature_flags (key, enabled, description) 
+   VALUES ('allow_game_revisit', true, 'Allow users to revisit completed games')
+   ON CONFLICT (key) DO NOTHING`
+
 ];
 
 async function runMigrations() {
@@ -201,6 +218,13 @@ async function runMigrations() {
     for (const migration of migrations) {
       await client.query(migration);
     }
+
+    // Seed default challenge
+    await client.query(
+      'INSERT INTO challenges (id, name, start_date, end_date) VALUES ($1, $2, $3, $4) ON CONFLICT (id) DO UPDATE SET start_date = EXCLUDED.start_date, end_date = EXCLUDED.end_date',
+      ['challenge-default', 'General Collection', new Date('2024-01-01T00:00:00Z'), new Date('2030-12-31T23:59:59Z')]
+    );
+
     console.log('Migrations completed successfully!');
   } catch (error) {
     console.error('Migration error:', error);

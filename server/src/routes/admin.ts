@@ -142,6 +142,82 @@ router.get('/logs', async (req: Request, res: Response) => {
     }
 });
 
+// --- SUBMISSIONS ---
+
+router.get('/submissions', async (req: Request, res: Response) => {
+    try {
+        const limit = parseInt(req.query.limit as string) || 50;
+        const offset = parseInt(req.query.offset as string) || 0;
+        const gameId = req.query.gameId as string;
+        const gameType = req.query.gameType as string;
+        const userId = req.query.userId as string;
+
+        let query = `
+            SELECT gs.*, u.name as user_name, u.email as user_email, g.type as game_type, g.date as game_date 
+            FROM game_submissions gs
+            LEFT JOIN users u ON gs.user_id = u.id
+            LEFT JOIN games g ON gs.game_id = g.id
+        `;
+        const params: any[] = [];
+        const conditions: string[] = [];
+
+        if (gameId) {
+            conditions.push(`gs.game_id = $${params.length + 1}`);
+            params.push(gameId);
+        }
+        if (gameType && gameType !== 'all') {
+            conditions.push(`g.type = $${params.length + 1}`);
+            params.push(gameType);
+        }
+        if (userId) {
+            conditions.push(`gs.user_id = $${params.length + 1}`);
+            params.push(userId);
+        }
+
+        if (conditions.length > 0) {
+            query += ' WHERE ' + conditions.join(' AND ');
+        }
+
+        query += ` ORDER BY gs.completed_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+        params.push(limit, offset);
+
+        const result = await pool.query(query, params);
+
+        // Count total for pagination
+        let countQuery = `
+            SELECT COUNT(*) 
+            FROM game_submissions gs
+            LEFT JOIN games g ON gs.game_id = g.id
+        `;
+        if (conditions.length > 0) {
+            countQuery += ' WHERE ' + conditions.join(' AND ');
+        }
+        // Reuse params for count, omitting limit/offset which are last 2
+        const countResult = await pool.query(countQuery, params.slice(0, -2));
+
+        res.json({
+            submissions: result.rows.map(row => ({
+                id: row.id,
+                userId: row.user_id,
+                userName: row.user_name,
+                userEmail: row.user_email,
+                gameId: row.game_id,
+                gameType: row.game_type,
+                gameDate: row.game_date,
+                score: row.score,
+                timeTaken: row.time_taken,
+                mistakes: row.mistakes,
+                completedAt: row.completed_at,
+                submissionData: row.submission_data
+            })),
+            total: parseInt(countResult.rows[0].count)
+        });
+    } catch (error) {
+        console.error('Error fetching submissions:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 // --- GAMES ---
 
 // Create a new game
@@ -523,6 +599,45 @@ router.post('/banner-messages', async (req: Request, res: Response) => {
         }
     } catch (error) {
         console.error('Error creating banner message:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+
+// --- FEATURE FLAGS ---
+
+// Get all feature flags
+router.get('/feature-flags', async (req: Request, res: Response) => {
+    try {
+        const { getAllFeatureFlags } = await import('../utils/featureFlags.js');
+        const flags = await getAllFeatureFlags();
+        res.json(flags);
+    } catch (error) {
+        console.error('Error fetching feature flags:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Update a feature flag
+router.put('/feature-flags/:key', async (req: Request, res: Response) => {
+    try {
+        const { key } = req.params;
+        const { enabled } = req.body;
+        const { updateFeatureFlag } = await import('../utils/featureFlags.js');
+
+        if (typeof enabled !== 'boolean') {
+            return res.status(400).json({ error: 'Enabled status must be a boolean' });
+        }
+
+        const updatedFlag = await updateFeatureFlag(key, enabled);
+
+        if (!updatedFlag) {
+            return res.status(404).json({ error: 'Feature flag not found' });
+        }
+
+        res.json(updatedFlag);
+    } catch (error) {
+        console.error('Error updating feature flag:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });

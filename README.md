@@ -1,81 +1,98 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# SMYM Columbus Bible Games
 
-# Run and deploy your AI Studio app
+A collection of Christian-themed daily puzzle games for the SMYM Columbus community. This application includes games like Wordle, Connections, Crossword, Verse Scramble, and more, integrated with leaderboards and user profiles.
 
-This application supports both development and production deployment modes.
+## Technologies
 
-View your app in AI Studio: https://ai.studio/apps/drive/1DblYDWkItD9C37ipo495nyfUbv3Gl1Ug
+- **Frontend**: React, Vite, Tailwind CSS
+- **Backend**: Node.js, Express
+- **Database**: PostgreSQL
+- **Mobile**: Capacitor (iOS & Android)
+- **Notifications**: Web Push, APNs (iOS), Firebase (Android)
 
-## Development Mode (Local with Mock Data)
+## Prerequisites
 
-**Prerequisites:** Node.js (v18 or higher)
+- Node.js (v18+)
+- Docker & Docker Compose (for production/database)
+- PostgreSQL (if running locally without Docker)
 
-1. Install dependencies:
-   ```bash
-   npm install
-   ```
-2. Set the `GEMINI_API_KEY` in `.env.local` to your Gemini API key (optional)
-3. Run the app:
-   ```bash
-   npm run dev
-   ```
-4. Open http://localhost:5173 in your browser
+## Configuration
 
-In development mode, the app uses mock data and doesn't require a database.
+The application uses environment variables for configuration. 
 
-## Production Mode (Docker Compose with PostgreSQL)
-
-**Prerequisites:** Docker and Docker Compose
-
-1. Create a `.env` file based on `.env.example`:
+1. Copy the example file:
    ```bash
    cp .env.example .env
    ```
 
-2. Update the `.env` file with your configuration (or use defaults)
+2. Update `.env` with your settings. See `.env.example` for details on required variables.
 
-3. Build and run with Docker Compose:
-   ```bash
-   docker-compose up --build
-   ```
+## Development
 
-4. The application will:
-   - Start PostgreSQL database
-   - Run migrations to create tables
-   - Seed the database with initial data
-   - Start the application server
+### 1. Install Dependencies
+```bash
+npm install
+```
 
-5. Open http://localhost:3000 in your browser
+### 2. Start Database
+You can use the provided Docker Compose file to start just the database:
+```bash
+docker-compose up -d postgres
+```
 
-## Manual Server Setup (Without Docker)
+### 3. Run Migrations & Seed Data
+```bash
+npm run migrate
+npm run seed
+```
 
-1. Install dependencies:
-   ```bash
-   npm install
-   ```
+### 4. Start Development Servers
+Run frontend and backend in development mode:
+```bash
+npm run dev
+npm run dev:server
+```
+- Frontend: http://localhost:5173
+- Backend: http://localhost:3000
 
-2. Set up PostgreSQL database and update environment variables
+## Production Deployment
 
-3. Run migrations:
-   ```bash
-   npm run migrate
-   ```
+### Docker Compose
+To run the entire stack (App + Database) using Docker:
 
-4. Seed the database:
-   ```bash
-   npm run seed
-   ```
+```bash
+docker-compose up --build -d
+```
+The application will be available at http://localhost:6144 (or whichever port you configured).
 
-5. Build the application:
-   ```bash
-   npm run build
-   ```
+### Manual Build
+To build for production manually:
 
-6. Start the server:
-   ```bash
-   npm run server
-   ```
+```bash
+npm run build
+npm run server
+```
 
-For more details, see [DEPLOYMENT.md](DEPLOYMENT.md).
+## Mobile Development
+
+The project is configured with Capacitor for mobile deployment.
+
+```bash
+# Sync web assets to native projects
+npx cap sync
+
+# Open Android Studio
+npx cap open android
+
+# Open Xcode
+npx cap open ios
+```
+
+## Admin & Maintenance
+
+- **Maintenance Scripts**: Located in `server/src/scripts/` (e.g., `run-maintenance.js` for daily game generation).
+- **Admin Dashboard**: Accessible in the app for users with `is_admin = true`.
+
+## Feature Flags
+
+This app supports feature flags for toggling functionality. See `server/src/utils/featureFlags.ts` and the `feature_flags` table.

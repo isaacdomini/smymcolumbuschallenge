@@ -5,11 +5,13 @@ export interface User {
   isAdmin?: boolean;
   isVerified?: boolean;
   createdAt?: string;
+  token?: string;
 }
 
 export enum GameType {
   WORDLE = 'wordle',
   WORDLE_ADVANCED = 'wordle_advanced',
+  WORDLE_BANK = 'wordle_bank',
   CONNECTIONS = 'connections',
   CROSSWORD = 'crossword',
   MATCH_THE_WORD = 'match_the_word',
@@ -19,7 +21,9 @@ export enum GameType {
 }
 
 export interface WordleData {
-  solution: string;
+  solution?: string;
+  solutions?: string[];
+  wordLength?: number;
 }
 
 export interface ConnectionsData {
@@ -28,6 +32,8 @@ export interface ConnectionsData {
     name: string;
     words: string[];
   }[];
+  // For frontend (masked)
+  shuffledWords?: string[];
 }
 
 export type Direction = 'across' | 'down';
@@ -35,10 +41,11 @@ export type Direction = 'across' | 'down';
 export interface Clue {
   number: number;
   clue: string;
-  answer: string;
+  answer?: string; // Made optional
   row: number;
   col: number;
   direction: Direction;
+  length?: number; // Added length
 }
 
 export interface CrosswordData {
@@ -53,18 +60,26 @@ export interface MatchTheWordData {
     word: string;
     match: string;
   }[];
+  // For frontend (masked)
+  shuffledWords?: string[];
+  shuffledMatches?: string[];
 }
 
 export interface VerseScrambleData {
   verse?: string;
   reference?: string;
   verses?: { verse: string; reference: string }[];
+  // For frontend (masked)
+  scrambledWords?: string[];
 }
 
 export interface WhoAmIData {
   answer?: string;
   hint?: string;
   solutions?: { answer: string; hint?: string }[];
+  // For frontend (masked)
+  wordLength?: number;
+  maskedAnswer?: string;
 }
 
 export interface WordSearchData {
@@ -80,6 +95,8 @@ export type Game = {
   id: string;
   challengeId: string;
   date: string; // ISO string
+  revisitBlocked?: boolean;
+  message?: string;
 } & (
     | {
       type: GameType.WORDLE;
@@ -87,6 +104,10 @@ export type Game = {
     }
     | {
       type: GameType.WORDLE_ADVANCED;
+      data: WordleData;
+    }
+    | {
+      type: GameType.WORDLE_BANK;
       data: WordleData;
     }
     | {
@@ -120,6 +141,8 @@ export interface Challenge {
   name: string;
   startDate: string; // ISO string
   endDate: string; // ISO string
+  wordBank?: string[]; // Added for centralized word bank
+  previousChallengeId?: string; // For "Gap" view
 }
 
 export interface DailyMessage {
@@ -140,6 +163,7 @@ export interface GameSubmission {
   mistakes: number;
   score: number;
   submissionData?: any;
+  feedback?: any;
 }
 
 export interface SubmitGamePayload {
@@ -198,6 +222,7 @@ export interface ScoringCriterion {
 
 export type DailyMessageBlock =
   | { type: 'verse'; text: string; reference: string }
-  | { type: 'paragraph'; text: string };
+  | { type: 'paragraph'; text: string }
+  | { type: 'long_text'; title: string; text: string; pdfUrl?: string };
 
 export type DailyMessageContent = DailyMessageBlock[];

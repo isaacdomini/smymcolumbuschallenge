@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getGamesForChallenge, getSubmissionsForUser } from '../../services/api';
 import { Game, GameSubmission, GameType } from '../../types';
+import { getGameName } from '../../utils/game';
 import Tooltip from '../ui/Tooltip';
 
 interface ChallengeHistoryProps {
@@ -14,30 +15,20 @@ interface ChallengeHistoryProps {
 const getScoringTooltipText = (gameType: GameType): string => {
   switch (gameType) {
     case GameType.WORDLE:
-      return "Score based on guesses and speed. Fewer guesses and faster times earn more points. 0 for a loss.";
+    case GameType.WORDLE_BANK:
+      return "Score based on guesses and speed. Fewer guesses earn more points. 0 for a loss.";
     case GameType.CONNECTIONS:
-      return "Score based on categories found, mistakes made, and speed. Each category adds points, mistakes subtract, and speed adds a bonus.";
+      return "Score based on categories found and mistakes made. Each category adds points, mistakes subtract.";
     case GameType.CROSSWORD:
       return "Score based on accuracy and speed. A higher percentage of correct cells and a faster time result in a higher score.";
+    case GameType.VERSE_SCRAMBLE:
+      return "Score based on time. Max 80 points. Minimum 20 points for completion.";
     default:
       return "Scoring is based on performance in the game.";
   }
 }
 
-const getGameName = (gameType: GameType): string => {
-  switch (gameType) {
-    case GameType.WORDLE:
-      return "Wordle";
-    case GameType.CONNECTIONS:
-      return "Connect the Words";
-    case GameType.MATCH_THE_WORD:
-      return "Match the Word";
-    case GameType.WHO_AM_I:
-      return "Hangman";
-    default:
-      return gameType.charAt(0).toUpperCase() + gameType.slice(1);
-  }
-}
+
 
 const ChallengeHistory: React.FC<ChallengeHistoryProps> = ({ challengeId, userId, onPlayGame, onRevisitGame, onBack }) => {
   const [games, setGames] = useState<Game[]>([]);
