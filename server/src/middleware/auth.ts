@@ -36,6 +36,22 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
     });
 };
 
+export const authenticateOptional = (req: Request, res: Response, next: NextFunction) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) {
+        return next();
+    }
+
+    jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
+        if (!err) {
+            req.user = user;
+        }
+        next();
+    });
+};
+
 export const requireAdmin = async (req: Request, res: Response, next: NextFunction) => {
     // First ensure the user is authenticated
     authenticateToken(req, res, async () => {

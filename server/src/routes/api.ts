@@ -7,12 +7,18 @@ import { sendVerificationEmail, sendPasswordResetEmail, sendAccountDeletionReque
 import { getVapidPublicKey, saveSubscription } from '../services/push.js';
 import { manualLog, getClientIp } from '../middleware/logger.js';
 import { getFeatureFlag } from '../utils/featureFlags.js';
+import { authenticateToken, authenticateOptional } from '../middleware/auth.js';
 
 const router = Router();
 if (!process.env.JWT_SECRET) {
   throw new Error('JWT_SECRET environment variable must be set');
 }
 const JWT_SECRET = process.env.JWT_SECRET;
+
+// --- HEALTH CHECK ---
+router.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
 
 // Helper to get 'YYYY-MM-DD' in Eastern Time
 export const getTodayEST = () => {
@@ -975,40 +981,91 @@ router.delete('/users/:userId', async (req: Request, res: Response) => {
 router.get('/challenge', async (req: Request, res: Response) => {
   try {
     const now = new Date();
-    // Try to find currently active challenge first
+    // 1. Try to find currently active challenge (excluding default)
     const result = await pool.query(
-      'SELECT * FROM challenges WHERE start_date <= $1 AND end_date >= $1 ORDER BY start_date DESC LIMIT 1',
+      "SELECT * FROM challenges WHERE start_date <= $1 AND end_date >= $1 AND id != 'challenge-default' ORDER BY start_date DESC LIMIT 1",
       [now]
     );
 
     if (result.rows.length > 0) {
       const challenge = result.rows[0];
-      res.json({
+      return res.json({
         id: challenge.id,
         name: challenge.name,
         startDate: challenge.start_date.toISOString(),
         endDate: challenge.end_date.toISOString(),
       });
-    } else {
-      // If no active challenge, find the next upcoming one
-      const upcomingResult = await pool.query(
-        'SELECT * FROM challenges WHERE start_date > $1 ORDER BY start_date ASC LIMIT 1',
+    }
+
+    // 2. If no active, find the next upcoming one
+    const upcomingResult = await pool.query(
+      "SELECT * FROM challenges WHERE start_date > $1 AND id != 'challenge-default' ORDER BY start_date ASC LIMIT 1",
+      [now]
+    );
+
+    if (upcomingResult.rows.length > 0) {
+      const challenge = upcomingResult.rows[0];
+
+      // Find previous challenge for leaderboard history
+      const prevResult = await pool.query(
+        "SELECT id FROM challenges WHERE end_date < $1 AND id != 'challenge-default' ORDER BY end_date DESC LIMIT 1",
         [now]
       );
-      if (upcomingResult.rows.length > 0) {
-        const challenge = upcomingResult.rows[0];
-        res.json({
-          id: challenge.id,
-          name: challenge.name,
-          startDate: challenge.start_date.toISOString(),
-          endDate: challenge.end_date.toISOString(),
-        });
-      } else {
-        res.json(null);
-      }
+      const prviousChallengeId = prevResult.rows.length > 0 ? prevResult.rows[0].id : undefined;
+
+      return res.json({
+        id: challenge.id,
+        name: challenge.name,
+        startDate: challenge.start_date.toISOString(),
+        endDate: challenge.end_date.toISOString(),
+        previousChallengeId: prviousChallengeId
+      });
     }
+
+    // 3. Fallback to Default Challenge
+    const defaultResult = await pool.query("SELECT * FROM challenges WHERE id = 'challenge-default'");
+    if (defaultResult.rows.length > 0) {
+      const challenge = defaultResult.rows[0];
+      return res.json({
+        id: challenge.id,
+        name: challenge.name,
+        startDate: challenge.start_date.toISOString(),
+        endDate: challenge.end_date.toISOString(),
+      });
+    }
+
+    res.json(null);
   } catch (error) {
     console.error('Get challenge error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get challenges the user has participated in
+router.get('/user/challenges', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user.id;
+
+    // Find all challenges where user has at least one submission
+    // and also include the default challenge if they played it? 
+    // Actually just getting all challenges they have submissions for is enough.
+    const result = await pool.query(`
+      SELECT DISTINCT c.id, c.name, c.start_date, c.end_date 
+      FROM challenges c
+      JOIN games g ON g.challenge_id = c.id
+      JOIN game_submissions gs ON gs.game_id = g.id
+      WHERE gs.user_id = $1
+      ORDER BY c.start_date DESC
+    `, [userId]);
+
+    res.json(result.rows.map(row => ({
+      id: row.id,
+      name: row.name,
+      startDate: row.start_date.toISOString(),
+      endDate: row.end_date.toISOString()
+    })));
+  } catch (error) {
+    console.error('Error fetching user challenges:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

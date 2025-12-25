@@ -142,6 +142,7 @@ export interface Challenge {
   startDate: string; // ISO string
   endDate: string; // ISO string
   wordBank?: string[]; // Added for centralized word bank
+  previousChallengeId?: string; // For "Gap" view
 }
 
 export interface DailyMessage {

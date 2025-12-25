@@ -17,6 +17,7 @@ const VerseScrambleGame = lazy(() => import('./components/game/VerseScrambleGame
 const WhoAmIGame = lazy(() => import('./components/game/WhoAmIGame'));
 const WordSearchGame = lazy(() => import('./components/game/WordSearchGame'));
 const ChallengeHistory = lazy(() => import('./components/dashboard/ChallengeHistory'));
+const MyChallenges = lazy(() => import('./components/dashboard/MyChallenges'));
 const ResetPassword = lazy(() => import('./components/auth/ResetPassword'));
 const AdminDashboard = lazy(() => import('./components/admin/AdminDashboard'));
 const PrivacyPolicy = lazy(() => import('./components/PrivacyPolicy'));
@@ -24,6 +25,7 @@ const DeleteAccount = lazy(() => import('./components/auth/DeleteAccount'));
 const Profile = lazy(() => import('./components/Profile'));
 const LongTextPage = lazy(() => import('./components/LongTextPage'));
 import ChallengeIntro from './components/dashboard/ChallengeIntro';
+const ChristmasFlair = lazy(() => import('./components/ChristmasFlair'));
 import { Game, GameType, Challenge, GameSubmission, User } from './types';
 import { getChallenge, getDailyGame, getLeaderboard, getSubmissionForToday, getGamesForChallenge, getSubmissionsForUser, getGameState, getDailyMessage, getPublicFeatureFlags, DailyMessage as DailyMessageType } from './services/api';
 import ScoringCriteria from './components/dashboard/ScoringCriteria';
@@ -67,6 +69,7 @@ const MainContent: React.FC = () => {
   const [todaysSubmission, setTodaysSubmission] = useState<GameSubmission | null>(null);
   const [todaysProgress, setTodaysProgress] = useState<any | null>(null);
   const [dailyMessage, setDailyMessage] = useState<DailyMessageType | null>(null);
+  const [showChristmasFlair, setShowChristmasFlair] = useState(false);
 
   const [allChallengeGames, setAllChallengeGames] = useState<Game[]>([]);
   const [allUserSubmissions, setAllUserSubmissions] = useState<GameSubmission[]>([]);
@@ -222,6 +225,11 @@ const MainContent: React.FC = () => {
         return;
       } else {
         setIsMaintenance(false);
+      }
+      if (flags.christmas_flair) {
+        setShowChristmasFlair(true);
+      } else {
+        setShowChristmasFlair(false);
       }
 
       const currentChallenge = await getChallenge();
@@ -421,7 +429,13 @@ const MainContent: React.FC = () => {
     }
     if (locationPath === '/history') {
       if (!user) { navigate('/'); return null; }
-      return <ChallengeHistory challengeId={challenge.id} userId={user.id} onPlayGame={(game) => navigate(`/game/${game.id}`)} onRevisitGame={(game, submission) => navigate(`/game/${game.id}`)} onBack={() => navigate('/')} />;
+      return <MyChallenges onSelectChallenge={(id) => navigate(`/history/${id}`)} onBack={() => navigate('/')} />;
+    }
+    if (locationPath.startsWith('/history/')) {
+      if (!user) { navigate('/'); return null; }
+      const historyChallengeId = locationPath.split('/')[2];
+      if (!historyChallengeId) { navigate('/history'); return null; }
+      return <ChallengeHistory challengeId={historyChallengeId} userId={user.id} onPlayGame={(game) => navigate(`/game/${game.id}`)} onRevisitGame={(game, submission) => navigate(`/game/${game.id}`)} onBack={() => navigate('/history')} />;
     }
     return (
       <div>
@@ -460,7 +474,7 @@ const MainContent: React.FC = () => {
         {challengeStarted && challenge ? (
           <>
             <DailyMessage message={dailyMessage} isBlurred={!todaysSubmission && !!todaysGame} navigate={navigate} />
-            <LeaderboardWrapper challengeId={challenge.id} />
+            <LeaderboardWrapper challengeId={!challengeStarted && challenge.previousChallengeId ? challenge.previousChallengeId : challenge.id} />
           </>
         ) : null}
         {user?.isAdmin && (
@@ -514,6 +528,7 @@ const MainContent: React.FC = () => {
         </main>
 
         <AddToHomeScreen />
+        {showChristmasFlair && <Suspense fallback={null}><ChristmasFlair /></Suspense>}
       </IonContent>
     </IonApp>
   );

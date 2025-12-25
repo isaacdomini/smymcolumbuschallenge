@@ -1226,3 +1226,13 @@ export const getScoringCriteria = async (): Promise<any[]> => {
         }
     ];
 };
+
+export const getUserChallenges = async (): Promise<Challenge[]> => {
+    const response = await fetch(`${API_BASE_URL}/user/challenges`, {
+        headers: await getAuthHeaders()
+    });
+    if (!response.ok) {
+        throw new Error('Failed to fetch user challenges');
+    }
+    return await response.json();
+};
