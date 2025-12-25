@@ -2462,9 +2462,9 @@ router.get('/feature-flags/public', async (req: Request, res: Response) => {
   try {
     const { getAllFeatureFlags } = await import('../utils/featureFlags.js');
     const flags = await getAllFeatureFlags();
-    // Filter to only safe/public flags
-    const publicKeys = ['maintenance_mode'];
-    const publicFlags = flags.filter(f => publicKeys.includes(f.key)).reduce((acc: any, curr) => {
+    // Filter to only safe/public flags - USER REQUEST: Allow all flags
+    // const publicKeys = ['maintenance_mode', 'christmas_flair'];
+    const publicFlags = flags.reduce((acc: any, curr) => {
       acc[curr.key] = curr.enabled;
       return acc;
     }, {});
