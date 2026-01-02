@@ -17,14 +17,17 @@ const VerseScrambleGame = lazy(() => import('./components/game/VerseScrambleGame
 const WhoAmIGame = lazy(() => import('./components/game/WhoAmIGame'));
 const WordSearchGame = lazy(() => import('./components/game/WordSearchGame'));
 const ChallengeHistory = lazy(() => import('./components/dashboard/ChallengeHistory'));
+const MyChallenges = lazy(() => import('./components/dashboard/MyChallenges'));
 const ResetPassword = lazy(() => import('./components/auth/ResetPassword'));
 const AdminDashboard = lazy(() => import('./components/admin/AdminDashboard'));
 const PrivacyPolicy = lazy(() => import('./components/PrivacyPolicy'));
 const DeleteAccount = lazy(() => import('./components/auth/DeleteAccount'));
 const Profile = lazy(() => import('./components/Profile'));
+const LongTextPage = lazy(() => import('./components/LongTextPage'));
 import ChallengeIntro from './components/dashboard/ChallengeIntro';
+const ChristmasFlair = lazy(() => import('./components/ChristmasFlair'));
 import { Game, GameType, Challenge, GameSubmission, User } from './types';
-import { getChallenge, getDailyGame, getLeaderboard, getSubmissionForToday, getGamesForChallenge, getSubmissionsForUser, getGameState, getDailyMessage, DailyMessage as DailyMessageType } from './services/api';
+import { getChallenge, getDailyGame, getLeaderboard, getSubmissionForToday, getGamesForChallenge, getSubmissionsForUser, getGameState, getDailyMessage, getPublicFeatureFlags, getServerVersion, DailyMessage as DailyMessageType } from './services/api';
 import ScoringCriteria from './components/dashboard/ScoringCriteria';
 import AddToHomeScreen from './components/ui/AddToHomeScreen';
 import DailyMessage from './components/dashboard/DailyMessage';
@@ -34,10 +37,10 @@ import { Capacitor } from '@capacitor/core';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { App as CapacitorApp, URLOpenListenerEvent } from '@capacitor/app';
 import { PushNotifications } from '@capacitor/push-notifications';
-// --- FIXED: Import the CORRECT Badge plugin ---
 import { Badge } from '@capawesome/capacitor-badge';
 import { IonApp, IonContent, IonRefresher, IonRefresherContent } from '@ionic/react';
 import { RefresherEventDetail } from '@ionic/core';
+import { version as APP_VERSION } from './package.json';
 
 // A simple loading component for Suspense
 const LoadingFallback: React.FC = () => (
@@ -55,14 +58,18 @@ const App: React.FC = () => {
   );
 };
 
+import { useDevToolsDetection } from './hooks/useDevToolsDetection';
+
 const MainContent: React.FC = () => {
   useLogger();
+  useDevToolsDetection();
   const { user } = useAuth();
   const [challenge, setChallenge] = useState<Challenge | null>(null);
   const [todaysGame, setTodaysGame] = useState<Game | null>(null);
   const [todaysSubmission, setTodaysSubmission] = useState<GameSubmission | null>(null);
   const [todaysProgress, setTodaysProgress] = useState<any | null>(null);
   const [dailyMessage, setDailyMessage] = useState<DailyMessageType | null>(null);
+  const [showChristmasFlair, setShowChristmasFlair] = useState(false);
 
   const [allChallengeGames, setAllChallengeGames] = useState<Game[]>([]);
   const [allUserSubmissions, setAllUserSubmissions] = useState<GameSubmission[]>([]);
@@ -182,11 +189,36 @@ const MainContent: React.FC = () => {
     addAppUrlOpenListener();
     clearBadgeOnLoad();
 
+    // Check version
+    const checkVersion = async () => {
+      if (import.meta.env.MODE === 'development') return; // Skip in dev
+
+      const serverData = await getServerVersion();
+      if (serverData && serverData.version && serverData.version !== APP_VERSION) {
+        console.log(`Version mismatch: Local ${APP_VERSION} vs Server ${serverData.version}. Reloading...`);
+        // Force reload
+        // Add timestamp to prevent infinite loop if server caches old version
+        // Force reload with cache busting
+        const url = new URL(window.location.href);
+        url.searchParams.set('v', serverData.version); // Track version
+        url.searchParams.set('t', Date.now().toString()); // Bust cache
+        window.location.replace(url.toString());
+      }
+    };
+
+    // Check on load
+    checkVersion();
+
+    // Check on resume
+    if (Capacitor.isNativePlatform()) {
+      CapacitorApp.addListener('resume', checkVersion);
+    }
+
   }, []);
 
 
-  const navigate = useCallback((path: string) => {
-    window.history.pushState({}, '', path);
+  const navigate = useCallback((path: string, state?: any) => {
+    window.history.pushState(state || {}, '', path);
     setLocationPath(path);
   }, []);
 
@@ -201,7 +233,7 @@ const MainContent: React.FC = () => {
   }, []);
 
   const fetchInitialData = useCallback(async () => {
-    if (locationPath.startsWith('/reset-password') || locationPath.startsWith('/admin') || locationPath.startsWith('/privacy') || locationPath.startsWith('/request-deletion') || locationPath.startsWith('/profile')) {
+    if (locationPath.startsWith('/reset-password') || locationPath.startsWith('/admin') || locationPath.startsWith('/privacy') || locationPath.startsWith('/request-deletion') || locationPath.startsWith('/profile') || locationPath === '/message-viewer') {
       setIsLoading(false);
       return;
     }
@@ -209,6 +241,22 @@ const MainContent: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
+      // Check feature flags first
+      const flags = await getPublicFeatureFlags();
+      if (flags.maintenance_mode && (!user || !user.isAdmin)) {
+        setIsMaintenance(true);
+        // Important: Stop loading other data if in maintenance
+        setIsLoading(false);
+        return;
+      } else {
+        setIsMaintenance(false);
+      }
+      if (flags.christmas_flair) {
+        setShowChristmasFlair(true);
+      } else {
+        setShowChristmasFlair(false);
+      }
+
       const currentChallenge = await getChallenge();
       setChallenge(currentChallenge);
       if (currentChallenge) {
@@ -305,6 +353,9 @@ const MainContent: React.FC = () => {
     if (locationPath.startsWith('/profile')) {
       return <Profile onBack={() => navigate('/')} />;
     }
+    if (locationPath.startsWith('/message-viewer')) {
+      return <LongTextPage navigate={navigate} />;
+    }
     if (locationPath.startsWith('/admin')) {
       if (!user || !user.isAdmin) {
         navigate('/');
@@ -356,6 +407,28 @@ const MainContent: React.FC = () => {
       }
 
       if (!gameToPlay) return <div className="text-center p-10">Loading game... (or game not found)</div>;
+
+      // Check for Revisit Block
+      if (gameToPlay.revisitBlocked) {
+        return (
+          <div className="flex flex-col items-center justify-center min-h-[50vh] p-8 text-center animate-fade-in">
+            <div className="bg-gray-800 p-8 rounded-xl shadow-2xl max-w-md w-full border border-gray-700">
+              <div className="text-5xl mb-6">🔒</div>
+              <h2 className="text-2xl font-bold text-white mb-4">Access Restricted</h2>
+              <p className="text-gray-300 text-lg mb-8">
+                {gameToPlay.message || "You have already completed this game. Come back tomorrow!"}
+              </p>
+              <button
+                onClick={() => navigate('/')}
+                className="bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold py-3 px-8 rounded-lg transition-transform transform hover:scale-105"
+              >
+                Back to Dashboard
+              </button>
+            </div>
+          </div>
+        );
+      }
+
       const onComplete = () => {
         fetchInitialData();
         navigate('/');
@@ -381,7 +454,13 @@ const MainContent: React.FC = () => {
     }
     if (locationPath === '/history') {
       if (!user) { navigate('/'); return null; }
-      return <ChallengeHistory challengeId={challenge.id} userId={user.id} onPlayGame={(game) => navigate(`/game/${game.id}`)} onRevisitGame={(game, submission) => navigate(`/game/${game.id}`)} onBack={() => navigate('/')} />;
+      return <MyChallenges onSelectChallenge={(id) => navigate(`/history/${id}`)} onBack={() => navigate('/')} />;
+    }
+    if (locationPath.startsWith('/history/')) {
+      if (!user) { navigate('/'); return null; }
+      const historyChallengeId = locationPath.split('/')[2];
+      if (!historyChallengeId) { navigate('/history'); return null; }
+      return <ChallengeHistory challengeId={historyChallengeId} userId={user.id} onPlayGame={(game) => navigate(`/game/${game.id}`)} onRevisitGame={(game, submission) => navigate(`/game/${game.id}`)} onBack={() => navigate('/history')} />;
     }
     return (
       <div>
@@ -404,7 +483,7 @@ const MainContent: React.FC = () => {
                   {todaysGame
                     ? (todaysSubmission
                       ? "Revisit Today's Game"
-                      : (todaysProgress ? "Continue Today's Game" : "Play Today's Game"))
+                      : (todaysProgress && todaysProgress.gameState && todaysProgress.gameState.startTime ? "Continue Today's Game" : "Play Today's Game"))
                     : "No Game Today"}
                 </button>
                 <button onClick={() => navigate('/history')} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg text-xl shadow-lg transition-transform transform hover:scale-105">
@@ -419,8 +498,8 @@ const MainContent: React.FC = () => {
         <BannerMessage />
         {challengeStarted && challenge ? (
           <>
-            <DailyMessage message={dailyMessage} isBlurred={!todaysSubmission && !!todaysGame} />
-            <LeaderboardWrapper challengeId={challenge.id} />
+            <DailyMessage message={dailyMessage} isBlurred={!todaysSubmission && !!todaysGame} navigate={navigate} />
+            <LeaderboardWrapper challengeId={!challengeStarted && challenge.previousChallengeId ? challenge.previousChallengeId : challenge.id} />
           </>
         ) : null}
         {user?.isAdmin && (
@@ -446,6 +525,7 @@ const MainContent: React.FC = () => {
               </svg>
               <span className="ml-1 font-medium">Back</span>
             </button>
+            <div id="game-header-target" className="flex-1 flex justify-end items-center"></div>
           </div>
         </header>
       ) : (
@@ -473,6 +553,7 @@ const MainContent: React.FC = () => {
         </main>
 
         <AddToHomeScreen />
+        {showChristmasFlair && <Suspense fallback={null}><ChristmasFlair /></Suspense>}
       </IonContent>
     </IonApp>
   );

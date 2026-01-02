@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { CrosswordData, GameSubmission, Clue, GameType } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
 import { submitGame, getGameState, saveGameState, clearGameState } from '../../services/api';
@@ -44,11 +45,13 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
     const [isSubmitted, setIsSubmitted] = useState(!!submission);
     const [startTime, setStartTime] = useState<number | null>(null);
     const [showInstructions, setShowInstructions] = useState(!isReadOnly && !isPreview);
+    const [feedback, setFeedback] = useState<any>(null);
 
     const solutionGrid = useMemo(() => {
         const grid: (string | null)[][] = Array(activeData.rows).fill(null).map(() => Array(activeData.cols).fill(null));
         const allClues: Clue[] = [...activeData.acrossClues, ...activeData.downClues];
         allClues.forEach(clue => {
+            if (!clue.answer) return;
             for (let i = 0; i < clue.answer.length; i++) {
                 const r = clue.direction === 'across' ? clue.row : clue.row + i;
                 const c = clue.direction === 'across' ? clue.col + i : clue.col;
@@ -62,8 +65,12 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
 
     useEffect(() => {
         if (isReadOnly && submission) {
-            // When reviewing, show the perfect SOLUTION grid, not just what they submitted
-            setUserGrid(solutionGrid);
+            // When reviewing, show the user's submitted grid
+            if (submission.submissionData?.grid) {
+                setUserGrid(submission.submissionData.grid);
+            } else {
+                setUserGrid(solutionGrid);
+            }
             setIsSubmitted(true);
             setShowInstructions(false);
             return;
@@ -104,8 +111,10 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
         return () => clearTimeout(handler);
     }, [userGrid, startTime, isReadOnly, isSubmitted, user, gameId, isPreview]);
 
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
     const handleSubmit = useCallback(async () => {
-        if (!user || isReadOnly || isSubmitted || startTime === null) return;
+        if (!user || isReadOnly || isSubmitted || startTime === null || isSubmitting) return;
 
         if (isSample || isPreview) {
             setIsSubmitted(true);
@@ -118,43 +127,43 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
             return;
         }
 
-        const timeTaken = Math.round((Date.now() - startTime) / 1000);
+        setIsSubmitting(true);
+        try {
+            const timeTaken = Math.round((Date.now() - startTime) / 1000);
 
-        let mistakes = 0;
-        let correctCells = 0;
-        let totalFillableCells = 0;
+            // Mistakes are calculated on server
+            const mistakes = 0;
+            const correctCells = 0;
+            const totalFillableCells = 0;
 
-        for (let r = 0; r < activeData.rows; r++) {
-            for (let c = 0; c < activeData.cols; c++) {
-                if (solutionGrid[r][c] !== null) { // This is a fillable cell
-                    totalFillableCells++;
-                    if (userGrid[r][c] === solutionGrid[r][c]) {
-                        correctCells++;
-                    } else if (userGrid[r][c] !== null) {
-                        mistakes++;
-                    }
-                }
+            const response = await submitGame({
+                userId: user.id,
+                gameId,
+                startedAt: new Date(startTime).toISOString(),
+                timeTaken,
+                mistakes,
+                submissionData: {
+                    grid: userGrid,
+                    correctCells,
+                    totalFillableCells,
+                    puzzle: activeData // Store the puzzle definition with submission
+                },
+            });
+
+            if (response.feedback) {
+                setFeedback(response.feedback);
             }
+
+            setIsSubmitted(true);
+            await clearGameState(user.id, gameId);
+            setTimeout(onComplete, 3000);
+        } catch (error) {
+            console.error("Submission failed", error);
+            // Optionally show error to user
+        } finally {
+            setIsSubmitting(false);
         }
-
-        await submitGame({
-            userId: user.id,
-            gameId,
-            startedAt: new Date(startTime).toISOString(),
-            timeTaken,
-            mistakes,
-            submissionData: {
-                grid: userGrid,
-                correctCells,
-                totalFillableCells,
-                puzzle: activeData // Store the puzzle definition with submission
-            },
-        });
-
-        setIsSubmitted(true);
-        await clearGameState(user.id, gameId);
-        setTimeout(onComplete, 3000);
-    }, [user, isReadOnly, isSubmitted, startTime, gameData.rows, gameData.cols, userGrid, solutionGrid, gameId, onComplete, isSample, isPreview]);
+    }, [user, isReadOnly, isSubmitted, startTime, gameData.rows, gameData.cols, userGrid, solutionGrid, gameId, onComplete, isSample, isPreview, isSubmitting]);
 
     const handleCellChange = useCallback((row: number, col: number, char: string | null) => {
         if (isSubmitted) return;
@@ -172,39 +181,78 @@ const CrosswordGame: React.FC<CrosswordGameProps> = ({ gameId, gameData, submiss
         setShowInstructions(false);
     };
 
+    const [elapsedSeconds, setElapsedSeconds] = useState(0);
+    const [zoom, setZoom] = useState(1);
+    const [headerTarget, setHeaderTarget] = useState<HTMLElement | null>(null);
+
+    useEffect(() => {
+        setHeaderTarget(document.getElementById('game-header-target'));
+    }, []);
+
+    useEffect(() => {
+        if (!startTime || isSubmitted || isReadOnly || showInstructions) return;
+
+        const interval = setInterval(() => {
+            setElapsedSeconds(Math.floor((Date.now() - startTime) / 1000));
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, [startTime, isSubmitted, isReadOnly, showInstructions]);
+
     if (showInstructions) {
         return <GameInstructionsModal gameType={GameType.CROSSWORD} onStart={handleInstructionsClose} onClose={handleInstructionsClose} />;
     }
 
-    return (
-        <div className="w-full max-w-5xl mx-auto flex flex-col items-center pb-8">
-            <div className="flex items-center justify-between w-full max-w-md mb-4">
-                <h2 className="text-2xl font-bold text-yellow-400">
-                    Crossword
-                    {isSample && <span className="text-sm bg-blue-600 px-2 py-1 rounded ml-2 text-white">Sample</span>}
-                    {isPreview && <span className="text-sm bg-purple-600 px-2 py-1 rounded ml-2 text-white">Preview</span>}
-                </h2>
-                <div className="flex space-x-2">
-                    {!isReadOnly && !isSubmitted && (
-                        <button
-                            onClick={handleSubmit}
-                            className="md:hidden bg-blue-600 hover:bg-blue-700 text-white font-bold py-1.5 px-4 rounded-lg text-sm transition-colors"
-                        >
-                            Submit
-                        </button>
-                    )}
-                    <button onClick={() => setShowInstructions(true)} className="text-gray-400 hover:text-white p-1" title="Show Instructions">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                    </button>
-                </div>
+    const formatTime = (seconds: number) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    };
+
+    const headerControls = (
+        <div className="flex items-center gap-2">
+            <h2 className="text-lg font-bold text-yellow-400 leading-none mr-2 hidden sm:block">
+                Crossword
+            </h2>
+            <div className="flex items-center gap-1 bg-zinc-900 rounded-lg p-1 border border-zinc-700/50">
+                <button onClick={() => setZoom(z => Math.max(z - 0.25, 1.0))} className="p-1 text-zinc-400 hover:text-white hover:bg-zinc-700 rounded transition-colors" title="Zoom Out">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                </button>
+                <span className="text-xs font-mono text-zinc-500 w-8 text-center">{Math.round(zoom * 100)}%</span>
+                <button onClick={() => setZoom(z => Math.min(z + 0.25, 2.5))} className="p-1 text-zinc-400 hover:text-white hover:bg-zinc-700 rounded transition-colors" title="Zoom In">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                </button>
             </div>
 
+            <div className="flex items-center gap-1.5 bg-zinc-900 px-2 py-1 rounded-lg border border-zinc-700/50">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-400"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                <span className="font-mono text-zinc-100 font-bold text-sm tracking-wide">
+                    {isReadOnly && submission ? formatTime(submission.timeTaken) : formatTime(elapsedSeconds)}
+                </span>
+            </div>
+
+            <button onClick={() => setShowInstructions(true)} className="text-zinc-400 hover:text-white p-1.5 hover:bg-zinc-700 rounded-lg transition-colors border border-zinc-700/50 bg-zinc-900" title="Show Instructions">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+            </button>
+        </div>
+    );
+
+    return (
+        <div className="w-full max-w-5xl mx-auto flex flex-col items-center pb-8 pt-4">
+            {headerTarget && createPortal(headerControls, headerTarget)}
+
+
+
             <DarkModeCrossword
-                puzzleData={isSample ? SAMPLE_DATA : gameData}
+                key={submission ? submission.id : gameId}
+                puzzleData={isSample ? SAMPLE_DATA : activeData}
                 onCellChange={isReadOnly || isSubmitted ? undefined : handleCellChange}
                 onPuzzleComplete={isReadOnly ? undefined : handleSubmit}
                 initialGrid={userGrid}
                 isReviewMode={isReadOnly}
+                incorrectCells={feedback?.incorrectCells || submission?.submissionData?.incorrectCells}
+                onSubmit={isReadOnly ? undefined : handleSubmit}
+                zoom={zoom}
             />
 
             <div className="mt-6 w-full max-w-md flex flex-col items-center">

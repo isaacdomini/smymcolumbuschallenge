@@ -2,11 +2,27 @@ import cron from 'node-cron';
 import pool from './db/pool.js';
 import { sendDailyReminder } from './services/email.js';
 import { sendPushNotification } from './services/push.js';
+import { runDailyGameMaintenance } from './services/maintenance.js';
+
+import { getGameName } from './utils/game.js';
+
+import { resolveGameData } from './routes/api.js';
 
 export const initScheduler = () => {
-    console.log('Initializing daily reminder scheduler...');
+    console.log('Initializing scheduler...');
 
-    // Schedule task to run every day at 7:00 AM and 6:00 PM Eastern Time
+    // 1. Daily Maintenance Job at 12:01 AM EST
+    // Ensures a game exists for today and pre-assigns words to users
+    // 1. Daily Maintenance Job at 12:01 AM EST
+    // Ensures a game exists for today and pre-assigns words to users
+    cron.schedule('1 0 * * *', async () => {
+        await runDailyGameMaintenance();
+    }, {
+        scheduled: true,
+        timezone: "America/New_York"
+    });
+
+    // 2. Daily User Reminders at 7:00 AM and 6:00 PM Eastern Time
     cron.schedule('0 7,18 * * *', async () => {
         console.log('Running daily reminder job...');
         try {
@@ -35,7 +51,7 @@ export const initScheduler = () => {
                 return;
             }
             const game = gameResult.rows[0];
-            const gameType = game.type.charAt(0).toUpperCase() + game.type.slice(1);
+            const gameType = getGameName(game.type);
 
             const usersToRemind = await pool.query(`
                 SELECT u.id, u.name, u.email, u.email_notifications 

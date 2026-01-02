@@ -8,7 +8,7 @@ export type Direction = 'across' | 'down';
 export interface Clue {
   number: number;
   clue: string;
-  answer: string;
+  answer?: string;
   row: number;
   col: number;
   direction: Direction;
@@ -41,6 +41,9 @@ interface DarkModeCrosswordProps {
   onCellChange?: (row: number, col: number, char: string | null) => void;
   initialGrid?: (string | null)[][];
   isReviewMode?: boolean;
+  incorrectCells?: { row: number, col: number }[];
+  onSubmit?: () => void;
+  zoom?: number;
 }
 
 export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
@@ -49,11 +52,14 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
   onCellChange,
   initialGrid,
   isReviewMode = false,
+  incorrectCells,
+  onSubmit,
+  zoom = 1,
 }) => {
   const { rows, cols } = puzzleData;
   const gridRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
-  const [zoom, setZoom] = useState(1);
+  // zoom state removed in favor of prop
 
   const [grid, setGrid] = useState<(string | null)[][]>(() =>
     initialGrid || Array(rows).fill(null).map(() => Array(cols).fill(null))
@@ -83,12 +89,12 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
 
     puzzleData.acrossClues.forEach(clue => {
       acrossMap.set(clue.number, clue);
-      for (let i = 0; i < clue.answer.length; i++) {
+      for (let i = 0; i < (clue.answer ? clue.answer.length : (clue as any).length || 0); i++) {
         if (clue.col + i < cols) {
           const cell = newGridData[clue.row][clue.col + i];
           cell.isBlack = false;
           cell.acrossClueNumber = clue.number;
-          newSolutionGrid[clue.row][clue.col + i] = clue.answer[i];
+          if (clue.answer) newSolutionGrid[clue.row][clue.col + i] = clue.answer[i];
         }
       }
       if (clue.col < cols && clue.row < rows) {
@@ -98,12 +104,12 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
 
     puzzleData.downClues.forEach(clue => {
       downMap.set(clue.number, clue);
-      for (let i = 0; i < clue.answer.length; i++) {
+      for (let i = 0; i < (clue.answer ? clue.answer.length : (clue as any).length || 0); i++) {
         if (clue.row + i < rows) {
           const cell = newGridData[clue.row + i][clue.col];
           cell.isBlack = false;
           cell.downClueNumber = clue.number;
-          newSolutionGrid[clue.row + i][clue.col] = clue.answer[i];
+          if (clue.answer) newSolutionGrid[clue.row + i][clue.col] = clue.answer[i];
         }
       }
       if (clue.row < rows && clue.col < cols) {
@@ -133,7 +139,15 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
     if (!clue) return { number: clueNumber, clueText: '', cells: [] };
 
     const cells: ActiveCell[] = [];
-    for (let i = 0; i < clue.answer.length; i++) {
+    // If answer is missing (backend check), we can't highlight cells easily unless we have length.
+    // We added length to Clue in types.ts. We should use it.
+    // But here Clue interface (line 8) doesn't have length. I should update it.
+    // Or use clue.answer.length if available.
+    // If answer is missing, we need length.
+    // Let's assume clue has length if answer is missing.
+    const length = clue.answer ? clue.answer.length : (clue as any).length || 0;
+
+    for (let i = 0; i < length; i++) {
       cells.push({
         row: direction === 'across' ? clue.row : clue.row + i,
         col: direction === 'across' ? clue.col + i : clue.col,
@@ -144,6 +158,13 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
 
   const checkCompletion = useCallback(() => {
     if (isCompleted || isReviewMode) return;
+    // Cannot check completion locally if solution is missing
+    // So we skip this check if solutionGrid is empty or partial
+    // Or we rely on explicit submit.
+    // For now, disable auto-completion check if any answer is missing.
+    const hasAllAnswers = puzzleData.acrossClues.every(c => c.answer) && puzzleData.downClues.every(c => c.answer);
+    if (!hasAllAnswers) return;
+
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
         if (!fullGridData[r][c].isBlack && grid[r][c] !== solutionGrid[r][c]) {
@@ -153,7 +174,7 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
     }
     setIsCompleted(true);
     onPuzzleComplete?.();
-  }, [grid, onPuzzleComplete, isCompleted, isReviewMode, rows, cols, fullGridData, solutionGrid]);
+  }, [grid, onPuzzleComplete, isCompleted, isReviewMode, rows, cols, fullGridData, solutionGrid, puzzleData]);
 
   useEffect(() => {
     checkCompletion();
@@ -315,15 +336,22 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
               const isHighlighted = activeClueInfo.cells.some(c => c.row === row && c.col === col);
 
               // Increased base font size for mobile for better legibility without zooming
-              let cellClasses = 'relative flex items-center justify-center uppercase font-bold text-base sm:text-lg md:text-2xl border-zinc-700 border select-none';
+              let cellClasses = 'relative border-zinc-700 border select-none overflow-hidden w-full h-full';
 
               if (isBlack) {
                 cellClasses += ' bg-zinc-950';
               } else {
                 if (isReviewMode) {
                   const userChar = grid[row][col];
-                  const solutionChar = solutionGrid[row][col];
-                  const isIncorrect = userChar && userChar !== solutionChar;
+                  // Use incorrectCells prop if available, otherwise fallback to solutionGrid check (for sample/legacy)
+                  let isIncorrect = false;
+                  if (incorrectCells) {
+                    isIncorrect = incorrectCells.some(c => c.row === row && c.col === col);
+                  } else if (solutionGrid[row][col]) {
+                    const solutionChar = solutionGrid[row][col];
+                    isIncorrect = userChar !== solutionChar;
+                  }
+
                   if (isIncorrect) {
                     cellClasses += ' bg-red-900/30 text-red-200';
                   } else {
@@ -339,26 +367,36 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
               }
 
               let charToShow = grid[row][col];
+              // In review mode, we usually showed solution. But if we don't have it, we show user's input.
+              // If we have solution (sample), we can show it?
+              // But usually review mode shows what user entered.
+              // The original code showed solutionGrid[row][col]!
+              // "charToShow = solutionGrid[row][col];"
+              // This means it revealed the solution.
+              // If we want to hide solution, we should show user input.
+              // But if user wants to see what they missed?
+              // If we don't send solution, we can't show it.
+              // So we must show user input.
               if (isReviewMode && !isBlack) {
-                charToShow = solutionGrid[row][col];
+                // If we have solution (sample), maybe show it?
+                // But for consistency, let's show user input.
+                // If user wants to see solution, they can't unless we fetch it (which we don't want).
+                // So showing user input is correct for "no solution on frontend".
+                charToShow = grid[row][col];
               }
 
               return (
                 <div key={`${row}-${col}`} className={cellClasses} onClick={(e) => { e.stopPropagation(); handleCellClick(row, col); }}>
                   {number && <span className="absolute top-0.5 left-0.5 text-[8px] md:text-xs leading-none text-zinc-400 font-normal pointer-events-none">{number}</span>}
-                  {!isBlack && <span className="pointer-events-none">{charToShow}</span>}
+                  {!isBlack && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <span className="uppercase font-bold text-base sm:text-lg md:text-2xl">{charToShow}</span>
+                    </div>
+                  )}
                 </div>
               );
             })}
           </div>
-
-          {/* Zoom Controls for Mobile */}
-          {isMobile && !isReviewMode && (
-            <div className="absolute right-2 top-2 flex flex-col gap-2 z-20 opacity-60">
-              <button onClick={(e) => { e.stopPropagation(); setZoom(z => Math.min(z + 0.25, 2.5)); }} className="w-10 h-10 bg-zinc-800 border border-zinc-600 rounded-full text-white flex items-center justify-center shadow-lg active:bg-zinc-700">+</button>
-              <button onClick={(e) => { e.stopPropagation(); setZoom(z => Math.max(z - 0.25, 1.0)); }} className="w-10 h-10 bg-zinc-800 border border-zinc-600 rounded-full text-white flex items-center justify-center shadow-lg active:bg-zinc-700">-</button>
-            </div>
-          )}
         </div>
 
         {/* Desktop Clue Lists */}
@@ -419,6 +457,16 @@ export const DarkModeCrossword: React.FC<DarkModeCrosswordProps> = ({
           {/* Keyboard */}
           <div className="w-full bg-gray-900 p-1 border-t border-zinc-800 safe-area-bottom">
             <CrosswordKeyboard onKeyPress={handleKeyPress} />
+            {onSubmit && !isReviewMode && !isCompleted && (
+              <div className="px-1 pb-1 pt-2">
+                <button
+                  onClick={onSubmit}
+                  className="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold py-3 rounded-lg text-lg transition-colors shadow-lg"
+                >
+                  Submit Puzzle
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

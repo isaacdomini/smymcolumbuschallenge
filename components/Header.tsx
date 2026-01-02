@@ -71,18 +71,7 @@ const Header: React.FC<HeaderProps> = ({ challengeName, onLogoClick, navigate })
                         </div>
                     </div>
                     <div className="flex items-center space-x-4">
-                        <Tooltip text="Support">
-                            <button
-                                onClick={() => navigate('/support')}
-                                className="p-2 text-gray-400 hover:text-yellow-400 transition-colors"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <circle cx="12" cy="12" r="10"></circle>
-                                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
-                                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                                </svg>
-                            </button>
-                        </Tooltip>
+
                         {user ? (
                             <>
                                 {isSupported && !isSubscribed && notificationPermission !== 'denied' && (
@@ -150,6 +139,15 @@ const Header: React.FC<HeaderProps> = ({ challengeName, onLogoClick, navigate })
                                                     Admin Dashboard
                                                 </button>
                                             )}
+                                            <button
+                                                onClick={() => {
+                                                    navigate('/support');
+                                                    setProfileMenuOpen(false);
+                                                }}
+                                                className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-600"
+                                            >
+                                                Support
+                                            </button>
                                             <button
                                                 onClick={logout}
                                                 className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-600"

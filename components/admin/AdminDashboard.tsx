@@ -10,7 +10,11 @@ import DailyMessageManager from './DailyMessageManager';
 import SupportManager from './SupportManager';
 import BannerManager from './BannerManager';
 
-type Tab = 'challenges' | 'games' | 'users' | 'logs' | 'messages' | 'support' | 'banners';
+import FeatureFlagManager from './FeatureFlagManager';
+
+import SubmissionViewer from './SubmissionViewer';
+
+type Tab = 'challenges' | 'games' | 'submissions' | 'users' | 'logs' | 'messages' | 'support' | 'banners' | 'features';
 
 const AdminDashboard: React.FC = () => {
     const { user } = useAuth();
@@ -37,9 +41,11 @@ const AdminDashboard: React.FC = () => {
     const tabs: { id: Tab; label: string }[] = [
         { id: 'challenges', label: 'Challenges' },
         { id: 'games', label: 'Game Builder' },
+        { id: 'submissions', label: 'Submissions' },
         { id: 'messages', label: 'Daily Messages' },
         { id: 'banners', label: 'Banner Messages' },
         { id: 'users', label: 'Users' },
+        { id: 'features', label: 'Feature Flags' },
         { id: 'logs', label: 'Logs' },
         { id: 'support', label: 'Support' },
     ];
@@ -93,9 +99,11 @@ const AdminDashboard: React.FC = () => {
                         challenges={challenges}
                     />
                 )}
+                {activeTab === 'submissions' && <SubmissionViewer />}
                 {activeTab === 'messages' && <DailyMessageManager />}
                 {activeTab === 'banners' && <BannerManager />}
                 {activeTab === 'users' && <UserManager />}
+                {activeTab === 'features' && <FeatureFlagManager />}
                 {activeTab === 'logs' && <LogViewer />}
                 {activeTab === 'support' && <SupportManager />}
             </div>

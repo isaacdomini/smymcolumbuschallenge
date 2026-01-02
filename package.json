@@ -1,7 +1,7 @@
 {
   "name": "smym-columbus-bible-games",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -11,12 +11,16 @@
     "preview": "vite preview",
     "server": "node server/dist/server.js",
     "cleanup:progress": "node server/dist/scripts/cleanup-progress.js",
+    "backfill:wordle": "node server/dist/scripts/backfill-wordle-solutions.js",
+    "backfill:connections": "node server/dist/scripts/backfill-connections-categories.js",
+    "maintenance": "node server/dist/scripts/run-maintenance.js",
     "migrate": "node server/dist/migrate.js",
     "seed": "node server/dist/seed.js",
     "test:push": "node server/dist/test-push.js",
     "resend-verification": "node server/dist/scripts/resend-verification.js",
     "send-reminders": "node server/dist/scripts/send-reminders.js",
-    "generate-vapid": "node -e \"console.log(require('web-push').generateVAPIDKeys())\""
+    "generate-vapid": "node -e \"console.log(require('web-push').generateVAPIDKeys())\"",
+    "recalculate-scores": "npx tsx server/src/scripts/recalculate_scores.ts"
   },
   "dependencies": {
     "@capacitor/android": "^7.4.4",
@@ -28,6 +32,7 @@
     "@capacitor/status-bar": "^7.0.3",
     "@capawesome/capacitor-badge": "^7.0.1",
     "@ionic/react": "^8.7.9",
+    "@types/jsonwebtoken": "^9.0.10",
     "apn": "^2.0.0",
     "bcrypt": "^5.1.1",
     "cors": "^2.8.5",
@@ -35,6 +40,8 @@
     "express": "^4.18.2",
     "express-rate-limit": "^7.1.5",
     "firebase-admin": "^13.6.0",
+    "jsonwebtoken": "^9.0.2",
+    "jwt-decode": "^4.0.0",
     "node-cron": "^3.0.3",
     "nodemailer": "^7.0.10",
     "pg": "^8.11.3",
@@ -59,6 +66,7 @@
     "@vitejs/plugin-react": "^5.0.0",
     "autoprefixer": "^10.4.19",
     "postcss": "^8.4.38",
+    "puppeteer": "^24.32.0",
     "tailwindcss": "^3.4.3",
     "tsx": "^4.7.0",
     "typescript": "~5.8.2",

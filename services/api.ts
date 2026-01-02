@@ -125,6 +125,15 @@ const MOCK_GAME_PROGRESS: GameProgress[] = [];
 // --- HELPER for Auth Headers ---
 const getAuthHeaders = async (userId?: string) => {
     const headers: HeadersInit = { 'Content-Type': 'application/json' };
+
+    // Add JWT token if available
+    try {
+        const token = await storage.get('token');
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+    } catch (e) { }
+
     if (userId) {
         headers['X-User-ID'] = userId;
     }
@@ -144,6 +153,48 @@ const simulateDelay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
 // --- API FUNCTIONS ---
 
+export const migrateSession = async (userId: string): Promise<User> => {
+    const useMock = USE_MOCK_DATA || await isTestUser(); // Simple check for mock/test users
+    if (useMock) {
+        await simulateDelay(500);
+        // Valid-looking mock JWT to pass jwt-decode checks (header.payload.signature)
+        // Valid-looking mock JWT to pass jwt-decode checks
+        const mockToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6Ik1vY2sgVXNlciIsImlhdCI6MTUxNjIzOTAyMn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c";
+        console.log("Migrating session for test user:", userId, "Token:", mockToken);
+
+        const user = MOCK_USERS.find(u => u.id === userId);
+        if (user) {
+            return { ...user, token: mockToken };
+        }
+
+        // Fallback: Check storage for persisted test user
+        try {
+            const stored = await storage.get('user');
+            if (stored) {
+                const storedUser = JSON.parse(stored);
+                if (storedUser.id === userId) {
+                    return { ...storedUser, token: mockToken };
+                }
+            }
+        } catch (e) { }
+
+        throw new Error("User not found");
+    } else {
+        const response = await fetch(`${API_BASE_URL}/migrate-session`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId }),
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Session migration failed');
+        }
+
+        return await response.json();
+    }
+};
+
 export const login = async (email: string, pass: string): Promise<User> => {
     const useMock = USE_MOCK_DATA || email.split('@')[0] === 'test';
     if (useMock) {
@@ -152,12 +203,14 @@ export const login = async (email: string, pass: string): Promise<User> => {
         if (user) {
             // MOCK ONLY: Map is_admin to isAdmin if it existed in a different format in legacy mock data, 
             // but here we defined it correctly above.
-            return user;
+            const mockToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6Ik1vY2sgVXNlciIsImlhdCI6MTUxNjIzOTAyMn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c";
+            return { ...user, token: mockToken };
         }
         if (email.split('@')[0] === 'test') {
+            const mockToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6Ik1vY2sgVXNlciIsImlhdCI6MTUxNjIzOTAyMn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c";
             const newUser: User = { id: `user-${Date.now()}`, name: 'Test User', email, isAdmin: true };
             MOCK_USERS.push(newUser);
-            return newUser;
+            return { ...newUser, token: mockToken };
         }
         throw new Error("Invalid credentials");
     } else {
@@ -624,6 +677,41 @@ export const getAdminStats = async (userId: string): Promise<AdminStats> => {
     return await response.json();
 }
 
+// Feature Flags
+// Feature Flags
+export const getFeatureFlags = async (userId: string) => {
+    const response = await fetch(`${API_BASE_URL}/admin/feature-flags`, {
+        headers: await getAuthHeaders(userId)
+    });
+    if (!response.ok) throw new Error('Failed to fetch feature flags');
+    return response.json();
+};
+
+export const getPublicFeatureFlags = async () => {
+    try {
+        const response = await fetch(`${API_BASE_URL}/feature-flags/public`);
+        if (!response.ok) throw new Error('Failed to fetch public flags');
+        return await response.json();
+    } catch (error) {
+        console.error("Error loading public flags", error);
+        return { maintenance_mode: false };
+    }
+};
+
+export const updateFeatureFlag = async (userId: string, key: string, enabled: boolean) => {
+    const headers = await getAuthHeaders(userId);
+    const response = await fetch(`${API_BASE_URL}/admin/feature-flags/${key}`, {
+        method: 'PUT',
+        headers: {
+            ...headers as Record<string, string>,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ enabled })
+    });
+    if (!response.ok) throw new Error('Failed to update feature flag');
+    return response.json();
+};
+
 export const getChallenges = async (userId: string): Promise<Challenge[]> => {
     if (USE_MOCK_DATA || await isTestUser()) {
         return [MOCK_CHALLENGE];
@@ -696,12 +784,72 @@ export const deleteChallenge = async (userId: string, challengeId: string): Prom
     }
 }
 
+export const updateChallengeWordBank = async (userId: string, challengeId: string, words: string[]): Promise<void> => {
+    if (USE_MOCK_DATA || await isTestUser()) return; // Not implemented for mock
+
+    const response = await fetch(`${API_BASE_URL}/challenges/${challengeId}/wordbank`, {
+        method: 'PUT',
+        headers: await getAuthHeaders(userId),
+        body: JSON.stringify({ words })
+    });
+
+    if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to update word bank');
+    }
+}
+
 export const getUsers = async (userId: string, limit = 50, offset = 0): Promise<User[]> => {
     if (USE_MOCK_DATA || await isTestUser()) return MOCK_USERS;
     const response = await fetch(`${API_BASE_URL}/admin/users?limit=${limit}&offset=${offset}`, {
         headers: await getAuthHeaders(userId)
     });
     if (!response.ok) throw new Error('Failed to fetch users');
+    return await response.json();
+};
+
+export const getAdminSubmissions = async (userId: string, limit = 20, offset = 0, filters: { gameId?: string, gameType?: string, userId?: string } = {}): Promise<{ submissions: any[], total: number }> => {
+    if (USE_MOCK_DATA || await isTestUser()) {
+        // Mock data logic for submissions
+        let filtered = [...MOCK_SUBMISSIONS];
+        if (filters.gameId) filtered = filtered.filter(s => s.gameId === filters.gameId);
+        if (filters.userId) filtered = filtered.filter(s => s.userId === filters.userId);
+        // Note: Mock doesn't easily support gameType filtering without joining, skipping for mock simplicity
+
+        filtered.sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime());
+
+        const sliced = filtered.slice(offset, offset + limit);
+
+        const mapped = sliced.map(s => {
+            const user = MOCK_USERS.find(u => u.id === s.userId);
+            const game = MOCK_GAMES.find(g => g.id === s.gameId);
+            return {
+                ...s,
+                userName: user?.name,
+                userEmail: user?.email,
+                gameType: game?.type,
+                gameDate: game?.date
+            };
+        });
+
+        return { submissions: mapped, total: filtered.length };
+    }
+
+    const params: any = {
+        limit: limit.toString(),
+        offset: offset.toString(),
+    };
+    if (filters.gameId) params.gameId = filters.gameId;
+    if (filters.gameType) params.gameType = filters.gameType;
+    if (filters.userId) params.userId = filters.userId;
+
+    const queryParams = new URLSearchParams(params);
+
+    const response = await fetch(`${API_BASE_URL}/admin/submissions?${queryParams}`, {
+        headers: await getAuthHeaders(userId)
+    });
+
+    if (!response.ok) throw new Error('Failed to fetch submissions');
     return await response.json();
 };
 
@@ -747,6 +895,20 @@ export const updateUserProfile = async (userId: string, data: { name: string }):
     return await response.json();
 }
 
+export const reportCheating = async (userId: string, details: string): Promise<void> => {
+    try {
+        await fetch(`${API_BASE_URL}/report-cheating`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId, details }),
+        });
+    } catch (e) {
+        console.error("Failed to report cheating", e);
+    }
+};
+
+
+
 export const deleteUser = async (userId: string): Promise<void> => {
     if (USE_MOCK_DATA || await isTestUser()) {
         await simulateDelay(500);
@@ -780,6 +942,24 @@ export const getGames = async (userId: string, challengeId: string): Promise<Gam
     return await response.json();
 };
 
+export const checkAnswer = async (gameId: string, guess: any): Promise<any> => {
+    if (USE_MOCK_DATA || await isTestUser()) {
+        await simulateDelay(200);
+        // Mock simple success for testing UI
+        return { result: Array(5).fill('correct'), correct: true };
+    } else {
+        const response = await fetch(`${API_BASE_URL}/games/${gameId}/check`, {
+            method: 'POST',
+            headers: await getAuthHeaders(),
+            body: JSON.stringify({ guess })
+        });
+        if (!response.ok) {
+            throw new Error('Failed to check answer');
+        }
+        return await response.json();
+    }
+};
+
 export const deleteGame = async (userId: string, gameId: string): Promise<void> => {
     if (USE_MOCK_DATA || await isTestUser()) return; // Not implemented for mock
     const response = await fetch(`${API_BASE_URL}/admin/games/${gameId}`, {
@@ -802,10 +982,22 @@ export interface DailyMessage {
 export const getDailyMessage = async (date?: string): Promise<DailyMessage | null> => {
     if (USE_MOCK_DATA || await isTestUser()) {
         // Mock data
+        const mockContent = JSON.stringify([
+            {
+                type: 'paragraph',
+                text: 'This is a mock daily message for testing purposes.'
+            },
+            {
+                type: 'long_text',
+                title: 'Mock Long Text',
+                text: 'This is a detailed mock long text content that allows testing of the permalink functionality. It simulates the structure of a real daily message with a long text block.',
+                pdfUrl: 'https://example.com/mock.pdf'
+            }
+        ]);
         return {
             id: 'msg-mock',
             date: date || new Date().toISOString().split('T')[0],
-            content: 'This is a mock daily message for testing purposes.'
+            content: mockContent
         };
     }
     const query = date ? `?date=${date}` : '';
@@ -1009,9 +1201,8 @@ export const getScoringCriteria = async (): Promise<any[]> => {
             description: 'Unscramble the Bible verse by dragging words into the correct order.',
             hidden: false,
             points: [
-                'Completion Score: 50 points for completing the verse.',
-                'Accuracy Bonus: Up to 30 points for minimal mistakes.',
-                'Time Bonus: Up to 20 points for fast completion.'
+                'Time Score: Up to 60 points based on speed.',
+                'Time Limit: 10 minutes. Score is 0 if time exceeds limit.'
             ]
         },
         {
@@ -1034,4 +1225,27 @@ export const getScoringCriteria = async (): Promise<any[]> => {
             ]
         }
     ];
+};
+
+
+export const getUserChallenges = async (): Promise<Challenge[]> => {
+    const response = await fetch(`${API_BASE_URL}/user/challenges`, {
+        headers: await getAuthHeaders()
+    });
+    if (!response.ok) {
+        throw new Error('Failed to fetch user challenges');
+    }
+    return await response.json();
+};
+
+export const getServerVersion = async (): Promise<{ version: string }> => {
+    try {
+        const response = await fetch(`${API_BASE_URL}/version`);
+        if (!response.ok) throw new Error('Failed to fetch version');
+        return await response.json();
+    } catch (e) {
+        console.error("Failed to fetch server version", e);
+        // Return default or empty if fail, to avoid blocking app
+        return { version: '' };
+    }
 };

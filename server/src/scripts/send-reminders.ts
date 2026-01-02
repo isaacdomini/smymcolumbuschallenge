@@ -1,5 +1,6 @@
 import pool from '../db/pool.js';
 import { sendPushNotification } from '../services/push.js';
+import { getGameName } from '../utils/game.js';
 
 const sendReminders = async () => {
   console.log('Starting manual reminder script...');
@@ -29,7 +30,7 @@ const sendReminders = async () => {
       process.exit(0);
     }
     const game = gameResult.rows[0];
-    const gameType = game.type.charAt(0).toUpperCase() + game.type.slice(1);
+    const gameType = getGameName(game.type);
 
     const usersToRemind = await pool.query(`
             SELECT u.id, u.name
