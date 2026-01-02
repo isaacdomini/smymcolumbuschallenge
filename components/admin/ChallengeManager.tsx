@@ -156,42 +156,49 @@ export const ChallengeManager: React.FC<ChallengeManagerProps> = ({ user }) => {
                         <h3 className="text-xl font-bold text-white mb-4">Games for {selectedChallenge.name}</h3>
                         <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
                             {getDatesInRange(selectedChallenge.startDate, selectedChallenge.endDate).map(date => {
-                                const game = games.find(g => g.date.startsWith(date));
+                                const gamesForDate = games.filter(g => g.date.startsWith(date));
                                 return (
-                                    <div key={date} className="bg-gray-700 p-4 rounded-lg border border-gray-600 flex justify-between items-center">
-                                        <div>
+                                    <div key={date} className="bg-gray-700 p-4 rounded-lg border border-gray-600 flex flex-col gap-2">
+                                        <div className="flex justify-between items-center border-b border-gray-600 pb-2 mb-2">
                                             <div className="font-bold text-white">
                                                 {new Date(date + 'T12:00:00Z').toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
                                             </div>
-                                            <div className="text-sm text-gray-400">
-                                                {game ? (
-                                                    <span className="text-green-400 font-bold uppercase">{game.type}</span>
-                                                ) : (
-                                                    <span className="text-gray-500 italic">No game scheduled</span>
-                                                )}
-                                            </div>
-                                        </div>
-                                        <div className="flex gap-2">
                                             <button
                                                 onClick={() => setEditingGame({
                                                     challengeId: selectedChallenge.id,
                                                     date: date,
-                                                    type: game?.type || GameType.WORDLE,
-                                                    data: game?.data
+                                                    type: GameType.WORDLE, // Default
+                                                    data: {}
                                                 })}
-                                                className="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded text-sm"
+                                                className="px-3 py-1 bg-green-600 hover:bg-green-500 text-white rounded text-sm font-bold"
                                             >
-                                                {game ? 'Edit' : 'Create'}
+                                                + Add Game
                                             </button>
-                                            {game && (
-                                                <button
-                                                    onClick={() => handleDeleteGame(game.id)}
-                                                    className="px-3 py-1 bg-red-600 hover:bg-red-500 text-white rounded text-sm"
-                                                >
-                                                    Delete
-                                                </button>
-                                            )}
                                         </div>
+
+                                        {gamesForDate.length > 0 ? (
+                                            gamesForDate.map(game => (
+                                                <div key={game.id} className="flex justify-between items-center bg-gray-800 p-2 rounded">
+                                                    <span className="text-green-400 font-bold uppercase text-sm">{game.type.replace(/_/g, ' ')}</span>
+                                                    <div className="flex gap-2">
+                                                        <button
+                                                            onClick={() => setEditingGame(game)}
+                                                            className="px-2 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded text-xs"
+                                                        >
+                                                            Edit
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDeleteGame(game.id)}
+                                                            className="px-2 py-1 bg-red-600 hover:bg-red-500 text-white rounded text-xs"
+                                                        >
+                                                            Delete
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div className="text-sm text-gray-500 italic p-2">No games scheduled</div>
+                                        )}
                                     </div>
                                 );
                             })}
