@@ -386,6 +386,7 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
           {isReadOnly && submission && (
             <div className="mt-4 text-sm text-gray-300">
               <p>Time Taken: {submission.timeTaken}s | Mistakes: {submission.mistakes} | Score: {submission.score}</p>
+              {solution && <p className="mt-2 text-lg text-yellow-400 font-bold">Answer: {solution}</p>}
             </div>
           )}
           <button onClick={onComplete} className="mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
