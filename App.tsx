@@ -28,7 +28,7 @@ import ChallengeIntro from './components/dashboard/ChallengeIntro';
 const ChristmasFlair = lazy(() => import('./components/ChristmasFlair'));
 import { Game, GameType, Challenge, GameSubmission, User } from './types';
 import { getChallenge, getDailyGames, getLeaderboard, getSubmissionForToday, getGamesForChallenge, getSubmissionsForUser, getGameState, getDailyMessage, getPublicFeatureFlags, getServerVersion, DailyMessage as DailyMessageType } from './services/api';
-import { formatGameType } from './utils/game';
+import { getGameName } from './utils/game';
 import ScoringCriteria from './components/dashboard/ScoringCriteria';
 import AddToHomeScreen from './components/ui/AddToHomeScreen';
 import DailyMessage from './components/dashboard/DailyMessage';
@@ -488,11 +488,11 @@ const MainContent: React.FC = () => {
                     const progress = todaysProgressMap[game.id];
                     const isInProgress = !isSubmitted && progress && progress.gameState && progress.gameState.startTime;
 
-                    let label = `Play ${formatGameType(game.type)}`;
+                    let label = `Play ${getGameName(game.type)}`;
                     if (isSubmitted) {
-                      label = `Revisit ${formatGameType(game.type)}`;
+                      label = `Revisit ${getGameName(game.type)}`;
                     } else if (isInProgress) {
-                      label = `Continue ${formatGameType(game.type)}`;
+                      label = `Continue ${getGameName(game.type)}`;
                     }
 
                     return (
