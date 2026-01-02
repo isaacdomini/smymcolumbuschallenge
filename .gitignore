@@ -33,6 +33,9 @@ server/dist
 *.sln
 *.sw?
 
+android
+ios
+
 
 # Push notification keys
 /server/firebase-service-account.json

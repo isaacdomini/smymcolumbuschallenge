@@ -1949,11 +1949,13 @@ router.get('/challenge/:challengeId/daily', async (req: Request, res: Response) 
     const result = await pool.query('SELECT * FROM games WHERE challenge_id = $1 AND DATE(date) = $2', [challengeId, today]);
 
     if (result.rows.length > 0) {
-      const game = result.rows[0];
-      const resolvedGame = await resolveGameData(game, userId);
-      res.json(resolvedGame);
+      // Resolve all games found for today
+      const games = await Promise.all(result.rows.map(async (game) => {
+        return resolveGameData(game, userId);
+      }));
+      res.json(games);
     } else {
-      res.json(null);
+      res.json([]);
     }
   } catch (error) {
     console.error('Get daily game error:', error);

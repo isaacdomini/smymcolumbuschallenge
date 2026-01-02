@@ -31,3 +31,7 @@ export const getGameName = (gameType: GameType | string): string => {
       return gameType.charAt(0).toUpperCase() + gameType.slice(1);
   }
 };
+
+export const formatGameType = (gameType: string): string => {
+  return gameType.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+};

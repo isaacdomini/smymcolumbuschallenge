@@ -344,18 +344,19 @@ export const getChallenge = async (): Promise<Challenge | null> => {
     }
 };
 
-export const getDailyGame = async (challengeId: string): Promise<Game | null> => {
+export const getDailyGames = async (challengeId: string): Promise<Game[]> => {
     if (USE_MOCK_DATA || await isTestUser()) {
         await simulateDelay(200);
-        if (challengeId !== MOCK_CHALLENGE.id) return null;
+        if (challengeId !== MOCK_CHALLENGE.id) return [];
         const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
-        return MOCK_GAMES.find(g => g.date.startsWith(today)) ?? null;
+        // Return all games for today in mock
+        return MOCK_GAMES.filter(g => g.date.startsWith(today));
     } else {
         const response = await fetch(`${API_BASE_URL}/challenge/${challengeId}/daily`, {
             headers: await getAuthHeaders()
         });
         if (!response.ok) {
-            throw new Error('Failed to fetch daily game');
+            throw new Error('Failed to fetch daily games');
         }
         return await response.json();
     }

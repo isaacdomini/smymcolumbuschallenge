@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useCallback, Suspense, lazy, useMemo } from 'react';
 import { Toaster } from 'react-hot-toast';
 import { BannerMessage } from '@/components/BannerMessage';
 import { AuthProvider, useAuth } from '@/hooks/useAuth';
@@ -27,7 +27,8 @@ const LongTextPage = lazy(() => import('./components/LongTextPage'));
 import ChallengeIntro from './components/dashboard/ChallengeIntro';
 const ChristmasFlair = lazy(() => import('./components/ChristmasFlair'));
 import { Game, GameType, Challenge, GameSubmission, User } from './types';
-import { getChallenge, getDailyGame, getLeaderboard, getSubmissionForToday, getGamesForChallenge, getSubmissionsForUser, getGameState, getDailyMessage, getPublicFeatureFlags, getServerVersion, DailyMessage as DailyMessageType } from './services/api';
+import { getChallenge, getDailyGames, getLeaderboard, getSubmissionForToday, getGamesForChallenge, getSubmissionsForUser, getGameState, getDailyMessage, getPublicFeatureFlags, getServerVersion, DailyMessage as DailyMessageType } from './services/api';
+import { formatGameType } from './utils/game';
 import ScoringCriteria from './components/dashboard/ScoringCriteria';
 import AddToHomeScreen from './components/ui/AddToHomeScreen';
 import DailyMessage from './components/dashboard/DailyMessage';
@@ -65,9 +66,10 @@ const MainContent: React.FC = () => {
   useDevToolsDetection();
   const { user } = useAuth();
   const [challenge, setChallenge] = useState<Challenge | null>(null);
-  const [todaysGame, setTodaysGame] = useState<Game | null>(null);
+  const [todaysGames, setTodaysGames] = useState<Game[]>([]);
   const [todaysSubmission, setTodaysSubmission] = useState<GameSubmission | null>(null);
-  const [todaysProgress, setTodaysProgress] = useState<any | null>(null);
+  const [todaysProgressMap, setTodaysProgressMap] = useState<Record<string, any>>({});
+  const [todaysProgress, setTodaysProgress] = useState<any | null>(null); // Kept for legacy compatibility if needed, using map mostly
   const [dailyMessage, setDailyMessage] = useState<DailyMessageType | null>(null);
   const [showChristmasFlair, setShowChristmasFlair] = useState(false);
 
@@ -79,6 +81,9 @@ const MainContent: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [globalMessage, setGlobalMessage] = useState<string | null>(null);
   const [isMaintenance, setIsMaintenance] = useState(false);
+
+  // Memoize the set of submitted game IDs to avoid recalculation on every render
+  const submittedGameIds = useMemo(() => new Set(allUserSubmissions.map(s => s.gameId)), [allUserSubmissions]);
 
   useEffect(() => {
     // This effect runs once on app load
@@ -272,25 +277,27 @@ const MainContent: React.FC = () => {
         }
 
         if (now >= challengeStartDate) {
-          const game = await getDailyGame(currentChallenge.id);
-          setTodaysGame(game);
+          const games = await getDailyGames(currentChallenge.id);
+          setTodaysGames(games);
 
-          if (user && game) {
-            const todaySub = currentSubmissions.find(s => s.gameId === game.id) ?? null;
-            setTodaysSubmission(todaySub);
-            if (!todaySub) {
-              try {
-                const progress = await getGameState(user.id, game.id);
-                setTodaysProgress(progress);
-              } catch (e) {
-                setTodaysProgress(null);
+          if (user) {
+            // Fetch progress for all daily games to enable "Continue" button
+            const progressPromises = games.map(g => getGameState(user.id, g.id).catch(() => null));
+            const progresses = await Promise.all(progressPromises);
+            const newProgressMap: Record<string, any> = {};
+            games.forEach((g, i) => {
+              if (progresses[i]) {
+                newProgressMap[g.id] = progresses[i];
               }
-            } else {
-              setTodaysProgress(null);
-            }
+            });
+            setTodaysProgressMap(newProgressMap);
+
+            setTodaysSubmission(null);
+            setTodaysProgress(null);
           } else {
             setTodaysSubmission(null);
             setTodaysProgress(null);
+            setTodaysProgressMap({});
           }
         }
 
@@ -402,7 +409,7 @@ const MainContent: React.FC = () => {
         }
       } else {
         const activeGame = allChallengeGames.find(g => g.id === gameId);
-        gameToPlay = activeGame || (todaysGame?.id === gameId ? todaysGame : null);
+        gameToPlay = activeGame || (todaysGames.find(g => g.id === gameId) ?? null);
         activeSubmission = allUserSubmissions.find(s => s.gameId === gameId) ?? null;
       }
 
@@ -474,22 +481,43 @@ const MainContent: React.FC = () => {
         {challengeStarted && (
           <div className="mb-8 flex flex-col sm:flex-row justify-center items-center gap-4">
             {user ? (
-              <>
-                <button
-                  onClick={() => todaysGame && navigate(`/game/${todaysGame.id}`)}
-                  disabled={!todaysGame}
-                  className="bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold py-3 px-8 rounded-lg text-xl shadow-lg transition-transform transform hover:scale-105 disabled:bg-gray-600 disabled:cursor-not-allowed"
-                >
-                  {todaysGame
-                    ? (todaysSubmission
-                      ? "Revisit Today's Game"
-                      : (todaysProgress && todaysProgress.gameState && todaysProgress.gameState.startTime ? "Continue Today's Game" : "Play Today's Game"))
-                    : "No Game Today"}
-                </button>
-                <button onClick={() => navigate('/history')} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg text-xl shadow-lg transition-transform transform hover:scale-105">
+              <div className="flex flex-col gap-4 items-center w-full max-w-md">
+                {todaysGames.length > 0 ? (
+                  todaysGames.map(game => {
+                    const isSubmitted = submittedGameIds.has(game.id);
+                    const progress = todaysProgressMap[game.id];
+                    const isInProgress = !isSubmitted && progress && progress.gameState && progress.gameState.startTime;
+
+                    let label = `Play ${formatGameType(game.type)}`;
+                    if (isSubmitted) {
+                      label = `Revisit ${formatGameType(game.type)}`;
+                    } else if (isInProgress) {
+                      label = `Continue ${formatGameType(game.type)}`;
+                    }
+
+                    return (
+                      <button
+                        key={game.id}
+                        onClick={() => navigate(`/game/${game.id}`)}
+                        className={`w-full font-bold py-3 px-8 rounded-lg text-xl shadow-lg transition-transform transform hover:scale-105 ${isSubmitted ? 'bg-green-600 hover:bg-green-700 text-white' : (isInProgress ? 'bg-orange-500 hover:bg-orange-600 text-white' : 'bg-yellow-500 hover:bg-yellow-600 text-gray-900')}`}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })
+                ) : (
+                  <button
+                    disabled
+                    className="bg-gray-700 text-gray-500 font-bold py-3 px-8 rounded-lg text-xl shadow-lg cursor-not-allowed"
+                  >
+                    No Games Today
+                  </button>
+                )}
+
+                <button onClick={() => navigate('/history')} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg text-xl shadow-lg transition-transform transform hover:scale-105">
                   View Challenge Roadmap
                 </button>
-              </>
+              </div>
             ) : (
               <p className="text-center text-lg bg-gray-800 p-4 rounded-lg">Please log in or sign up to participate!</p>
             )}
@@ -498,7 +526,14 @@ const MainContent: React.FC = () => {
         <BannerMessage />
         {challengeStarted && challenge ? (
           <>
-            <DailyMessage message={dailyMessage} isBlurred={!todaysSubmission && !!todaysGame} navigate={navigate} />
+            <DailyMessage
+              message={dailyMessage}
+              isBlurred={
+                todaysGames.length > 0 &&
+                !todaysGames.some(g => submittedGameIds.has(g.id))
+              }
+              navigate={navigate}
+            />
             <LeaderboardWrapper challengeId={!challengeStarted && challenge.previousChallengeId ? challenge.previousChallengeId : challenge.id} />
           </>
         ) : null}
@@ -555,7 +590,7 @@ const MainContent: React.FC = () => {
         <AddToHomeScreen />
         {showChristmasFlair && <Suspense fallback={null}><ChristmasFlair /></Suspense>}
       </IonContent>
-    </IonApp>
+    </IonApp >
   );
 };
 

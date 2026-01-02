@@ -229,7 +229,8 @@ router.post('/games', async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'Missing required game fields' });
         }
 
-        const gameId = `game-${type}-${date}`;
+        // Use timestamp to allow multiple games of same type on same day
+        const gameId = `game-${type}-${date}-${Date.now()}`;
 
         await pool.query(
             `INSERT INTO games (id, challenge_id, date, type, data) 
