@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Challenge, Game, GameType } from '../../types';
 import { getChallenges, getGames, createGame, deleteGame } from '../../services/api';
 import GameBuilder from './GameBuilder';
+import { formatGameType } from '../../utils/game';
 import WordleGame from '../game/WordleGame';
 import ConnectionsGame from '../game/ConnectionsGame';
 import CrosswordGame from '../game/CrosswordGame';
@@ -179,7 +180,7 @@ export const ChallengeManager: React.FC<ChallengeManagerProps> = ({ user }) => {
                                         {gamesForDate.length > 0 ? (
                                             gamesForDate.map(game => (
                                                 <div key={game.id} className="flex justify-between items-center bg-gray-800 p-2 rounded">
-                                                    <span className="text-green-400 font-bold uppercase text-sm">{game.type.replace(/_/g, ' ')}</span>
+                                                    <span className="text-green-400 font-bold uppercase text-sm">{formatGameType(game.type)}</span>
                                                     <div className="flex gap-2">
                                                         <button
                                                             onClick={() => setEditingGame(game)}
