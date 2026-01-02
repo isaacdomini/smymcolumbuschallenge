@@ -408,8 +408,8 @@ const MainContent: React.FC = () => {
           } as Game;
         }
       } else {
-        const activeGame = allChallengeGames.find(g => g.id === gameId);
-        gameToPlay = activeGame || (todaysGames.find(g => g.id === gameId) ?? null);
+        const activeGame = todaysGames.find(g => g.id === gameId);
+        gameToPlay = activeGame || (allChallengeGames.find(g => g.id === gameId) ?? null);
         activeSubmission = allUserSubmissions.find(s => s.gameId === gameId) ?? null;
       }
 
