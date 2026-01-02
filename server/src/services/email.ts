@@ -78,7 +78,7 @@ export const sendDailyReminder = async (email: string, name: string, gameType: s
       html: `
                 <div style="font-family: sans-serif; color: #333;">
                     <h2>Hi ${name},</h2>
-                    <p>Don't forget to play today's <strong>${gameType}</strong> challenge!</p>
+                    <p>Don't forget to play today's <strong>${gameType}</strong>!</p>
                     <p>Keep your streak alive and climb the leaderboard.</p>
                     <p>
                         <a href="${gameUrl}" style="background-color: #2563EB; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">

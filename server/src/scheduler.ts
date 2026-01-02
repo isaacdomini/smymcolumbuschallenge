@@ -50,28 +50,44 @@ export const initScheduler = () => {
                 console.log('No game scheduled for today, skipping reminders.');
                 return;
             }
-            const game = gameResult.rows[0];
-            const gameType = getGameName(game.type);
 
+            const games = gameResult.rows;
+            const gameIds = games.map(g => g.id);
+            const totalGames = games.length;
+
+            // Find users who have completed FEWER games than the total available today
             const usersToRemind = await pool.query(`
                 SELECT u.id, u.name, u.email, u.email_notifications 
                 FROM users u
-                LEFT JOIN game_submissions gs ON u.id = gs.user_id AND gs.game_id = $1
-                WHERE u.is_verified = true AND gs.id IS NULL
-            `, [game.id]);
+                WHERE u.is_verified = true
+                AND (
+                    SELECT COUNT(*)
+                    FROM game_submissions gs
+                    WHERE gs.user_id = u.id
+                    AND gs.game_id = ANY($1::uuid[])
+                ) < $2
+            `, [gameIds, totalGames]);
 
-            console.log(`Found ${usersToRemind.rows.length} potential users to remind for ${game.type} on ${todayStr}.`);
+            console.log(`Found ${usersToRemind.rows.length} potential users to remind for ${totalGames} game(s) on ${todayStr}.`);
 
             const notificationPromises = usersToRemind.rows.map(async (user) => {
                 const promises = [];
+
+                let gameLabel = "";
+                if (totalGames === 1) {
+                    gameLabel = getGameName(games[0].type);
+                } else {
+                    gameLabel = "daily challenges";
+                }
+
                 // Send email if opted in
                 if (user.email_notifications) {
-                    promises.push(sendDailyReminder(user.email, user.name, gameType));
+                    promises.push(sendDailyReminder(user.email, user.name, gameLabel));
                 }
                 // ALWAYS try to send push notification if they have a subscription (handled by service)
                 promises.push(sendPushNotification(user.id, {
                     title: "Daily Challenge Reminder",
-                    body: `Hi ${user.name}, time for today's ${gameType}!`
+                    body: `Hi ${user.name}, time for today's ${gameLabel}!`
                 }));
                 return Promise.all(promises);
             });
