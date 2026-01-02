@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useCallback, Suspense, lazy, useMemo } from 'react';
 import { Toaster } from 'react-hot-toast';
 import { BannerMessage } from '@/components/BannerMessage';
 import { AuthProvider, useAuth } from '@/hooks/useAuth';
@@ -81,6 +81,9 @@ const MainContent: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [globalMessage, setGlobalMessage] = useState<string | null>(null);
   const [isMaintenance, setIsMaintenance] = useState(false);
+
+  // Memoize the set of submitted game IDs to avoid recalculation on every render
+  const submittedGameIds = useMemo(() => new Set(allUserSubmissions.map(s => s.gameId)), [allUserSubmissions]);
 
   useEffect(() => {
     // This effect runs once on app load
@@ -480,31 +483,28 @@ const MainContent: React.FC = () => {
             {user ? (
               <div className="flex flex-col gap-4 items-center w-full max-w-md">
                 {todaysGames.length > 0 ? (
-                  (() => {
-                    const submittedGameIds = new Set(allUserSubmissions.map(s => s.gameId));
-                    return todaysGames.map(game => {
-                      const isSubmitted = submittedGameIds.has(game.id);
-                      const progress = todaysProgressMap[game.id];
-                      const isInProgress = !isSubmitted && progress && progress.gameState && progress.gameState.startTime;
+                  todaysGames.map(game => {
+                    const isSubmitted = submittedGameIds.has(game.id);
+                    const progress = todaysProgressMap[game.id];
+                    const isInProgress = !isSubmitted && progress && progress.gameState && progress.gameState.startTime;
 
-                      let label = `Play ${formatGameType(game.type)}`;
-                      if (isSubmitted) {
-                        label = `Revisit ${formatGameType(game.type)}`;
-                      } else if (isInProgress) {
-                        label = `Continue ${formatGameType(game.type)}`;
-                      }
+                    let label = `Play ${formatGameType(game.type)}`;
+                    if (isSubmitted) {
+                      label = `Revisit ${formatGameType(game.type)}`;
+                    } else if (isInProgress) {
+                      label = `Continue ${formatGameType(game.type)}`;
+                    }
 
-                      return (
-                        <button
-                          key={game.id}
-                          onClick={() => navigate(`/game/${game.id}`)}
-                          className={`w-full font-bold py-3 px-8 rounded-lg text-xl shadow-lg transition-transform transform hover:scale-105 ${isSubmitted ? 'bg-green-600 hover:bg-green-700 text-white' : (isInProgress ? 'bg-orange-500 hover:bg-orange-600 text-white' : 'bg-yellow-500 hover:bg-yellow-600 text-gray-900')}`}
-                        >
-                          {label}
-                        </button>
-                      );
-                    });
-                  })()
+                    return (
+                      <button
+                        key={game.id}
+                        onClick={() => navigate(`/game/${game.id}`)}
+                        className={`w-full font-bold py-3 px-8 rounded-lg text-xl shadow-lg transition-transform transform hover:scale-105 ${isSubmitted ? 'bg-green-600 hover:bg-green-700 text-white' : (isInProgress ? 'bg-orange-500 hover:bg-orange-600 text-white' : 'bg-yellow-500 hover:bg-yellow-600 text-gray-900')}`}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })
                 ) : (
                   <button
                     disabled
@@ -530,10 +530,7 @@ const MainContent: React.FC = () => {
               message={dailyMessage}
               isBlurred={
                 todaysGames.length > 0 &&
-                !(() => {
-                  const submittedGameIds = new Set(allUserSubmissions.map(s => s.gameId));
-                  return todaysGames.some(g => submittedGameIds.has(g.id));
-                })()
+                !todaysGames.some(g => submittedGameIds.has(g.id))
               }
               navigate={navigate}
             />
