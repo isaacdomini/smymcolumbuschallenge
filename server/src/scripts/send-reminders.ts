@@ -43,7 +43,7 @@ const sendReminders = async () => {
                 SELECT COUNT(*)
                 FROM game_submissions gs
                 WHERE gs.user_id = u.id
-                AND gs.game_id = ANY($1::uuid[])
+                AND gs.game_id = ANY($1::text[])
             ) < $2
         `, [gameIds, totalGames]);
 
