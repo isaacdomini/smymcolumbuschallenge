@@ -135,6 +135,13 @@ const DailyMessageManager: React.FC = () => {
                 >
                   + Long Text
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setBlocks([...blocks, { type: 'youtube', url: '', caption: '' }])}
+                  className="bg-red-700 hover:bg-red-600 text-xs text-white px-3 py-1 rounded"
+                >
+                  + YouTube
+                </button>
               </div>
             </div>
 
@@ -230,6 +237,38 @@ const DailyMessageManager: React.FC = () => {
                         />
                       </div>
                     );
+                  } else if (block.type === 'youtube') {
+                    return (
+                      <div className="space-y-2">
+                        <label className="text-xs text-red-400 mb-1 block">YouTube Video</label>
+                        <input
+                          type="text"
+                          value={block.url}
+                          onChange={(e) => {
+                            const newBlocks = [...blocks];
+                            if (newBlocks[index].type === 'youtube') {
+                              newBlocks[index].url = e.target.value;
+                              setBlocks(newBlocks);
+                            }
+                          }}
+                          className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white text-sm focus:border-red-500 focus:outline-none"
+                          placeholder="YouTube URL (e.g. https://www.youtube.com/watch?v=...)"
+                        />
+                        <input
+                          type="text"
+                          value={block.caption || ''}
+                          onChange={(e) => {
+                            const newBlocks = [...blocks];
+                            if (newBlocks[index].type === 'youtube') {
+                              newBlocks[index].caption = e.target.value;
+                              setBlocks(newBlocks);
+                            }
+                          }}
+                          className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white text-sm focus:border-red-500 focus:outline-none"
+                          placeholder="Caption (Optional)"
+                        />
+                      </div>
+                    );
                   } else {
                     return (
                       <div className="space-y-2">
@@ -282,7 +321,7 @@ const DailyMessageManager: React.FC = () => {
 
             {blocks.length === 0 && (
               <div className="text-center py-8 border-2 border-dashed border-gray-700 rounded-lg text-gray-500">
-                No content blocks. Add a paragraph, verse, or long text to start.
+                No content blocks. Add a paragraph, verse, long text, or YouTube video to start.
               </div>
             )}
           </div>

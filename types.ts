@@ -223,6 +223,7 @@ export interface ScoringCriterion {
 export type DailyMessageBlock =
   | { type: 'verse'; text: string; reference: string }
   | { type: 'paragraph'; text: string }
-  | { type: 'long_text'; title: string; text: string; pdfUrl?: string };
+  | { type: 'long_text'; title: string; text: string; pdfUrl?: string }
+  | { type: 'youtube'; url: string; caption?: string };
 
 export type DailyMessageContent = DailyMessageBlock[];

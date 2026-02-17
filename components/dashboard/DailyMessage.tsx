@@ -43,6 +43,37 @@ const DailyMessage: React.FC<DailyMessageProps> = ({ message, isBlurred, navigat
                         </button>
                       </div>
                     )
+                  } else if (block.type === 'youtube') {
+                    const getYouTubeId = (url: string) => {
+                      const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+                      const match = url.match(regExp);
+                      return (match && match[2].length === 11) ? match[2] : null;
+                    };
+                    const videoId = getYouTubeId(block.url);
+
+                    return (
+                      <div key={i} className="mb-6">
+                        {videoId ? (
+                          <div className="relative w-full pb-[56.25%] overflow-hidden rounded-lg border border-gray-700 shadow-lg bg-black">
+                            <iframe
+                              className="absolute top-0 left-0 w-full h-full"
+                              src={`https://www.youtube.com/embed/${videoId}`}
+                              title={block.caption || "YouTube video player"}
+                              frameBorder="0"
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                              allowFullScreen
+                            ></iframe>
+                          </div>
+                        ) : (
+                          <div className="p-4 bg-red-900/30 text-red-200 rounded border border-red-800 text-sm">
+                            Invalid YouTube URL
+                          </div>
+                        )}
+                        {block.caption && (
+                          <p className="mt-2 text-sm text-gray-400 italic text-center">{block.caption}</p>
+                        )}
+                      </div>
+                    );
                   } else {
                     return (
                       <div key={i} className="mb-4 text-gray-300 markdown-content">
