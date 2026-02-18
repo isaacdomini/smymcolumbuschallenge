@@ -713,11 +713,15 @@ export const updateFeatureFlag = async (userId: string, key: string, enabled: bo
     return response.json();
 };
 
-export const getChallenges = async (userId: string): Promise<Challenge[]> => {
+export const getChallenges = async (userId: string, groupId?: string): Promise<Challenge[]> => {
     if (USE_MOCK_DATA || await isTestUser()) {
         return [MOCK_CHALLENGE];
     }
-    const response = await fetch(`${API_BASE_URL}/admin/challenges`, {
+    const url = groupId && groupId !== 'all'
+        ? `${API_BASE_URL}/admin/challenges?groupId=${groupId}`
+        : `${API_BASE_URL}/admin/challenges`;
+
+    const response = await fetch(url, {
         headers: await getAuthHeaders(userId)
     });
     if (!response.ok) throw new Error('Failed to fetch challenges');
@@ -978,6 +982,7 @@ export interface DailyMessage {
     date: string;
     content: string;
     createdAt?: string;
+    group_id?: string;
 }
 
 export const getDailyMessage = async (date?: string): Promise<DailyMessage | null> => {
@@ -1131,16 +1136,21 @@ export const updateTicketStatus = async (userId: string, ticketId: string, statu
     if (!response.ok) throw new Error('Failed to update status');
 };
 
-export const getAllDailyMessages = async (userId: string, limit = 50, offset = 0): Promise<DailyMessage[]> => {
+export const getAllDailyMessages = async (userId: string, groupId?: string): Promise<DailyMessage[]> => {
     if (USE_MOCK_DATA || await isTestUser()) return [];
-    const response = await fetch(`${API_BASE_URL}/admin/daily-messages?limit=${limit}&offset=${offset}`, {
+
+    const url = groupId && groupId !== 'all'
+        ? `${API_BASE_URL}/admin/daily-messages?groupId=${groupId}`
+        : `${API_BASE_URL}/admin/daily-messages`;
+
+    const response = await fetch(url, {
         headers: await getAuthHeaders(userId)
     });
     if (!response.ok) throw new Error('Failed to fetch daily messages');
     return await response.json();
 };
 
-export const saveDailyMessage = async (userId: string, message: { date: string, content: string }): Promise<void> => {
+export const saveDailyMessage = async (userId: string, message: { date: string, content: string, groupId?: string }): Promise<void> => {
     if (USE_MOCK_DATA || await isTestUser()) return;
     const response = await fetch(`${API_BASE_URL}/admin/daily-messages`, {
         method: 'POST',

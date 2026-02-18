@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
 import apiRoutes from './routes/api.js';
 import adminRoutes from './routes/admin.js';
+import groupsRoutes from './routes/groups.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { initScheduler } from './scheduler.js';
@@ -34,7 +35,8 @@ app.use(visitLogger);
 app.use('/api', limiter);
 
 // Routes
-app.use('/api/admin', adminRoutes); // Register admin routes BEFORE generic API if they overlap, though here they don't.
+app.use('/api/admin', adminRoutes);
+app.use('/api/groups', groupsRoutes);
 app.use('/api', apiRoutes);
 
 if (process.env.NODE_ENV !== 'development') {

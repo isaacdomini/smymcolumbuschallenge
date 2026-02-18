@@ -176,8 +176,12 @@ router.post('/log', async (req: Request, res: Response) => {
 router.get('/daily-message', async (req: Request, res: Response) => {
   try {
     const date = (req.query.date as string) || getTodayEST();
+    const groupId = (req.query.groupId as string) || 'default';
 
-    const result = await pool.query('SELECT * FROM daily_messages WHERE date = $1', [date]);
+    const result = await pool.query(
+      'SELECT * FROM daily_messages WHERE date = $1 AND group_id = $2',
+      [date, groupId]
+    );
 
     if (result.rows.length === 0) {
       return res.json(null);
@@ -278,8 +282,18 @@ router.post('/login', async (req: Request, res: Response) => {
     delete user.reset_password_token;
     delete user.reset_password_expires;
 
+    // Fetch user groups
+    const groupsResult = await pool.query(
+      `SELECT g.*, ug.role 
+       FROM groups g 
+       JOIN user_groups ug ON g.id = ug.group_id 
+       WHERE ug.user_id = $1`,
+      [user.id]
+    );
+    const groups = groupsResult.rows;
+
     const token = jwt.sign({ id: user.id, isAdmin: user.is_admin }, JWT_SECRET, { expiresIn: '7d' });
-    res.json({ ...user, token });
+    res.json({ ...user, token, groups });
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -990,10 +1004,15 @@ router.delete('/users/:userId', async (req: Request, res: Response) => {
 router.get('/challenge', async (req: Request, res: Response) => {
   try {
     const now = new Date();
-    // 1. Try to find currently active challenge (excluding default)
+    // Convert now to EST string for comparison with DB dates (which are YYYY-MM-DD or timestamps)
+    // Actually, DB dates for start_date/end_date are typically timestamps.
+    const groupId = (req.query.groupId as string) || 'default';
+
+    // 1. Try to find currently active challenge (excluding default, unless looking for default group?)
+    // Logic: Active challenge for specific group
     const result = await pool.query(
-      "SELECT * FROM challenges WHERE start_date <= $1 AND end_date >= $1 AND id != 'challenge-default' ORDER BY start_date DESC LIMIT 1",
-      [now]
+      "SELECT * FROM challenges WHERE start_date <= $1 AND end_date >= $1 AND group_id = $2 ORDER BY start_date DESC LIMIT 1",
+      [now, groupId]
     );
 
     if (result.rows.length > 0) {
@@ -1008,8 +1027,8 @@ router.get('/challenge', async (req: Request, res: Response) => {
 
     // 2. If no active, find the next upcoming one
     const upcomingResult = await pool.query(
-      "SELECT * FROM challenges WHERE start_date > $1 AND id != 'challenge-default' ORDER BY start_date ASC LIMIT 1",
-      [now]
+      "SELECT * FROM challenges WHERE start_date > $1 AND group_id = $2 ORDER BY start_date ASC LIMIT 1",
+      [now, groupId]
     );
 
     if (upcomingResult.rows.length > 0) {
@@ -1017,8 +1036,8 @@ router.get('/challenge', async (req: Request, res: Response) => {
 
       // Find previous challenge for leaderboard history
       const prevResult = await pool.query(
-        "SELECT id FROM challenges WHERE end_date < $1 AND id != 'challenge-default' ORDER BY end_date DESC LIMIT 1",
-        [now]
+        "SELECT id FROM challenges WHERE end_date < $1 AND group_id = $2 ORDER BY end_date DESC LIMIT 1",
+        [now, groupId]
       );
       const prviousChallengeId = prevResult.rows.length > 0 ? prevResult.rows[0].id : undefined;
 
@@ -1031,16 +1050,18 @@ router.get('/challenge', async (req: Request, res: Response) => {
       });
     }
 
-    // 3. Fallback to Default Challenge
-    const defaultResult = await pool.query("SELECT * FROM challenges WHERE id = 'challenge-default'");
-    if (defaultResult.rows.length > 0) {
-      const challenge = defaultResult.rows[0];
-      return res.json({
-        id: challenge.id,
-        name: challenge.name,
-        startDate: challenge.start_date.toISOString(),
-        endDate: challenge.end_date.toISOString(),
-      });
+    // 3. Fallback to Default Challenge if looking at default group
+    if (groupId === 'default') {
+      const defaultResult = await pool.query("SELECT * FROM challenges WHERE id = 'challenge-default'");
+      if (defaultResult.rows.length > 0) {
+        const challenge = defaultResult.rows[0];
+        return res.json({
+          id: challenge.id,
+          name: challenge.name,
+          startDate: challenge.start_date.toISOString(),
+          endDate: challenge.end_date.toISOString(),
+        });
+      }
     }
 
     res.json(null);

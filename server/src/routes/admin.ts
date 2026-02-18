@@ -311,15 +311,27 @@ router.delete('/games/:id', async (req: Request, res: Response) => {
 
 // --- CHALLENGES ---
 
-// Get all challenges
+// Get all challenges (optionally filter by group)
 router.get('/challenges', async (req: Request, res: Response) => {
     try {
-        const result = await pool.query('SELECT * FROM challenges ORDER BY start_date DESC');
+        const groupId = req.query.groupId as string;
+        let query = 'SELECT * FROM challenges';
+        const params: any[] = [];
+
+        if (groupId && groupId !== 'all') {
+            query += ' WHERE group_id = $1';
+            params.push(groupId);
+        }
+
+        query += ' ORDER BY start_date DESC';
+
+        const result = await pool.query(query, params);
         res.json(result.rows.map(row => ({
             id: row.id,
             name: row.name,
             startDate: row.start_date,
-            endDate: row.end_date
+            endDate: row.end_date,
+            groupId: row.group_id
         })));
     } catch (error) {
         console.error('Error fetching challenges:', error);
@@ -330,14 +342,14 @@ router.get('/challenges', async (req: Request, res: Response) => {
 // Create a challenge
 router.post('/challenges', async (req: Request, res: Response) => {
     try {
-        const { id, name, startDate, endDate } = req.body;
+        const { id, name, startDate, endDate, groupId = 'default' } = req.body;
         if (!id || !name || !startDate || !endDate) {
             return res.status(400).json({ error: 'Missing required challenge fields' });
         }
 
         await pool.query(
-            'INSERT INTO challenges (id, name, start_date, end_date) VALUES ($1, $2, $3, $4)',
-            [id, name, startDate, endDate]
+            'INSERT INTO challenges (id, name, start_date, end_date, group_id) VALUES ($1, $2, $3, $4, $5)',
+            [id, name, startDate, endDate, groupId]
         );
 
         res.status(201).json({ message: 'Challenge created successfully', id });
@@ -354,11 +366,11 @@ router.post('/challenges', async (req: Request, res: Response) => {
 router.put('/challenges/:id', async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const { name, startDate, endDate } = req.body;
+        const { name, startDate, endDate, groupId } = req.body;
 
         const result = await pool.query(
-            'UPDATE challenges SET name = $1, start_date = $2, end_date = $3 WHERE id = $4 RETURNING *',
-            [name, startDate, endDate, id]
+            'UPDATE challenges SET name = $1, start_date = $2, end_date = $3, group_id = COALESCE($4, group_id) WHERE id = $5 RETURNING *',
+            [name, startDate, endDate, groupId, id]
         );
 
         if (result.rows.length === 0) {
@@ -404,11 +416,20 @@ router.get('/daily-messages', async (req: Request, res: Response) => {
     try {
         const limit = parseInt(req.query.limit as string) || 50;
         const offset = parseInt(req.query.offset as string) || 0;
+        const groupId = req.query.groupId as string;
 
-        const result = await pool.query(
-            'SELECT * FROM daily_messages ORDER BY date DESC LIMIT $1 OFFSET $2',
-            [limit, offset]
-        );
+        let query = 'SELECT * FROM daily_messages';
+        const params: any[] = [];
+
+        if (groupId && groupId !== 'all') {
+            query += ' WHERE group_id = $1';
+            params.push(groupId);
+        }
+
+        query += ` ORDER BY date DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+        params.push(limit, offset);
+
+        const result = await pool.query(query, params);
 
         res.json(result.rows);
     } catch (error) {
@@ -420,19 +441,19 @@ router.get('/daily-messages', async (req: Request, res: Response) => {
 // Create or update a daily message
 router.post('/daily-messages', async (req: Request, res: Response) => {
     try {
-        const { date, content } = req.body;
+        const { date, content, groupId = 'default' } = req.body;
 
         if (!date || !content) {
             return res.status(400).json({ error: 'Date and content are required' });
         }
 
-        const id = `msg-${date}`;
+        const id = `msg-${date}-${groupId}`;
 
         await pool.query(
-            `INSERT INTO daily_messages (id, date, content) 
-             VALUES ($1, $2, $3) 
-             ON CONFLICT (date) DO UPDATE SET content = EXCLUDED.content`,
-            [id, date, content]
+            `INSERT INTO daily_messages (id, date, content, group_id) 
+             VALUES ($1, $2, $3, $4) 
+             ON CONFLICT (date, group_id) DO UPDATE SET content = EXCLUDED.content`,
+            [id, date, content, groupId]
         );
 
         res.json({ message: 'Daily message saved successfully', id });

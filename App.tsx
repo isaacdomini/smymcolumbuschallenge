@@ -48,13 +48,30 @@ const LoadingFallback: React.FC = () => (
   <div className="text-center p-10">Loading...</div>
 );
 
+import { GroupProvider } from './components/GroupContext';
+
 const App: React.FC = () => {
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    // Check for existing token
+    const token = localStorage.getItem('token');
+    if (token) {
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        setUser(JSON.parse(storedUser));
+      }
+    }
+  }, []);
+
   return (
     <AuthProvider>
-      <Toaster position="top-center" />
-      <IonApp>
-        <MainContent />
-      </IonApp>
+      <GroupProvider user={user}>
+        <Toaster position="top-center" />
+        <IonApp>
+          <MainContent />
+        </IonApp>
+      </GroupProvider>
     </AuthProvider>
   );
 };

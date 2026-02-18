@@ -1,6 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
-import { Challenge, Game, GameType } from '../../types';
-import { getChallenges, getGames, createGame, deleteGame } from '../../services/api';
+import { Challenge, Game, GameType, Group } from '../../types';
+import { getChallenges, getGames, createGame, deleteGame, createChallenge } from '../../services/api';
+import { getGroups } from '../../services/groups';
 import GameBuilder from './GameBuilder';
 import { getGameName } from '../../utils/game';
 import WordleGame from '../game/WordleGame';
@@ -21,9 +23,21 @@ export const ChallengeManager: React.FC<ChallengeManagerProps> = ({ user }) => {
     const [editingGame, setEditingGame] = useState<Partial<Game> | null>(null);
     const [previewGame, setPreviewGame] = useState<{ type: GameType, data: any } | null>(null);
 
+    // Group support
+    const [groups, setGroups] = useState<Group[]>([]);
+    const [selectedGroupId, setSelectedGroupId] = useState<string>('all');
+
+    // New Challenge Form
+    const [isCreatingChallenge, setIsCreatingChallenge] = useState(false);
+    const [newChallengeData, setNewChallengeData] = useState({ name: '', startDate: '', endDate: '', groupId: 'default' });
+
+    useEffect(() => {
+        loadGroups();
+    }, []);
+
     useEffect(() => {
         loadChallenges();
-    }, []);
+    }, [selectedGroupId]);
 
     useEffect(() => {
         if (selectedChallenge) {
@@ -33,10 +47,19 @@ export const ChallengeManager: React.FC<ChallengeManagerProps> = ({ user }) => {
         }
     }, [selectedChallenge]);
 
+    const loadGroups = async () => {
+        try {
+            const data = await getGroups();
+            setGroups(data);
+        } catch (err) {
+            console.error('Failed to load groups', err);
+        }
+    };
+
     const loadChallenges = async () => {
         try {
             setLoading(true);
-            const data = await getChallenges(user.id);
+            const data = await getChallenges(user.id, selectedGroupId);
             setChallenges(data);
         } catch (err) {
             setError('Failed to load challenges');
@@ -82,6 +105,18 @@ export const ChallengeManager: React.FC<ChallengeManagerProps> = ({ user }) => {
         }
     };
 
+    const handleCreateChallenge = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try {
+            await createChallenge(user.id, newChallengeData);
+            setIsCreatingChallenge(false);
+            setNewChallengeData({ name: '', startDate: '', endDate: '', groupId: 'default' });
+            loadChallenges();
+        } catch (err: any) {
+            setError(err.message || 'Failed to create challenge');
+        }
+    };
+
     const handlePreview = (type: GameType, data: any) => {
         setPreviewGame({ type, data });
     };
@@ -105,6 +140,24 @@ export const ChallengeManager: React.FC<ChallengeManagerProps> = ({ user }) => {
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <h2 className="text-2xl font-bold text-white">Challenge Manager</h2>
+                <div className="flex gap-4">
+                    <select
+                        value={selectedGroupId}
+                        onChange={(e) => setSelectedGroupId(e.target.value)}
+                        className="bg-gray-700 text-white rounded px-3 py-2 border border-gray-600"
+                    >
+                        <option value="all">All Groups</option>
+                        {groups.map(g => (
+                            <option key={g.id} value={g.id}>{g.name}</option>
+                        ))}
+                    </select>
+                    <button
+                        onClick={() => setIsCreatingChallenge(true)}
+                        className="bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold px-4 py-2 rounded"
+                    >
+                        New Challenge
+                    </button>
+                </div>
             </div>
 
             {error && (
@@ -113,32 +166,109 @@ export const ChallengeManager: React.FC<ChallengeManagerProps> = ({ user }) => {
                 </div>
             )}
 
+            {/* Create Challenge Modal */}
+            {isCreatingChallenge && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full border border-gray-700">
+                        <h3 className="text-xl font-bold text-white mb-4">Create New Challenge</h3>
+                        <form onSubmit={handleCreateChallenge} className="space-y-4">
+                            <div>
+                                <label className="block text-gray-400 mb-1">Name</label>
+                                <input
+                                    type="text"
+                                    value={newChallengeData.name}
+                                    onChange={e => setNewChallengeData({ ...newChallengeData, name: e.target.value })}
+                                    required
+                                    className="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-gray-400 mb-1">Group</label>
+                                <select
+                                    value={newChallengeData.groupId}
+                                    onChange={e => setNewChallengeData({ ...newChallengeData, groupId: e.target.value })}
+                                    className="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white"
+                                >
+                                    <option value="default">Default (General)</option>
+                                    {groups.map(g => (
+                                        <option key={g.id} value={g.id}>{g.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-gray-400 mb-1">Start Date</label>
+                                    <input
+                                        type="date"
+                                        value={newChallengeData.startDate}
+                                        onChange={e => setNewChallengeData({ ...newChallengeData, startDate: e.target.value })}
+                                        required
+                                        className="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-gray-400 mb-1">End Date</label>
+                                    <input
+                                        type="date"
+                                        value={newChallengeData.endDate}
+                                        onChange={e => setNewChallengeData({ ...newChallengeData, endDate: e.target.value })}
+                                        required
+                                        className="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white"
+                                    />
+                                </div>
+                            </div>
+                            <div className="flex justify-end gap-2 mt-4">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsCreatingChallenge(false)}
+                                    className="px-4 py-2 text-gray-300 hover:text-white"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="px-4 py-2 bg-yellow-500 text-gray-900 rounded font-bold hover:bg-yellow-600"
+                                >
+                                    Create
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Challenge List */}
-                <div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
+                <div className="bg-gray-800 p-4 rounded-lg border border-gray-700 h-fit">
                     <h3 className="text-xl font-bold text-white mb-4">Challenges</h3>
-                    <div className="space-y-2">
-                        {challenges.map(challenge => (
-                            <button
-                                key={challenge.id}
-                                onClick={() => setSelectedChallenge(challenge)}
-                                className={`w-full text-left p-3 rounded-lg transition-colors ${selectedChallenge?.id === challenge.id
-                                    ? 'bg-yellow-500 text-gray-900 font-bold'
-                                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                                    }`}
-                            >
-                                <div className="font-bold">{challenge.name}</div>
-                                <div className="text-sm opacity-75">
-                                    {new Date(challenge.startDate).toLocaleDateString()} - {new Date(challenge.endDate).toLocaleDateString()}
-                                </div>
-                            </button>
-                        ))}
+                    <div className="space-y-2 max-h-[600px] overflow-y-auto">
+                        {challenges.length === 0 ? (
+                            <div className="text-gray-500 italic text-center py-4">No challenges found</div>
+                        ) : (
+                            challenges.map(challenge => (
+                                <button
+                                    key={challenge.id}
+                                    onClick={() => setSelectedChallenge(challenge)}
+                                    className={`w-full text-left p-3 rounded-lg transition-colors border ${selectedChallenge?.id === challenge.id
+                                        ? 'bg-yellow-500/20 text-yellow-500 border-yellow-500'
+                                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600 border-transparent'
+                                        }`}
+                                >
+                                    <div className="font-bold">{challenge.name}</div>
+                                    <div className="text-xs opacity-75 mt-1 flex justify-between">
+                                        <span>{new Date(challenge.startDate).toLocaleDateString()}</span>
+                                        {/* @ts-ignore */}
+                                        <span className="bg-gray-900/50 px-2 rounded text-[10px] uppercase tracking-wider">{groups.find(g => g.id === challenge.groupId)?.name || 'General'}</span>
+                                    </div>
+                                </button>
+                            ))
+                        )}
                     </div>
                 </div>
 
                 {/* Word Bank Manager */}
                 {selectedChallenge && (
-                    <div className="bg-gray-800 p-4 rounded-lg border border-gray-700 mt-6">
+                    <div className="bg-gray-800 p-4 rounded-lg border border-gray-700 mt-6 md:mt-0">
                         <h3 className="text-xl font-bold text-white mb-4">Word Bank</h3>
                         <p className="text-gray-400 text-sm mb-2">One word per line. Used by 'Wordle Bank' games.</p>
                         <WordBankEditor

@@ -6,6 +6,21 @@ export interface User {
   isVerified?: boolean;
   createdAt?: string;
   token?: string;
+  groups?: UserGroup[];
+}
+
+export interface Group {
+  id: string;
+  name: string;
+  createdAt: string;
+}
+
+export interface UserGroup {
+  userId: string;
+  groupId: string;
+  role: 'member' | 'admin';
+  joinedAt: string;
+  group?: Group;
 }
 
 export enum GameType {
