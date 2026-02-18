@@ -282,6 +282,8 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
     }, wordLength * 350);
   }, [isRevealing, activeGuessIndex, guessResults, maxGuesses, wordLength]);
 
+  const [revealedSolution, setRevealedSolution] = useState<string | null>(null);
+
   useEffect(() => {
     const saveResult = async () => {
       // Ensure startTime is present before submitting
@@ -289,7 +291,7 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
         if (!user) return;
         const timeTaken = Math.round((Date.now() - startTime) / 1000);
         const mistakes = gameState === 'won' ? activeGuessIndex : maxGuesses;
-        await submitGame({
+        const result = await submitGame({
           userId: user.id,
           gameId,
           startedAt: new Date(startTime).toISOString(),
@@ -297,8 +299,13 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
           mistakes,
           submissionData: { guesses: guesses.filter(g => g), guessResults }
         });
+
+        if (result.submissionData && result.submissionData.solution) {
+          setRevealedSolution(result.submissionData.solution);
+        }
+
         await clearGameState(user.id, gameId);
-        setTimeout(onComplete, 2000);
+        // Removed auto-close timeout so user can see result
       }
     }
     saveResult();
@@ -382,7 +389,12 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
       {(gameState !== 'playing' || isReadOnly) && (
         <div className="text-center p-4 rounded-lg bg-gray-800 w-full">
           {gameState === 'won' && <p className="text-xl text-green-400 font-bold">You won!</p>}
-          {gameState === 'lost' && <p className="text-xl text-red-400 font-bold">Nice try!</p>}
+          {gameState === 'lost' && (
+            <>
+              <p className="text-xl text-red-400 font-bold">Nice try!</p>
+              {revealedSolution && <p className="mt-2 text-lg text-yellow-400 font-bold">Answer: {revealedSolution}</p>}
+            </>
+          )}
           {isReadOnly && submission && (
             <div className="mt-4 text-sm text-gray-300">
               <p>Time Taken: {submission.timeTaken}s | Mistakes: {submission.mistakes} | Score: {submission.score}</p>
