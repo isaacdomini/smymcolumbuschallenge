@@ -17,9 +17,6 @@ const isTestUser = async (): Promise<boolean> => {
     return false;
 };
 
-
-
-
 // --- MOCK DATABASE ---
 
 const MOCK_USERS: User[] = [
@@ -132,18 +129,9 @@ const getAuthHeaders = async (userId?: string): Promise<HeadersInit> => {
     try {
         const token = await storage.get('token');
         if (token) {
-            // Security check: If it looks like a mock token, DO NOT SEND IT to the real backend
-            if (token.length < 50 || token.includes('mock')) {
-                console.warn("Attempted to use mock token for API request. Preventing.");
-                throw new Error("Invalid token for API request");
-            }
             headers['Authorization'] = `Bearer ${token}`;
         }
-    } catch (e) {
-        if (e instanceof Error && e.message === "Invalid token for API request") {
-            throw e;
-        }
-    }
+    } catch (e) { }
 
     if (userId) {
         headers['X-User-ID'] = userId;
@@ -165,10 +153,9 @@ const simulateDelay = (ms: number) => new Promise(res => setTimeout(res, ms));
 // --- API FUNCTIONS ---
 
 export const migrateSession = async (userId: string): Promise<User> => {
-    const useMock = USE_MOCK_DATA || await isTestUser(); // Simple check for mock/test users
+    const useMock = USE_MOCK_DATA; // ONLY use mock data in dev mode, test users use real auth
     if (useMock) {
         await simulateDelay(500);
-        // Valid-looking mock JWT to pass jwt-decode checks (header.payload.signature)
         // Valid-looking mock JWT to pass jwt-decode checks
         const mockToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6Ik1vY2sgVXNlciIsImlhdCI6MTUxNjIzOTAyMn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c";
         console.log("Migrating session for test user:", userId, "Token:", mockToken);
@@ -207,7 +194,7 @@ export const migrateSession = async (userId: string): Promise<User> => {
 };
 
 export const login = async (email: string, pass: string): Promise<User> => {
-    const useMock = USE_MOCK_DATA || email.split('@')[0] === 'test';
+    const useMock = USE_MOCK_DATA; // ONLY use mock data in dev mode
     if (useMock) {
         await simulateDelay(500);
         const user = MOCK_USERS.find(u => u.email === email);
@@ -241,7 +228,7 @@ export const login = async (email: string, pass: string): Promise<User> => {
 };
 
 export const signup = async (name: string, email: string, pass: string, emailNotifications: boolean): Promise<{ message: string }> => {
-    const useMock = USE_MOCK_DATA || email.split('@')[0] === 'test';
+    const useMock = USE_MOCK_DATA; // ONLY use mock data in dev mode
     if (useMock) {
         await simulateDelay(500);
         if (MOCK_USERS.some(u => u.email === email)) {
@@ -272,7 +259,7 @@ export const logout = (): void => {
 };
 
 export const forgotPassword = async (email: string): Promise<{ message: string }> => {
-    const useMock = USE_MOCK_DATA || email.split('@')[0] === 'test';
+    const useMock = USE_MOCK_DATA; // ONLY use mock data in dev mode
     if (useMock) {
         await simulateDelay(500);
         return { message: 'If an account with that email exists, a password reset link has been sent. (Mock)' };
@@ -312,7 +299,7 @@ export const resetPassword = async (token: string, password: string): Promise<{ 
 
 // --- NEW Account Deletion Request ---
 export const requestAccountDeletion = async (email: string, password: string): Promise<{ message: string }> => {
-    const useMock = USE_MOCK_DATA || email.split('@')[0] === 'test';
+    const useMock = USE_MOCK_DATA; // ONLY use mock data in dev mode
     if (useMock) {
         await simulateDelay(500);
         const user = MOCK_USERS.find(u => u.email === email);
@@ -866,7 +853,7 @@ export const getAdminSubmissions = async (userId: string, limit = 20, offset = 0
 };
 
 export const updateUserAsAdmin = async (adminUserId: string, targetUserId: string, data: { isAdmin?: boolean, isVerified?: boolean }): Promise<void> => {
-    if (USE_MOCK_DATA || await isTestUser()) return;
+    if (USE_MOCK_DATA) return;
     const response = await fetch(`${API_BASE_URL}/admin/users/${targetUserId}`, {
         method: 'PUT',
         headers: await getAuthHeaders(adminUserId),
@@ -876,7 +863,7 @@ export const updateUserAsAdmin = async (adminUserId: string, targetUserId: strin
 };
 
 export const deleteUserAsAdmin = async (adminUserId: string, targetUserId: string): Promise<void> => {
-    if (USE_MOCK_DATA || await isTestUser()) {
+    if (USE_MOCK_DATA) {
         await simulateDelay(500);
         const index = MOCK_USERS.findIndex(u => u.id === targetUserId);
         if (index === -1) throw new Error("User not found");
@@ -891,7 +878,7 @@ export const deleteUserAsAdmin = async (adminUserId: string, targetUserId: strin
 };
 
 export const updateUserProfile = async (userId: string, data: { name: string }): Promise<User> => {
-    if (USE_MOCK_DATA || await isTestUser()) {
+    if (USE_MOCK_DATA) {
         await simulateDelay(500);
         const user = MOCK_USERS.find(u => u.id === userId);
         if (!user) throw new Error("User not found");
@@ -922,7 +909,7 @@ export const reportCheating = async (userId: string, details: string): Promise<v
 
 
 export const deleteUser = async (userId: string): Promise<void> => {
-    if (USE_MOCK_DATA || await isTestUser()) {
+    if (USE_MOCK_DATA) {
         await simulateDelay(500);
         const index = MOCK_USERS.findIndex(u => u.id === userId);
         if (index === -1) throw new Error("User not found");
@@ -946,7 +933,10 @@ export const getLogs = async (userId: string, limit = 100, offset = 0): Promise<
 };
 
 export const getGames = async (userId: string, challengeId: string): Promise<Game[]> => {
-    if (USE_MOCK_DATA || await isTestUser()) return []; // Not implemented for mock
+    if (USE_MOCK_DATA || await isTestUser()) {
+        // Return full mock games for test users
+        return MOCK_GAMES.filter(g => g.challengeId === challengeId || challengeId === MOCK_CHALLENGE.id);
+    }
     const response = await fetch(`${API_BASE_URL}/admin/games?challengeId=${challengeId}`, {
         headers: await getAuthHeaders(userId)
     });
@@ -1250,6 +1240,9 @@ export const getScoringCriteria = async (): Promise<any[]> => {
 
 
 export const getUserChallenges = async (): Promise<Challenge[]> => {
+    if (USE_MOCK_DATA || await isTestUser()) {
+        return [MOCK_CHALLENGE];
+    }
     const response = await fetch(`${API_BASE_URL}/user/challenges`, {
         headers: await getAuthHeaders()
     });

@@ -37,14 +37,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               const decoded: any = jwtDecode(storedToken);
               // Securely set isAdmin from the token payload, ignoring local storage value
               const verifiedUser = { ...storedUser, token: storedToken, isAdmin: decoded.isAdmin === true };
-
-              // Verify if this is a test user to prevent sending mock tokens
-              if (verifiedUser.email && verifiedUser.email.toLowerCase().startsWith('test')) {
-                // It's a test user, ensure we handle them conceptually as "mock" where needed
-                // But for auth context, we just load them.
-                // The key is api.ts preventing the token send.
-              }
-
               setUser(verifiedUser);
             } catch (e) {
               console.error("Invalid token in storage", e);
