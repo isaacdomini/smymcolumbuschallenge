@@ -563,7 +563,7 @@ const MainContent: React.FC = () => {
             </button>
           </div>
         )}
-        {user && <ScoringCriteria />}
+        {user && <ScoringCriteria isTestUser={isTestUser} />}
       </div>
     );
   }

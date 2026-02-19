@@ -5,12 +5,14 @@ export const getGameName = (gameType: GameType | string, isTestUser: boolean = f
     case GameType.WORDLE:
     case GameType.WORDLE_ADVANCED:
     case 'wordle':
+    case 'Wordle':
     case 'wordle_advanced':
     case GameType.WORDLE_BANK:
     case 'wordle_bank':
       return isTestUser ? "Word Guess" : "Wordle";
     case GameType.CONNECTIONS:
     case 'connections':
+    case 'Connections':
       return isTestUser ? "Connect the Words" : "Connections";
     case GameType.CROSSWORD:
     case 'crossword':
