@@ -548,6 +548,7 @@ const MainContent: React.FC = () => {
             <DailyMessage
               message={dailyMessage}
               isBlurred={
+                !isTestUser &&
                 todaysGames.length > 0 &&
                 !todaysGames.some(g => submittedGameIds.has(g.id))
               }
