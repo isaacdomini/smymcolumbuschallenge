@@ -61,6 +61,12 @@ for (let i = 0; i < 40; i++) {
                     { name: 'BIBLICAL FOODS', words: ['BREAD', 'WINE', 'FISH', 'LAMB'] },
                     { name: 'SYMBOLS OF THE PASSION', words: ['CROSS', 'THORNS', 'NAILS', 'TOMB'] },
                 ],
+                shuffledWords: [
+                    'PETER', 'ANDREW', 'JAMES', 'JOHN',
+                    'GENESIS', 'EXODUS', 'LEVITICUS', 'NUMBERS',
+                    'BREAD', 'WINE', 'FISH', 'LAMB',
+                    'CROSS', 'THORNS', 'NAILS', 'TOMB'
+                ].sort(() => Math.random() - 0.5)
             } as ConnectionsData,
         };
     } else if (gameTypeIndex === 1) {
@@ -76,7 +82,9 @@ for (let i = 0; i < 40; i++) {
                     { word: 'Abraham', match: 'Father of Nations' },
                     { word: 'Paul', match: 'Apostle to the Gentiles' },
                     { word: 'Esther', match: 'Queen of Persia' }
-                ]
+                ],
+                shuffledWords: ['David', 'Moses', 'Abraham', 'Paul', 'Esther'].sort(() => Math.random() - 0.5),
+                shuffledMatches: ['Shepherd King', 'Lawgiver', 'Father of Nations', 'Apostle to the Gentiles', 'Queen of Persia'].sort(() => Math.random() - 0.5)
             } as MatchTheWordData,
         };
     } else {
