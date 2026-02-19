@@ -1010,7 +1010,6 @@ export const getDailyMessage = async (date?: string): Promise<DailyMessage | nul
                 type: 'long_text',
                 title: 'Mock Long Text',
                 text: 'This is a detailed mock long text content that allows testing of the permalink functionality. It simulates the structure of a real daily message with a long text block.',
-                pdfUrl: 'https://example.com/mock.pdf'
             }
         ]);
         return {
