@@ -296,13 +296,68 @@ router.get('/games/:id', async (req: Request, res: Response) => {
 router.delete('/games/:id', async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const result = await pool.query('DELETE FROM games WHERE id = $1 RETURNING *', [id]);
+        const cascade = req.query.cascade === 'true';
 
-        if (result.rows.length === 0) {
+        // 1. Get game details first to check date
+        const gameResult = await pool.query('SELECT date FROM games WHERE id = $1', [id]);
+        if (gameResult.rows.length === 0) {
             return res.status(404).json({ error: 'Game not found' });
         }
+        const game = gameResult.rows[0];
 
-        res.json({ message: 'Game deleted successfully' });
+        // Check if game is in the future (compare dates only, ignoring time component if stored as timestamp)
+        // Game dates are stored as ISO strings typically.
+        // Let's rely on simple string comparison or Date object comparison.
+        const gameDate = new Date(game.date);
+        const now = new Date();
+        // Reset time components to compare just the date, assuming game.date might be yyyy-mm-dd
+        // Actually game.date in DB is often full timestamp.
+        // If game date > now, it's a future game.
+        const isFutureGame = gameDate > now;
+
+        // 2. Check dependencies if NOT cascading AND NOT a future game
+        if (!cascade && !isFutureGame) {
+            const [submissions, progress] = await Promise.all([
+                pool.query('SELECT COUNT(*) FROM game_submissions WHERE game_id = $1', [id]),
+                pool.query('SELECT COUNT(*) FROM game_progress WHERE game_id = $1', [id])
+            ]);
+
+            const subCount = parseInt(submissions.rows[0].count);
+            const progCount = parseInt(progress.rows[0].count);
+
+            if (subCount > 0 || progCount > 0) {
+                return res.status(409).json({
+                    error: 'Dependencies exist',
+                    details: {
+                        submissions: subCount,
+                        progress: progCount
+                    },
+                    message: `This game has ${subCount} submissions and ${progCount} active players.`
+                });
+            }
+        }
+
+        // 3. Perform Delete (Cascading if needed or if no dependencies found)
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+
+            // Delete dependencies
+            await client.query('DELETE FROM game_submissions WHERE game_id = $1', [id]);
+            await client.query('DELETE FROM game_progress WHERE game_id = $1', [id]);
+
+            // Delete the game
+            await client.query('DELETE FROM games WHERE id = $1', [id]);
+
+            await client.query('COMMIT');
+            res.json({ message: 'Game deleted successfully' });
+        } catch (error) {
+            await client.query('ROLLBACK');
+            throw error;
+        } finally {
+            client.release();
+        }
+
     } catch (error) {
         console.error('Error deleting game:', error);
         res.status(500).json({ error: 'Internal server error' });

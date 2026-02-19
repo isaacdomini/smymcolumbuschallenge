@@ -961,13 +961,22 @@ export const checkAnswer = async (gameId: string, guess: any): Promise<any> => {
     }
 };
 
-export const deleteGame = async (userId: string, gameId: string): Promise<void> => {
+export const deleteGame = async (userId: string, gameId: string, cascade = false): Promise<void> => {
     if (USE_MOCK_DATA || await isTestUser()) return; // Not implemented for mock
-    const response = await fetch(`${API_BASE_URL}/admin/games/${gameId}`, {
+
+    const query = cascade ? '?cascade=true' : '';
+    const response = await fetch(`${API_BASE_URL}/admin/games/${gameId}${query}`, {
         method: 'DELETE',
         headers: await getAuthHeaders(userId)
     });
-    if (!response.ok) throw new Error('Failed to delete game');
+
+    if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        const error = new Error(data.error || 'Failed to delete game') as any;
+        error.status = response.status;
+        error.data = data;
+        throw error;
+    }
 };
 
 

@@ -62,8 +62,21 @@ export const ChallengeManager: React.FC<ChallengeManagerProps> = ({ user }) => {
         try {
             await deleteGame(user.id, gameId);
             if (selectedChallenge) loadGames(selectedChallenge.id);
-        } catch (err) {
-            alert('Failed to delete game');
+        } catch (err: any) {
+            console.error("Delete game error", err);
+            if (err.status === 409) {
+                const confirmMessage = `${err.data?.message || 'This game has active players/submissions.'}\n\nDo you want to delete it anyway? This action cannot be undone and will delete all player history for this game.`;
+                if (confirm(confirmMessage)) {
+                    try {
+                        await deleteGame(user.id, gameId, true);
+                        if (selectedChallenge) loadGames(selectedChallenge.id);
+                    } catch (archiveErr) {
+                        alert('Failed to force delete game. Please try again.');
+                    }
+                }
+            } else {
+                alert(err.message || 'Failed to delete game');
+            }
         }
     };
 
