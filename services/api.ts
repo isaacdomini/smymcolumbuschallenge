@@ -4,12 +4,14 @@ import { User, Challenge, Game, GameType, GameSubmission, WordleData, Connection
 const USE_MOCK_DATA = import.meta.env.MODE === 'development';
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
+// Helper to check if current user is a "test" user (mock data)
 const isTestUser = async (): Promise<boolean> => {
     try {
         const stored = await storage.get('user');
         if (stored) {
             const user = JSON.parse(stored);
-            return user && user.email && user.email.split('@')[0] === 'test';
+            // Check if email starts with 'test' (e.g. test@example.com)
+            return user && user.email && user.email.toLowerCase().startsWith('test');
         }
     } catch (e) { }
     return false;
@@ -123,16 +125,25 @@ const MOCK_SUBMISSIONS: GameSubmission[] = [
 const MOCK_GAME_PROGRESS: GameProgress[] = [];
 
 // --- HELPER for Auth Headers ---
-const getAuthHeaders = async (userId?: string) => {
+const getAuthHeaders = async (userId?: string): Promise<HeadersInit> => {
     const headers: HeadersInit = { 'Content-Type': 'application/json' };
 
     // Add JWT token if available
     try {
         const token = await storage.get('token');
         if (token) {
+            // Security check: If it looks like a mock token, DO NOT SEND IT to the real backend
+            if (token.length < 50 || token.includes('mock')) {
+                console.warn("Attempted to use mock token for API request. Preventing.");
+                throw new Error("Invalid token for API request");
+            }
             headers['Authorization'] = `Bearer ${token}`;
         }
-    } catch (e) { }
+    } catch (e) {
+        if (e instanceof Error && e.message === "Invalid token for API request") {
+            throw e;
+        }
+    }
 
     if (userId) {
         headers['X-User-ID'] = userId;
