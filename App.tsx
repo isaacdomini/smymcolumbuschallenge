@@ -467,7 +467,19 @@ const MainContent: React.FC = () => {
       if (!user) { navigate('/'); return null; }
       const historyChallengeId = locationPath.split('/')[2];
       if (!historyChallengeId) { navigate('/history'); return null; }
-      return <ChallengeHistory challengeId={historyChallengeId} userId={user.id} onPlayGame={(game) => navigate(`/game/${game.id}`)} onRevisitGame={(game, submission) => navigate(`/game/${game.id}`)} onBack={() => navigate('/history')} />;
+      return <ChallengeHistory challengeId={historyChallengeId} userId={user.id} onPlayGame={(game) => {
+        if (user.email.startsWith('test')) {
+          navigate(`/game/sample-${game.type}`);
+        } else {
+          navigate(`/game/${game.id}`);
+        }
+      }} onRevisitGame={(game, submission) => {
+        if (user.email.startsWith('test')) {
+          navigate(`/game/sample-${game.type}`);
+        } else {
+          navigate(`/game/${game.id}`);
+        }
+      }} onBack={() => navigate('/history')} />;
     }
     return (
       <div>
@@ -498,7 +510,13 @@ const MainContent: React.FC = () => {
                     return (
                       <button
                         key={game.id}
-                        onClick={() => navigate(`/game/${game.id}`)}
+                        onClick={() => {
+                          if (user.email.startsWith('test')) {
+                            navigate(`/game/sample-${game.type}`);
+                          } else {
+                            navigate(`/game/${game.id}`);
+                          }
+                        }}
                         className={`w-full font-bold py-3 px-8 rounded-lg text-xl shadow-lg transition-transform transform hover:scale-105 ${isSubmitted ? 'bg-green-600 hover:bg-green-700 text-white' : (isInProgress ? 'bg-orange-500 hover:bg-orange-600 text-white' : 'bg-yellow-500 hover:bg-yellow-600 text-gray-900')}`}
                       >
                         {label}
