@@ -193,7 +193,7 @@ export const ChallengeManager: React.FC<ChallengeManagerProps> = ({ user }) => {
                                         {gamesForDate.length > 0 ? (
                                             gamesForDate.map(game => (
                                                 <div key={game.id} className="flex justify-between items-center bg-gray-800 p-2 rounded">
-                                                    <span className="text-green-400 font-bold uppercase text-sm">{getGameName(game.type)}</span>
+                                                    <span className="text-green-400 font-bold uppercase text-sm">{getGameName(game.type, user.email?.startsWith('test'))}</span>
                                                     <div className="flex gap-2">
                                                         <button
                                                             onClick={() => setEditingGame(game)}

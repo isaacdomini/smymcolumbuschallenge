@@ -10,6 +10,7 @@ interface ChallengeHistoryProps {
   onPlayGame: (game: Game) => void;
   onRevisitGame: (game: Game, submission: GameSubmission) => void;
   onBack: () => void;
+  isTestUser?: boolean;
 }
 
 const getScoringTooltipText = (gameType: GameType): string => {
@@ -30,7 +31,7 @@ const getScoringTooltipText = (gameType: GameType): string => {
 
 
 
-const ChallengeHistory: React.FC<ChallengeHistoryProps> = ({ challengeId, userId, onPlayGame, onRevisitGame, onBack }) => {
+const ChallengeHistory: React.FC<ChallengeHistoryProps> = ({ challengeId, userId, onPlayGame, onRevisitGame, onBack, isTestUser }) => {
   const [games, setGames] = useState<Game[]>([]);
   const [submissions, setSubmissions] = useState<GameSubmission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -102,7 +103,7 @@ const ChallengeHistory: React.FC<ChallengeHistoryProps> = ({ challengeId, userId
                     {new Date(game.date).toLocaleDateString(undefined, { timeZone: 'UTC', weekday: 'long', month: 'long', day: 'numeric' })}
                   </p>
                   <p className="text-xl font-bold">
-                    {getGameName(game.type)}
+                    {getGameName(game.type, isTestUser)}
                     {isToday && <span className="text-xs text-yellow-400 ml-2">TODAY</span>}
                     {isFuture && <span className="text-xs text-gray-500 ml-2">UPCOMING</span>}
                   </p>

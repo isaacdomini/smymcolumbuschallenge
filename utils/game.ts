@@ -1,6 +1,6 @@
 import { GameType } from '../types';
 
-export const getGameName = (gameType: GameType | string): string => {
+export const getGameName = (gameType: GameType | string, isTestUser: boolean = false): string => {
   switch (gameType) {
     case GameType.WORDLE:
     case GameType.WORDLE_ADVANCED:
@@ -8,10 +8,10 @@ export const getGameName = (gameType: GameType | string): string => {
     case 'wordle_advanced':
     case GameType.WORDLE_BANK:
     case 'wordle_bank':
-      return "Wordle";
+      return isTestUser ? "Word Guess" : "Wordle";
     case GameType.CONNECTIONS:
     case 'connections':
-      return "Connections";
+      return isTestUser ? "Connect the Words" : "Connections";
     case GameType.CROSSWORD:
     case 'crossword':
       return "Crossword";

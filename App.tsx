@@ -343,6 +343,7 @@ const MainContent: React.FC = () => {
 
   const now = new Date();
   const challengeStarted = challenge && new Date(challenge.startDate) <= now;
+  const isTestUser = user?.email?.toLowerCase().startsWith('test') || false;
 
   const renderContent = () => {
     if (isMaintenance) {
@@ -479,7 +480,7 @@ const MainContent: React.FC = () => {
         } else {
           navigate(`/game/${game.id}`);
         }
-      }} onBack={() => navigate('/history')} />;
+      }} onBack={() => navigate('/history')} isTestUser={isTestUser} />;
     }
     return (
       <div>
@@ -500,11 +501,11 @@ const MainContent: React.FC = () => {
                     const progress = todaysProgressMap[game.id];
                     const isInProgress = !isSubmitted && progress && progress.gameState && progress.gameState.startTime;
 
-                    let label = `Play ${getGameName(game.type)}`;
+                    let label = `Play ${getGameName(game.type, isTestUser)}`;
                     if (isSubmitted) {
-                      label = `Revisit ${getGameName(game.type)}`;
+                      label = `Revisit ${getGameName(game.type, isTestUser)}`;
                     } else if (isInProgress) {
-                      label = `Continue ${getGameName(game.type)}`;
+                      label = `Continue ${getGameName(game.type, isTestUser)}`;
                     }
 
                     return (
