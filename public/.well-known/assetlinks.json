@@ -1,12 +1,28 @@
 [
   {
-    "relation": ["delegate_permission/common.handle_all_urls"],
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
     "target": {
       "namespace": "android_app",
       "package_name": "com.tesarsoft.smym.biblegames",
-      "sha256_cert_fingerprints":
-      ["C2:0D:42:D7:EA:B1:B5:1E:D6:BE:69:C0:E4:DD:B0:7F:07:1A:24:1B:71:E2:55:1C:FC:40:4A:22:E2:5C:09:12",
-      "5B:20:2F:2A:6D:AC:CA:AB:84:02:FC:03:7B:CF:2C:C3:F7:42:A9:43:DB:4C:C4:2F:8D:0F:D1:52:32:B1:A8:EE"]
+      "sha256_cert_fingerprints": [
+        "C2:0D:42:D7:EA:B1:B5:1E:D6:BE:69:C0:E4:DD:B0:7F:07:1A:24:1B:71:E2:55:1C:FC:40:4A:22:E2:5C:09:12",
+        "5B:20:2F:2A:6D:AC:CA:AB:84:02:FC:03:7B:CF:2C:C3:F7:42:A9:43:DB:4C:C4:2F:8D:0F:D1:52:32:B1:A8:EE"
+      ]
+    }
+  },
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls",
+      "delegate_permission/common.get_login_creds"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.tesarsoft.smym.christiangames",
+      "sha256_cert_fingerprints": [
+        "F6:25:C1:DF:BB:F9:B6:05:F3:5C:3F:78:BA:36:E6:4A:1C:D1:1B:2A:AC:70:25:CB:0D:31:AB:1F:E4:2B:B7:4D"
+      ]
     }
   }
 ]
