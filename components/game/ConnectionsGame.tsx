@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { ConnectionsData, GameSubmission, GameType } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
 import { submitGame, getGameState, saveGameState, clearGameState, checkAnswer } from '../../services/api';
+import { getGameName } from '../../utils/game';
 import GameInstructionsModal from './GameInstructionsModal';
 
 interface ConnectionsGameProps {
@@ -14,6 +15,7 @@ interface ConnectionsGameProps {
 
 const ConnectionsGame: React.FC<ConnectionsGameProps> = ({ gameId, gameData, submission, onComplete, isPreview = false }) => {
   const { user } = useAuth();
+  const isTestUser = user?.email?.toLowerCase().startsWith('test') || false;
   const isSample = gameId.startsWith('sample-');
   const isReadOnly = !!submission;
   const [words, setWords] = useState<string[]>([]);
@@ -291,7 +293,7 @@ const ConnectionsGame: React.FC<ConnectionsGameProps> = ({ gameId, gameData, sub
 
       <div className="flex items-center justify-between w-full mb-2">
         <h2 className="text-2xl font-bold">
-          Connections
+          {getGameName(GameType.CONNECTIONS, isTestUser)}
           {isSample && <span className="text-sm bg-blue-600 px-2 py-1 rounded ml-2">Sample</span>}
           {isPreview && <span className="text-sm bg-purple-600 px-2 py-1 rounded ml-2">Preview</span>}
         </h2>

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { WordleData, GameSubmission, GameType } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
 import { submitGame, getGameState, saveGameState, clearGameState, checkAnswer } from '../../services/api';
+import { getGameName } from '../../utils/game';
 import GameInstructionsModal from './GameInstructionsModal';
 
 interface WordleGameProps {
@@ -14,6 +15,7 @@ interface WordleGameProps {
 
 const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, onComplete, isPreview = false }) => {
   const { user } = useAuth();
+  const isTestUser = user?.email?.toLowerCase().startsWith('test') || false;
   const isSample = gameId.startsWith('sample-');
   const solution = useMemo(() => isSample ? 'FAITH' : (gameData.solution?.toUpperCase() || ''), [gameData.solution, isSample]);
   const wordLength = useMemo(() => isSample ? 5 : (gameData.wordLength || solution.length || 5), [solution, gameData.wordLength, isSample]);
@@ -354,7 +356,7 @@ const WordleGame: React.FC<WordleGameProps> = ({ gameId, gameData, submission, o
     <div className="w-full max-w-md mx-auto flex flex-col items-center">
       <div className="flex items-center justify-between w-full mb-4">
         <h2 className="text-2xl font-bold">
-          Wordle
+          {getGameName(GameType.WORDLE, isTestUser)}
           {isSample && <span className="text-sm bg-blue-600 px-2 py-1 rounded ml-2">Sample</span>}
           {isPreview && <span className="text-sm bg-purple-600 px-2 py-1 rounded ml-2">Preview</span>}
         </h2>
