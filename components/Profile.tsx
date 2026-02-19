@@ -4,7 +4,7 @@ import { updateUserProfile, deleteUser } from '../services/api';
 import Modal from './ui/Modal';
 
 const Profile: React.FC<{ onBack: () => void }> = ({ onBack }) => {
-    const { user, setUser, logout } = useAuth();
+    const { user, updateUser, logout } = useAuth();
     const [name, setName] = useState(user?.name || '');
     const [isDeleting, setIsDeleting] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -19,7 +19,7 @@ const Profile: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
         try {
             const updatedUser = await updateUserProfile(user.id, { name });
-            setUser(updatedUser);
+            await updateUser(updatedUser);
             setSuccess('Profile updated successfully!');
         } catch (err) {
             setError('Failed to update profile. Please try again.');

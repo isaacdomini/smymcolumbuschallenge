@@ -12,6 +12,7 @@ interface AuthContextType {
   forgotPassword: (email: string) => Promise<{ message: string }>;
   resetPassword: (token: string, pass: string) => Promise<{ message: string }>;
   isLoading: boolean;
+  updateUser: (data: Partial<User>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -142,8 +143,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return await api.resetPassword(token, pass);
   }
 
+  const updateUser = async (data: Partial<User>) => {
+    if (!user) return;
+    const newUser = { ...user, ...data };
+    setUser(newUser);
+    await storage.set('user', JSON.stringify(newUser));
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, signup, logout, forgotPassword, resetPassword, isLoading }}>
+    <AuthContext.Provider value={{ user, login, signup, logout, forgotPassword, resetPassword, isLoading, updateUser }}>
       {children}
     </AuthContext.Provider>
   );
