@@ -1,6 +1,8 @@
 import React from 'react';
 import Modal from '../ui/Modal';
 import { GameType } from '../../types';
+import { useAuth } from '../../hooks/useAuth';
+import { getGameName } from '../../utils/game';
 
 interface GameInstructionsModalProps {
   gameType: GameType;
@@ -9,6 +11,9 @@ interface GameInstructionsModalProps {
 }
 
 const GameInstructionsModal: React.FC<GameInstructionsModalProps> = ({ gameType, onStart, onClose }) => {
+  const { user } = useAuth();
+  const isTestUser = user?.email?.toLowerCase().startsWith('test') || false;
+
   const renderWordleInstructions = () => (
     <div className="space-y-4">
       <p>Guess the hidden word in 6 tries.</p>
@@ -157,17 +162,7 @@ const GameInstructionsModal: React.FC<GameInstructionsModalProps> = ({ gameType,
   );
 
   const getTitle = () => {
-    switch (gameType) {
-      case GameType.WORDLE:
-      case GameType.WORDLE_BANK: return 'How to Play Wordle';
-      case GameType.CONNECTIONS: return 'How to Play Connect the Words';
-      case GameType.CROSSWORD: return 'How to Play Crossword';
-      case GameType.MATCH_THE_WORD: return 'How to Play Match the Word';
-      case GameType.VERSE_SCRAMBLE: return 'How to Play Verse Scramble';
-      case GameType.WHO_AM_I: return 'How to Play Who Am I?';
-      case GameType.WORD_SEARCH: return 'How to Play Word Search';
-      default: return 'Instructions';
-    }
+    return `How to Play ${getGameName(gameType, isTestUser)}`;
   };
 
   const getContent = () => {
