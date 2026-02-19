@@ -1774,9 +1774,10 @@ export const resolveGameData = async (game: any, userId?: string, stripSolution:
     if (gameType === 'wordle' || gameType === 'wordle_advanced' || gameType === 'wordle_bank') {
       if (gameData.solution) {
         gameData.wordLength = gameData.solution.length;
-        // Optional: reveal solution if submitted?
-        // if (!hasSubmitted) delete gameData.solution;
-        delete gameData.solution;
+        // Reveal solution if submitted
+        if (!hasSubmitted) {
+          delete gameData.solution;
+        }
       }
     } else if (gameType === 'connections') {
       if (gameData.categories) {
