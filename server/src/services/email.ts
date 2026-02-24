@@ -277,7 +277,7 @@ export const sendAppDeprecationEmail = async (userEmail: string, userId: string)
     await transporter.sendMail({
       from: process.env.EMAIL_FROM,
       to: userEmail,
-      subject: 'Action Required: Update SMYM Columbus App',
+      subject: 'Action Required: Update SMYM Christian Games App',
       html: `
           <div style="font-family: sans-serif; color: #333;">
             <h2 style="color: #DC2626;">App Update Required</h2>
@@ -294,9 +294,9 @@ export const sendAppDeprecationEmail = async (userEmail: string, userId: string)
         `,
     });
     console.log(`App deprecation email sent to ${userEmail}`);
-    await logNotification(userId, 'app_deprecation_email', userEmail, { subject: 'Action Required: Update SMYM Columbus App' }, 'sent');
+    await logNotification(userId, 'app_deprecation_email', userEmail, { subject: 'Action Required: Update SMYM Christian Games App' }, 'sent');
   } catch (error: any) {
     console.error(`Failed to send app deprecation email to ${userEmail}:`, error);
-    await logNotification(userId, 'app_deprecation_email', userEmail, { subject: 'Action Required: Update SMYM Columbus App' }, 'failed', error.message);
+    await logNotification(userId, 'app_deprecation_email', userEmail, { subject: 'Action Required: Update SMYM Christian Games App' }, 'failed', error.message);
   }
 };

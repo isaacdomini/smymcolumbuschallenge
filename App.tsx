@@ -613,7 +613,7 @@ const MainContent: React.FC = () => {
           <div className="text-7xl mb-6">⚠️</div>
           <h2 className="text-3xl font-bold text-white mb-6 uppercase tracking-wider">App Deprecated</h2>
           <p className="text-gray-100 text-xl font-semibold mb-8">
-            This version of the app is no longer supported. Please uninstall it and download the new <span className="text-yellow-400">SMYM Columbus</span> app from the Google Play Store to continue playing.
+            This version of the app is no longer supported. Please uninstall it and download the new <span className="text-yellow-400">SMYM Christian Games</span> app from the Google Play Store to continue playing.
           </p>
           <button
             onClick={() => {
