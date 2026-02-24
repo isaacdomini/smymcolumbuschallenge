@@ -1270,3 +1270,18 @@ export const getServerVersion = async (): Promise<{ version: string }> => {
         return { version: '' };
     }
 };
+
+export const sendAppDeprecationEmailRequest = async (userId: string): Promise<{ status: string, timestamp: string }> => {
+    if (USE_MOCK_DATA || await isTestUser()) {
+        await simulateDelay(300);
+        return { status: 'sent_now', timestamp: new Date().toISOString() };
+    }
+    const response = await fetch(`${API_BASE_URL}/user/deprecation-email`, {
+        method: 'POST',
+        headers: await getAuthHeaders(userId)
+    });
+    if (!response.ok) {
+        throw new Error('Failed to send deprecation email');
+    }
+    return await response.json();
+};

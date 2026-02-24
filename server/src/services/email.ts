@@ -268,3 +268,35 @@ export const sendCheatingAlert = async (userEmail: string, userName: string, det
     await logNotification(null, 'email_cheating_alert', adminEmail, { subject: `[CHEATING ALERT] User ${userName}`, userEmail, details }, 'failed', error.message);
   }
 };
+
+// NEW: App Deprecation Email (to User)
+export const sendAppDeprecationEmail = async (userEmail: string, userId: string) => {
+  const playStoreUrl = 'https://play.google.com/store/apps/details?id=com.tesarsoft.smym.christiangames';
+
+  try {
+    await transporter.sendMail({
+      from: process.env.EMAIL_FROM,
+      to: userEmail,
+      subject: 'Action Required: Update SMYM Columbus App',
+      html: `
+          <div style="font-family: sans-serif; color: #333;">
+            <h2 style="color: #DC2626;">App Update Required</h2>
+            <p>Hi there,</p>
+            <p>You are currently using an older, unsupported version of the SMYM App. To continue playing the daily challenges and accessing all features, please update to our new app.</p>
+            <p>
+              <a href="${playStoreUrl}" style="background-color: #2563EB; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block; margin: 20px 0;">
+                Download New App from Play Store
+              </a>
+            </p>
+            <hr style="margin-top: 30px; border: 0; border-top: 1px solid #eee;">
+            <p style="font-size: 12px; color: #999;">If you've already updated the app, you can safely ignore this email.</p>
+          </div>
+        `,
+    });
+    console.log(`App deprecation email sent to ${userEmail}`);
+    await logNotification(userId, 'app_deprecation_email', userEmail, { subject: 'Action Required: Update SMYM Columbus App' }, 'sent');
+  } catch (error: any) {
+    console.error(`Failed to send app deprecation email to ${userEmail}:`, error);
+    await logNotification(userId, 'app_deprecation_email', userEmail, { subject: 'Action Required: Update SMYM Columbus App' }, 'failed', error.message);
+  }
+};

@@ -27,7 +27,7 @@ const LongTextPage = lazy(() => import('./components/LongTextPage'));
 import ChallengeIntro from './components/dashboard/ChallengeIntro';
 const ChristmasFlair = lazy(() => import('./components/ChristmasFlair'));
 import { Game, GameType, Challenge, GameSubmission, User } from './types';
-import { getChallenge, getDailyGames, getLeaderboard, getSubmissionForToday, getGamesForChallenge, getSubmissionsForUser, getGameState, getDailyMessage, getPublicFeatureFlags, getServerVersion, DailyMessage as DailyMessageType } from './services/api';
+import { getChallenge, getDailyGames, getLeaderboard, getSubmissionForToday, getGamesForChallenge, getSubmissionsForUser, getGameState, getDailyMessage, getPublicFeatureFlags, getServerVersion, DailyMessage as DailyMessageType, sendAppDeprecationEmailRequest } from './services/api';
 import { getGameName } from './utils/game';
 import ScoringCriteria from './components/dashboard/ScoringCriteria';
 import AddToHomeScreen from './components/ui/AddToHomeScreen';
@@ -81,6 +81,29 @@ const MainContent: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [globalMessage, setGlobalMessage] = useState<string | null>(null);
   const [isMaintenance, setIsMaintenance] = useState(false);
+  const [isBlockedApp, setIsBlockedApp] = useState(false);
+  const [deprecationEmailStatus, setDeprecationEmailStatus] = useState<{ sent: boolean, timestamp: string } | null>(null);
+  const [deprecationEmailSending, setDeprecationEmailSending] = useState(false);
+
+  useEffect(() => {
+    const sendOrCheckEmail = async () => {
+      if (isBlockedApp && user && !deprecationEmailSending && !deprecationEmailStatus) {
+        setDeprecationEmailSending(true);
+        try {
+          const res = await sendAppDeprecationEmailRequest(user.id);
+          setDeprecationEmailStatus({
+            sent: res.status === 'sent_now',
+            timestamp: res.timestamp
+          });
+        } catch (e) {
+          console.error("Failed to check or send deprecation email", e);
+        } finally {
+          setDeprecationEmailSending(false);
+        }
+      }
+    };
+    sendOrCheckEmail();
+  }, [isBlockedApp, user, deprecationEmailSending, deprecationEmailStatus]);
 
   // Memoize the set of submitted game IDs to avoid recalculation on every render
   const submittedGameIds = useMemo(() => new Set(allUserSubmissions.map(s => s.gameId)), [allUserSubmissions]);
@@ -256,6 +279,20 @@ const MainContent: React.FC = () => {
       } else {
         setIsMaintenance(false);
       }
+
+      if (flags.deprecation_banner_active) {
+        if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android') {
+          try {
+            const info = await CapacitorApp.getInfo();
+            if (info.id === 'com.tesarsoft.smym.biblegames') {
+              setIsBlockedApp(true);
+            }
+          } catch (e) {
+            console.error("Failed to check app info", e);
+          }
+        }
+      }
+
       if (flags.christmas_flair) {
         setShowChristmasFlair(true);
       } else {
@@ -565,6 +602,39 @@ const MainContent: React.FC = () => {
           </div>
         )}
         {user && <ScoringCriteria isTestUser={isTestUser} />}
+      </div>
+    );
+  }
+
+  if (isBlockedApp) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen p-8 text-center bg-gray-900 z-[9999] fixed inset-0">
+        <div className="bg-red-900 border-4 border-red-500 p-8 rounded-2xl shadow-2xl max-w-md w-full mx-auto z-50">
+          <div className="text-7xl mb-6">⚠️</div>
+          <h2 className="text-3xl font-bold text-white mb-6 uppercase tracking-wider">App Deprecated</h2>
+          <p className="text-gray-100 text-xl font-semibold mb-8">
+            This version of the app is no longer supported. Please uninstall it and download the new <span className="text-yellow-400">SMYM Columbus</span> app from the Google Play Store to continue playing.
+          </p>
+          <button
+            onClick={() => {
+              window.open('https://play.google.com/store/apps/details?id=com.tesarsoft.smym.christiangames', '_system');
+            }}
+            className="w-full bg-white text-red-900 font-bold py-4 px-8 rounded-xl text-xl uppercase tracking-wide shadow-lg mb-4 transition-transform transform hover:scale-105"
+          >
+            Open Play Store
+          </button>
+          {user && (
+            <div className="mt-4 text-gray-300 font-medium bg-red-800/50 p-4 rounded-xl border border-red-700">
+              {deprecationEmailSending && <p className="animate-pulse">Checking email status...</p>}
+              {deprecationEmailStatus && deprecationEmailStatus.sent && (
+                <p>A link to the new app has just been sent to your email.</p>
+              )}
+              {deprecationEmailStatus && !deprecationEmailStatus.sent && (
+                <p>A link to the new app was previously sent to your email on {new Date(deprecationEmailStatus.timestamp).toLocaleDateString()}.</p>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     );
   }

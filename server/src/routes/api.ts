@@ -3,7 +3,7 @@ import pool from '../db/pool.js';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
-import { sendVerificationEmail, sendPasswordResetEmail, sendAccountDeletionRequestEmail, sendTicketCreatedEmail, sendAdminTicketNotification, sendCheatingAlert } from '../services/email.js'; // Added new email function
+import { sendVerificationEmail, sendPasswordResetEmail, sendAccountDeletionRequestEmail, sendTicketCreatedEmail, sendAdminTicketNotification, sendCheatingAlert, sendAppDeprecationEmail } from '../services/email.js'; // Added new email function
 import { getVapidPublicKey, saveSubscription } from '../services/push.js';
 import { manualLog, getClientIp } from '../middleware/logger.js';
 import { getFeatureFlag } from '../utils/featureFlags.js';
@@ -253,6 +253,41 @@ router.post('/subscribe', async (req, res) => {
       }
     }
     console.error('Subscription error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// --- Push Notification Endpoints ---
+router.post('/user/deprecation-email', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user.id;
+
+    // Check if the user exists to get their email
+    const userResult = await pool.query('SELECT email FROM users WHERE id = $1', [userId]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    const userEmail = userResult.rows[0].email;
+
+    // Check if we already sent an email
+    const logResult = await pool.query(
+      "SELECT created_at FROM notification_logs WHERE user_id = $1 AND type = 'app_deprecation_email' AND status = 'sent' ORDER BY created_at DESC LIMIT 1",
+      [userId]
+    );
+
+    if (logResult.rows.length > 0) {
+      // Email was already sent
+      return res.json({ status: 'already_sent', timestamp: logResult.rows[0].created_at });
+    }
+
+    // Send the email
+    await sendAppDeprecationEmail(userEmail, userId);
+
+    // We fetch the latest log just to return the exact timestamp, though 'sent_now' is enough for frontend.
+    res.json({ status: 'sent_now', timestamp: new Date().toISOString() });
+
+  } catch (error) {
+    console.error('App deprecation email error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
