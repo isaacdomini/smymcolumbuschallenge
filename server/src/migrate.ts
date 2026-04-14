@@ -207,7 +207,49 @@ CREATE TABLE IF NOT EXISTS user_message_dismissals (
   // Seed default flag for game revisit
   `INSERT INTO feature_flags (key, enabled, description) 
    VALUES ('allow_game_revisit', true, 'Allow users to revisit completed games')
-   ON CONFLICT (key) DO NOTHING`
+   ON CONFLICT (key) DO NOTHING`,
+
+  // Groups table
+  `CREATE TABLE IF NOT EXISTS groups (
+    id VARCHAR(255) PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`,
+
+  // Initialize default group if it doesn't exist
+  `INSERT INTO groups (id, name) VALUES ('default', 'General') ON CONFLICT (id) DO NOTHING`,
+
+  // User Groups table (Many-to-Many)
+  `CREATE TABLE IF NOT EXISTS user_groups (
+    user_id VARCHAR(255) REFERENCES users(id) ON DELETE CASCADE,
+    group_id VARCHAR(255) REFERENCES groups(id) ON DELETE CASCADE,
+    role VARCHAR(50) DEFAULT 'member',
+    joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, group_id)
+  )`,
+
+  // Add group_id to challenges
+  `ALTER TABLE challenges ADD COLUMN IF NOT EXISTS group_id VARCHAR(255) REFERENCES groups(id) DEFAULT 'default'`,
+
+  // Add group_id to daily_messages
+  `ALTER TABLE daily_messages ADD COLUMN IF NOT EXISTS group_id VARCHAR(255) REFERENCES groups(id) DEFAULT 'default'`,
+
+  // Drop old unique constraint on daily_messages date if it exists (using a DO block to handle conditional drop)
+  `DO $$ BEGIN
+    IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'daily_messages_date_key') THEN
+      ALTER TABLE daily_messages DROP CONSTRAINT daily_messages_date_key;
+    END IF;
+  END $$`,
+
+  // Add new unique constraint for date + group
+  `ALTER TABLE daily_messages DROP CONSTRAINT IF EXISTS daily_messages_date_group_key`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS idx_daily_messages_date_group ON daily_messages(date, group_id)`,
+
+  // Migrate existing users to default group
+  `INSERT INTO user_groups (user_id, group_id, role)
+   SELECT id, 'default', CASE WHEN is_admin THEN 'admin' ELSE 'member' END
+   FROM users
+   ON CONFLICT (user_id, group_id) DO NOTHING`
 
 ];
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import AuthModal from './auth/AuthModal';
+import GroupSelector from './GroupSelector';
 import { ICONS } from '../constants';
 import Tooltip from './ui/Tooltip';
 
@@ -71,6 +72,8 @@ const Header: React.FC<HeaderProps> = ({ challengeName, onLogoClick, navigate })
                         </div>
                     </div>
                     <div className="flex items-center space-x-4">
+                        {user && <GroupSelector />}
+
 
                         {user ? (
                             <>
