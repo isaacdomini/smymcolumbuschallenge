@@ -16,6 +16,8 @@ const MatchTheWordGame = lazy(() => import('./components/game/MatchTheWordGame')
 const VerseScrambleGame = lazy(() => import('./components/game/VerseScrambleGame'));
 const WhoAmIGame = lazy(() => import('./components/game/WhoAmIGame'));
 const WordSearchGame = lazy(() => import('./components/game/WordSearchGame'));
+const PropertyMatcherGame = lazy(() => import('./components/game/PropertyMatcherGame'));
+const BookGuesserGame = lazy(() => import('./components/game/BookGuesserGame'));
 const ChallengeHistory = lazy(() => import('./components/dashboard/ChallengeHistory'));
 const MyChallenges = lazy(() => import('./components/dashboard/MyChallenges'));
 const ResetPassword = lazy(() => import('./components/auth/ResetPassword'));
@@ -511,6 +513,10 @@ const MainContent: React.FC = () => {
           return <WhoAmIGame gameData={gameToPlay.data as any} onComplete={onComplete} submission={activeSubmission} gameId={gameToPlay.id} />;
         case GameType.WORD_SEARCH:
           return <WordSearchGame gameData={gameToPlay.data as any} onComplete={onComplete} submission={activeSubmission} gameId={gameToPlay.id} />;
+        case GameType.PROPERTY_MATCHER:
+          return <PropertyMatcherGame gameData={gameToPlay.data as any} onComplete={onComplete} submission={activeSubmission} gameId={gameToPlay.id} />;
+        case GameType.BOOK_GUESSER:
+          return <BookGuesserGame gameData={gameToPlay.data as any} onComplete={onComplete} submission={activeSubmission} gameId={gameToPlay.id} />;
         default: return <p>Unknown game type.</p>;
       }
     }

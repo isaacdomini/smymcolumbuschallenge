@@ -33,6 +33,8 @@ export enum GameType {
   VERSE_SCRAMBLE = 'verse_scramble',
   WHO_AM_I = 'who_am_i',
   WORD_SEARCH = 'word_search',
+  PROPERTY_MATCHER = 'property_matcher',
+  BOOK_GUESSER = 'book_guesser',
 }
 
 export interface WordleData {
@@ -106,6 +108,25 @@ export interface WordSearchData {
   }[];
 }
 
+export interface PropertyMatcherData {
+  answer: string;
+  properties: string[]; // e.g., ["Testament", "Era", "Role", "Gender"]
+  options: {
+    name: string;
+    values: Record<string, string>; // e.g., { "Testament": "Old", "Era": "Exodus", "Role": "Prophet", "Gender": "Male" }
+  }[];
+  // For frontend (masked)
+  maskedAnswer?: string;
+}
+
+export interface BookGuesserData {
+  verses: string[];
+  answer: string;
+  options: string[]; // e.g., ["Genesis", "Exodus", "Matthew", "Revelation"]
+  // Additional info like passage titles? Let's just keep verses.
+}
+
+
 export type Game = {
   id: string;
   challengeId: string;
@@ -148,6 +169,14 @@ export type Game = {
     | {
       type: GameType.WORD_SEARCH;
       data: WordSearchData;
+    }
+    | {
+      type: GameType.PROPERTY_MATCHER;
+      data: PropertyMatcherData;
+    }
+    | {
+      type: GameType.BOOK_GUESSER;
+      data: BookGuesserData;
     }
   );
 

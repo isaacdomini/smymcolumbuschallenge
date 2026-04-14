@@ -1,0 +1,204 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { PropertyMatcherData, GameSubmission } from '../../types';
+
+interface PropertyMatcherGameProps {
+  gameId: string;
+  gameData: PropertyMatcherData;
+  submission: GameSubmission | null;
+  onComplete: () => void;
+  isPreview?: boolean;
+}
+
+const PropertyMatcherGame: React.FC<PropertyMatcherGameProps> = ({ gameId, gameData, submission, onComplete, isPreview = false }) => {
+  const [guesses, setGuesses] = useState<typeof gameData.options>([]);
+  const [currentGuess, setCurrentGuess] = useState('');
+  const [isCompleted, setIsCompleted] = useState(false);
+  const [startTime, setStartTime] = useState(Date.now());
+  const maxGuesses = 6;
+
+  // Masked answer might just be regular answer for logic, relying on gameData.answer
+  // If we are given answer, we evaluate correctness based on it.
+  const targetOption = useMemo(() => {
+    return gameData.options.find(opt => opt.name.toLowerCase() === gameData.answer.toLowerCase());
+  }, [gameData]);
+
+  useEffect(() => {
+    if (submission && submission.submissionData) {
+      if (submission.submissionData.guesses) {
+        setGuesses(submission.submissionData.guesses);
+      }
+      if (submission.submissionData.solved !== undefined) {
+        setIsCompleted(true);
+      }
+    }
+  }, [submission]);
+
+  const availableOptions = useMemo(() => {
+    return gameData.options
+      .filter(opt => !guesses.some(g => g.name === opt.name))
+      .filter(opt => opt.name.toLowerCase().includes(currentGuess.toLowerCase()));
+  }, [gameData.options, guesses, currentGuess]);
+
+  const handleGuess = (optionName: string) => {
+    if (isCompleted || guesses.length >= maxGuesses) return;
+
+    const option = gameData.options.find(opt => opt.name === optionName);
+    if (!option) return;
+
+    const newGuesses = [...guesses, option];
+    setGuesses(newGuesses);
+    setCurrentGuess('');
+
+    const isWin = option.name.toLowerCase() === gameData.answer.toLowerCase();
+    if (isWin || newGuesses.length >= maxGuesses) {
+      setIsCompleted(true);
+      if (!isPreview) {
+        submitResult(isWin, newGuesses);
+      }
+    }
+  };
+
+  const submitResult = (solved: boolean, finalGuesses: typeof gameData.options) => {
+    const timeTaken = Math.floor((Date.now() - startTime) / 1000);
+    const mistakes = solved ? finalGuesses.length - 1 : maxGuesses;
+
+    const customEvent = new CustomEvent('gameCompleted', {
+      detail: {
+        payload: {
+          gameId,
+          timeTaken,
+          mistakes,
+          submissionData: {
+            solved,
+            guesses: finalGuesses,
+            answer: gameData.answer
+          }
+        },
+        complete: onComplete
+      }
+    });
+    window.dispatchEvent(customEvent);
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto p-4 flex flex-col items-center">
+      <h2 className="text-3xl font-bold text-white mb-6 text-center">Property Matcher</h2>
+
+      {/* Guesses Grid */}
+      <div className="w-full mb-6 overflow-x-auto">
+        <div className="min-w-max border border-gray-700 rounded-lg overflow-hidden">
+          <table className="w-full text-left text-sm text-gray-200">
+            <thead className="bg-gray-800 text-gray-400 capitalize">
+              <tr>
+                <th className="px-4 py-3 border-b border-gray-700 font-semibold">Guess</th>
+                {gameData.properties.map((prop, idx) => (
+                  <th key={idx} className="px-4 py-3 border-b border-gray-700 font-semibold">{prop}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {guesses.map((guess, idx) => {
+                const isCorrectStr = guess.name.toLowerCase() === gameData.answer.toLowerCase();
+                return (
+                  <tr key={idx} className="border-b border-gray-700 bg-gray-900">
+                    <td className={`px-4 py-3 font-medium ${isCorrectStr ? 'text-green-400' : 'text-gray-200'}`}>
+                      {guess.name}
+                    </td>
+                    {gameData.properties.map((prop, pIdx) => {
+                      const guessVal = guess.values[prop];
+                      const targetVal = targetOption?.values[prop];
+                      let matchColor = 'bg-gray-600'; // unknown
+                      if (targetVal) {
+                        if (guessVal.toLowerCase() === targetVal.toLowerCase()) {
+                          matchColor = 'bg-green-600 border-green-500';
+                        } else {
+                          matchColor = 'bg-red-900 border-red-700'; // red if mismatch entirely
+                        }
+                      }
+                      return (
+                        <td key={pIdx} className="px-4 py-3">
+                          <div className={`px-3 py-1 rounded border inline-block text-xs font-bold shadow-sm ${matchColor} text-white`}>
+                            {guessVal}
+                          </div>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
+              {/* Empty Rows Padding */}
+              {Array.from({ length: Math.max(0, maxGuesses - guesses.length) }).map((_, idx) => (
+                <tr key={`empty-${idx}`} className="border-b border-gray-700 bg-gray-800/50">
+                  <td className="px-4 py-4">&nbsp;</td>
+                  {gameData.properties.map((_, pIdx) => (
+                    <td key={`empty-prop-${pIdx}`} className="px-4 py-4">&nbsp;</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Input Section */}
+      {!isCompleted && (
+        <div className="w-full max-w-md relative">
+          <div className="text-gray-400 mb-2 font-semibold">
+            Guesses remaining: <span className="text-white">{maxGuesses - guesses.length}</span> / {maxGuesses}
+          </div>
+          <input
+            type="text"
+            className="w-full bg-gray-800 text-white rounded-lg p-4 outline-none focus:ring-2 focus:ring-yellow-500 placeholder-gray-500"
+            placeholder="Search for a character..."
+            value={currentGuess}
+            onChange={(e) => setCurrentGuess(e.target.value)}
+          />
+          {currentGuess.length > 0 && availableOptions.length > 0 && (
+            <ul className="absolute z-10 w-full bg-gray-700 text-white rounded-lg mt-1 max-h-60 overflow-y-auto shadow-xl">
+              {availableOptions.slice(0, 10).map((opt, idx) => (
+                <li
+                  key={idx}
+                  className="px-4 py-3 hover:bg-gray-600 cursor-pointer border-b border-gray-600 last:border-b-0 transition-colors"
+                  onClick={() => handleGuess(opt.name)}
+                >
+                  {opt.name}
+                </li>
+              ))}
+              {availableOptions.length > 10 && (
+                <li className="px-4 py-2 text-sm text-gray-400 text-center italic">
+                  Keep typing to see more...
+                </li>
+              )}
+            </ul>
+          )}
+        </div>
+      )}
+
+      {/* Completion Message */}
+      {isCompleted && (
+        <div className="mt-8 text-center animate-fade-in bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-700 w-full max-w-md">
+          {guesses.some(g => g.name.toLowerCase() === gameData.answer.toLowerCase()) ? (
+            <div>
+              <h3 className="text-3xl font-bold text-green-400 mb-2">Correct!</h3>
+              <p className="text-gray-300 mb-6">You found the right property match.</p>
+            </div>
+          ) : (
+            <div>
+              <h3 className="text-3xl font-bold text-red-500 mb-2">Game Over!</h3>
+              <p className="text-gray-300 mb-6">The correct answer was <strong className="text-white text-xl">{gameData.answer}</strong>.</p>
+            </div>
+          )}
+          {isPreview && <p className="text-yellow-400 font-semibold mb-4">Preview Mode Active - Not Submitting</p>}
+          <button
+            onClick={onComplete}
+            className="bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold py-3 px-8 rounded-lg shadow-lg hover:shadow-xl transition-all block w-full"
+          >
+            {isPreview ? 'Close Preview' : 'Back to Dashboard'}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default PropertyMatcherGame;

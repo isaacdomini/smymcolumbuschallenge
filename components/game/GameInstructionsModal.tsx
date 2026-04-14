@@ -161,6 +161,30 @@ const GameInstructionsModal: React.FC<GameInstructionsModalProps> = ({ gameType,
     </div>
   );
 
+  const renderPropertyMatcherInstructions = () => (
+    <div className="space-y-4">
+      <p>Guess the secret Biblical figure by matching properties.</p>
+      <ul className="list-disc pl-5 space-y-2 text-gray-300">
+        <li>Search for a character using the search bar and select them to make a guess.</li>
+        <li>Compare the properties of your guess with the secret character.</li>
+        <li>Green means the property matches exactly. Red means it does not match.</li>
+        <li>You have 6 allowed mistakes before the game is over.</li>
+      </ul>
+    </div>
+  );
+
+  const renderBookGuesserInstructions = () => (
+    <div className="space-y-4">
+      <p>Guess the book of the Bible the verses belong to.</p>
+      <ul className="list-disc pl-5 space-y-2 text-gray-300">
+        <li>Read the verse slice presented to you.</li>
+        <li>If you need more context, click "Reveal Next Verse". The fewer verses you need, the better!</li>
+        <li>Select the correct book from the options provided.</li>
+        <li>You only get one try, so choose carefully!</li>
+      </ul>
+    </div>
+  );
+
   const getTitle = () => {
     return `How to Play ${getGameName(gameType, isTestUser)}`;
   };
@@ -175,6 +199,8 @@ const GameInstructionsModal: React.FC<GameInstructionsModalProps> = ({ gameType,
       case GameType.VERSE_SCRAMBLE: return renderVerseScrambleInstructions();
       case GameType.WHO_AM_I: return renderWhoAmIInstructions();
       case GameType.WORD_SEARCH: return renderWordSearchInstructions();
+      case GameType.PROPERTY_MATCHER: return renderPropertyMatcherInstructions();
+      case GameType.BOOK_GUESSER: return renderBookGuesserInstructions();
       default: return null;
     }
   };

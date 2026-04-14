@@ -1,5 +1,5 @@
 import { storage } from '@/utils/storage';
-import { User, Challenge, Game, GameType, GameSubmission, WordleData, ConnectionsData, CrosswordData, MatchTheWordData, SubmitGamePayload, GameProgress, AdminStats, LogEntry, BannerMessage } from '@/types';
+import { User, Challenge, Game, GameType, GameSubmission, WordleData, ConnectionsData, CrosswordData, MatchTheWordData, SubmitGamePayload, GameProgress, AdminStats, LogEntry, BannerMessage, PropertyMatcherData, BookGuesserData } from '@/types';
 
 const USE_MOCK_DATA = import.meta.env.MODE === 'development';
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
@@ -517,7 +517,9 @@ const calculateScore = (payload: SubmitGamePayload, game: Game): number => {
             return completionScore + accuracyScore + timeBonus;
         }
 
-        case GameType.WHO_AM_I: {
+        case GameType.WHO_AM_I:
+        case GameType.PROPERTY_MATCHER:
+        case GameType.BOOK_GUESSER: {
             // Max Score: 100
             // Win: 50
             // Guesses Remaining: 5 pts each (max 6 guesses allowed -> 5 * 6 = 30)

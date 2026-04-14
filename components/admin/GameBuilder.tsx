@@ -67,6 +67,16 @@ const GameBuilder: React.FC<GameBuilderProps> = ({
     // Word Search State
     const [wordSearchPuzzles, setWordSearchPuzzles] = useState<{ gridInput: string, words: string[] }[]>([{ gridInput: '', words: ['', '', '', '', ''] }]);
 
+    // Property Matcher State
+    const [propertyMatcherAnswer, setPropertyMatcherAnswer] = useState('');
+    const [propertyMatcherProperties, setPropertyMatcherProperties] = useState<string[]>(['Testament', 'Category', 'Role', 'Gender']);
+    const [propertyMatcherOptions, setPropertyMatcherOptions] = useState<{ name: string, values: Record<string, string> }[]>([{ name: '', values: {} }]);
+
+    // Book Guesser State
+    const [bookGuesserAnswer, setBookGuesserAnswer] = useState('');
+    const [bookGuesserVerses, setBookGuesserVerses] = useState<string[]>(['']);
+    const [bookGuesserOptions, setBookGuesserOptions] = useState<string[]>(['', '', '', '']);
+
     // Initialize state from initialData
     useEffect(() => {
         if (initialData) {
@@ -113,6 +123,14 @@ const GameBuilder: React.FC<GameBuilderProps> = ({
                         words: initialData.data.words
                     }]);
                 }
+            } else if (initialData.type === GameType.PROPERTY_MATCHER && initialData.data) {
+                setPropertyMatcherAnswer(initialData.data.answer || '');
+                setPropertyMatcherProperties(initialData.data.properties || ['Testament', 'Category', 'Role', 'Gender']);
+                setPropertyMatcherOptions(initialData.data.options || [{ name: '', values: {} }]);
+            } else if (initialData.type === GameType.BOOK_GUESSER && initialData.data) {
+                setBookGuesserAnswer(initialData.data.answer || '');
+                setBookGuesserVerses(initialData.data.verses || ['']);
+                setBookGuesserOptions(initialData.data.options || ['', '', '', '']);
             }
         }
     }, [initialData]);
@@ -195,6 +213,18 @@ const GameBuilder: React.FC<GameBuilderProps> = ({
                 };
             });
             gameData = { puzzles };
+        } else if (gameType === GameType.PROPERTY_MATCHER) {
+            gameData = {
+                answer: propertyMatcherAnswer,
+                properties: propertyMatcherProperties.filter(p => p.trim() !== ''),
+                options: propertyMatcherOptions.filter(o => o.name.trim() !== '')
+            };
+        } else if (gameType === GameType.BOOK_GUESSER) {
+            gameData = {
+                answer: bookGuesserAnswer,
+                verses: bookGuesserVerses.filter(v => v.trim() !== ''),
+                options: bookGuesserOptions.filter(o => o.trim() !== '')
+            };
         }
         return gameData;
     };
@@ -306,6 +336,8 @@ const GameBuilder: React.FC<GameBuilderProps> = ({
                             <option value={GameType.VERSE_SCRAMBLE}>Verse Scramble</option>
                             <option value={GameType.WHO_AM_I}>Hangman</option>
                             <option value={GameType.WORD_SEARCH}>Word Search</option>
+                            <option value={GameType.PROPERTY_MATCHER}>Property Matcher</option>
+                            <option value={GameType.BOOK_GUESSER}>Book Guesser</option>
                         </select>
                     </div>
                 </div>
@@ -685,6 +717,223 @@ const GameBuilder: React.FC<GameBuilderProps> = ({
                             >
                                 + Add Puzzle
                             </button>
+                        </div>
+                    )}
+
+                    {gameType === GameType.PROPERTY_MATCHER && (
+                        <div className="space-y-6">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-1">Secret Target Answer</label>
+                                <input
+                                    type="text"
+                                    value={propertyMatcherAnswer}
+                                    onChange={e => setPropertyMatcherAnswer(e.target.value)}
+                                    required
+                                    className="w-full p-2 bg-gray-800 border border-gray-600 rounded focus:ring-yellow-500 focus:border-yellow-500 text-white"
+                                    placeholder="e.g. Moses"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-1">Properties (Columns)</label>
+                                <div className="flex flex-wrap gap-2">
+                                    {propertyMatcherProperties.map((prop, idx) => (
+                                        <div key={idx} className="flex items-center gap-1 bg-gray-800 p-1 rounded border border-gray-600">
+                                            <input
+                                                type="text"
+                                                value={prop}
+                                                onChange={e => {
+                                                    const newProps = [...propertyMatcherProperties];
+                                                    newProps[idx] = e.target.value;
+                                                    setPropertyMatcherProperties(newProps);
+                                                }}
+                                                className="bg-transparent border-none text-white text-sm w-24 focus:ring-0 p-1"
+                                                placeholder={`Prop ${idx + 1}`}
+                                            />
+                                            {propertyMatcherProperties.length > 1 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const newProps = propertyMatcherProperties.filter((_, i) => i !== idx);
+                                                        setPropertyMatcherProperties(newProps);
+                                                    }}
+                                                    className="text-red-400 hover:text-red-300 px-1"
+                                                >
+                                                    &times;
+                                                </button>
+                                            )}
+                                        </div>
+                                    ))}
+                                    <button
+                                        type="button"
+                                        onClick={() => setPropertyMatcherProperties([...propertyMatcherProperties, ''])}
+                                        className="text-sm text-yellow-400 hover:text-yellow-300 px-2"
+                                    >
+                                        + Add Property
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-2">Options Directory</label>
+                                <p className="text-sm text-gray-500 mb-4">Ensure one of these has a Name matching the 'Secret Target Answer' above exactly.</p>
+                                <div className="space-y-3">
+                                    {propertyMatcherOptions.map((opt, idx) => (
+                                        <div key={idx} className="p-3 bg-gray-900/50 rounded border border-gray-700 relative flex flex-col gap-2">
+                                            <input
+                                                type="text"
+                                                value={opt.name}
+                                                onChange={e => {
+                                                    const newOpts = [...propertyMatcherOptions];
+                                                    newOpts[idx].name = e.target.value;
+                                                    setPropertyMatcherOptions(newOpts);
+                                                }}
+                                                placeholder="Character Name (e.g. Moses)"
+                                                required
+                                                className="w-full sm:w-1/2 p-2 bg-gray-800 border border-gray-600 rounded text-yellow-400 font-bold"
+                                            />
+                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                                                {propertyMatcherProperties.map((prop, pIdx) => (
+                                                    <div key={pIdx}>
+                                                        <label className="text-xs text-gray-400 block truncate">{prop}</label>
+                                                        <input
+                                                            type="text"
+                                                            value={opt.values[prop] || ''}
+                                                            onChange={e => {
+                                                                const newOpts = [...propertyMatcherOptions];
+                                                                newOpts[idx].values[prop] = e.target.value;
+                                                                setPropertyMatcherOptions(newOpts);
+                                                            }}
+                                                            placeholder="Value"
+                                                            className="w-full p-2 bg-gray-800 border border-gray-600 rounded text-white text-sm"
+                                                        />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            {propertyMatcherOptions.length > 1 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const newOpts = propertyMatcherOptions.filter((_, i) => i !== idx);
+                                                        setPropertyMatcherOptions(newOpts);
+                                                    }}
+                                                    className="absolute top-2 right-2 text-red-400 hover:text-red-300 text-xs bg-gray-800 px-2 py-1 rounded"
+                                                >
+                                                    Remove
+                                                </button>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setPropertyMatcherOptions([...propertyMatcherOptions, { name: '', values: {} }])}
+                                    className="mt-3 text-sm text-yellow-400 hover:text-yellow-300 inline-block"
+                                >
+                                    + Add Character
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {gameType === GameType.BOOK_GUESSER && (
+                        <div className="space-y-6">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-1">Target Book (Answer)</label>
+                                <input
+                                    type="text"
+                                    value={bookGuesserAnswer}
+                                    onChange={e => setBookGuesserAnswer(e.target.value)}
+                                    required
+                                    className="w-full p-2 bg-gray-800 border border-gray-600 rounded focus:ring-yellow-500 focus:border-yellow-500 text-white"
+                                    placeholder="e.g. Genesis"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-1">Multiple Choice Options</label>
+                                <p className="text-sm text-gray-500 mb-2">Include the answer here along with wrong options. Ensure exact spelling.</p>
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                    {bookGuesserOptions.map((opt, idx) => (
+                                        <div key={idx} className="relative">
+                                            <input
+                                                type="text"
+                                                value={opt}
+                                                onChange={e => {
+                                                    const newOpts = [...bookGuesserOptions];
+                                                    newOpts[idx] = e.target.value;
+                                                    setBookGuesserOptions(newOpts);
+                                                }}
+                                                required
+                                                className="w-full p-2 bg-gray-800 border border-gray-600 rounded text-white"
+                                                placeholder={`Option ${idx + 1}`}
+                                            />
+                                            {bookGuesserOptions.length > 2 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const newOpts = bookGuesserOptions.filter((_, i) => i !== idx);
+                                                        setBookGuesserOptions(newOpts);
+                                                    }}
+                                                    className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-500"
+                                                >
+                                                    &times;
+                                                </button>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setBookGuesserOptions([...bookGuesserOptions, ''])}
+                                    className="mt-2 text-sm text-yellow-400 hover:text-yellow-300"
+                                >
+                                    + Add Option
+                                </button>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-1">Lines of Verses to Reveal</label>
+                                <p className="text-sm text-gray-500 mb-2">Each entry is revealed sequentially as a hint. Provide progressively easier hits.</p>
+                                <div className="space-y-2">
+                                    {bookGuesserVerses.map((verse, idx) => (
+                                        <div key={idx} className="relative flex items-start gap-2">
+                                            <span className="bg-gray-700 text-gray-400 rounded px-2 py-1 text-xs mt-2">{idx + 1}</span>
+                                            <textarea
+                                                value={verse}
+                                                onChange={e => {
+                                                    const newVerses = [...bookGuesserVerses];
+                                                    newVerses[idx] = e.target.value;
+                                                    setBookGuesserVerses(newVerses);
+                                                }}
+                                                required
+                                                rows={2}
+                                                className="w-full p-2 bg-gray-900 border border-gray-700 rounded focus:ring-yellow-500 focus:border-yellow-500 text-white"
+                                                placeholder={`Verse segment ${idx + 1}`}
+                                            />
+                                            {bookGuesserVerses.length > 1 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const newVerses = bookGuesserVerses.filter((_, i) => i !== idx);
+                                                        setBookGuesserVerses(newVerses);
+                                                    }}
+                                                    className="bg-red-900 text-red-300 hover:text-white px-2 py-1 rounded mt-2"
+                                                >
+                                                    &times;
+                                                </button>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setBookGuesserVerses([...bookGuesserVerses, ''])}
+                                    className="mt-2 text-sm text-yellow-400 hover:text-yellow-300"
+                                >
+                                    + Add Verse Line
+                                </button>
+                            </div>
                         </div>
                     )}
                 </div>
