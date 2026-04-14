@@ -12,6 +12,23 @@ export interface User {
 export interface Group {
   id: string;
   name: string;
+  isPublic?: boolean;
+  createdAt: string;
+}
+
+export interface PublicGroup extends Group {
+  memberCount: number;
+  isMember: boolean;
+}
+
+export interface GroupInvite {
+  id: string;
+  code: string;
+  groupId: string;
+  createdBy?: string;
+  maxUses: number | null;
+  uses: number;
+  expiresAt: string | null;
   createdAt: string;
 }
 

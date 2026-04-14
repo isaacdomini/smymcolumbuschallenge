@@ -72,7 +72,7 @@ const Header: React.FC<HeaderProps> = ({ challengeName, onLogoClick, navigate })
                         </div>
                     </div>
                     <div className="flex items-center space-x-4">
-                        {user && <GroupSelector />}
+                        {user && <GroupSelector navigate={navigate} />}
 
 
                         {user ? (

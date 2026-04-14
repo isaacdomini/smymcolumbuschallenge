@@ -26,6 +26,7 @@ const PrivacyPolicy = lazy(() => import('./components/PrivacyPolicy'));
 const DeleteAccount = lazy(() => import('./components/auth/DeleteAccount'));
 const Profile = lazy(() => import('./components/Profile'));
 const LongTextPage = lazy(() => import('./components/LongTextPage'));
+const GroupBrowser = lazy(() => import('./components/GroupBrowser'));
 import ChallengeIntro from './components/dashboard/ChallengeIntro';
 const ChristmasFlair = lazy(() => import('./components/ChristmasFlair'));
 import { Game, GameType, Challenge, GameSubmission, User } from './types';
@@ -50,7 +51,101 @@ const LoadingFallback: React.FC = () => (
   <div className="text-center p-10">Loading...</div>
 );
 
-import { GroupProvider } from './components/GroupContext';
+import { GroupProvider, useGroup } from './components/GroupContext';
+import { joinGroup } from './services/groups';
+
+// Join by invite code flow
+const JoinByInvite: React.FC<{ code: string; user: User | null; navigate: (path: string) => void }> = ({ code, user, navigate }) => {
+  const [status, setStatus] = React.useState<'loading' | 'success' | 'error' | 'needsLogin'>('loading');
+  const [message, setMessage] = React.useState('');
+  const [groupName, setGroupName] = React.useState('');
+  const { refreshGroups } = useGroup();
+
+  React.useEffect(() => {
+    if (!code) {
+      setStatus('error');
+      setMessage('Invalid invite link');
+      return;
+    }
+
+    if (!user) {
+      setStatus('needsLogin');
+      return;
+    }
+
+    // Auto-join
+    joinGroup(code)
+      .then(async (result) => {
+        setStatus('success');
+        setGroupName(result.groupName);
+        setMessage(`You've joined "${result.groupName}"!`);
+        await refreshGroups();
+      })
+      .catch((err) => {
+        setStatus('error');
+        setMessage(err.message || 'Failed to join group');
+      });
+  }, [code, user]);
+
+  return (
+    <div className="max-w-md mx-auto mt-16 text-center">
+      {status === 'loading' && (
+        <div className="bg-gray-800 border border-gray-700 rounded-xl p-8">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-yellow-400 mx-auto mb-4"></div>
+          <p className="text-gray-300">Joining group...</p>
+        </div>
+      )}
+      {status === 'success' && (
+        <div className="bg-gray-800 border border-green-600/50 rounded-xl p-8">
+          <div className="text-5xl mb-4">🎉</div>
+          <h2 className="text-xl font-bold text-white mb-2">Welcome!</h2>
+          <p className="text-green-400 mb-6">{message}</p>
+          <button
+            onClick={() => navigate('/')}
+            className="bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold py-3 px-8 rounded-lg transition-colors"
+          >
+            Go to Dashboard
+          </button>
+        </div>
+      )}
+      {status === 'error' && (
+        <div className="bg-gray-800 border border-red-600/50 rounded-xl p-8">
+          <div className="text-5xl mb-4">😕</div>
+          <h2 className="text-xl font-bold text-white mb-2">Couldn't Join</h2>
+          <p className="text-red-400 mb-6">{message}</p>
+          <div className="flex gap-3 justify-center">
+            <button
+              onClick={() => navigate('/groups')}
+              className="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-6 rounded-lg transition-colors"
+            >
+              Browse Groups
+            </button>
+            <button
+              onClick={() => navigate('/')}
+              className="bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold py-2 px-6 rounded-lg transition-colors"
+            >
+              Home
+            </button>
+          </div>
+        </div>
+      )}
+      {status === 'needsLogin' && (
+        <div className="bg-gray-800 border border-yellow-600/50 rounded-xl p-8">
+          <div className="text-5xl mb-4">🔐</div>
+          <h2 className="text-xl font-bold text-white mb-2">Login Required</h2>
+          <p className="text-gray-300 mb-6">You need to log in or sign up before joining this group.</p>
+          <p className="text-gray-400 text-xs mb-4">After logging in, revisit this link to join the group.</p>
+          <button
+            onClick={() => navigate('/')}
+            className="bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold py-3 px-8 rounded-lg transition-colors"
+          >
+            Go to Login
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -280,7 +375,7 @@ const MainContent: React.FC = () => {
   }, []);
 
   const fetchInitialData = useCallback(async () => {
-    if (locationPath.startsWith('/reset-password') || locationPath.startsWith('/admin') || locationPath.startsWith('/privacy') || locationPath.startsWith('/request-deletion') || locationPath.startsWith('/profile') || locationPath === '/message-viewer') {
+    if (locationPath.startsWith('/reset-password') || locationPath.startsWith('/admin') || locationPath.startsWith('/privacy') || locationPath.startsWith('/request-deletion') || locationPath.startsWith('/profile') || locationPath === '/message-viewer' || locationPath.startsWith('/groups') || locationPath.startsWith('/join/')) {
       setIsLoading(false);
       return;
     }
@@ -426,6 +521,13 @@ const MainContent: React.FC = () => {
         return null;
       }
       return <AdminDashboard />;
+    }
+    if (locationPath === '/groups') {
+      return <GroupBrowser onBack={() => navigate('/')} navigate={navigate} />;
+    }
+    if (locationPath.startsWith('/join/')) {
+      const inviteCode = locationPath.split('/')[2];
+      return <JoinByInvite code={inviteCode} user={user} navigate={navigate} />;
     }
     if (locationPath === '/support') {
       return <SupportForm />;
