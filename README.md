@@ -2,6 +2,8 @@
 
 A collection of Christian-themed daily puzzle games for the SMYM Columbus community. This application includes games like Wordle, Connections, Crossword, Verse Scramble, and more, integrated with leaderboards and user profiles.
 
+https://smym-bible-games.columbuschurch.org/
+
 ## Technologies
 
 - **Frontend**: React, Vite, Tailwind CSS
