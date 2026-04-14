@@ -1,5 +1,21 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { PropertyMatcherData, GameSubmission } from '../../types';
+import { PropertyMatcherData, GameSubmission, GameType } from '../../types';
+import GameInstructionsModal from './GameInstructionsModal';
+
+const SAMPLE_DATA: PropertyMatcherData = {
+  answer: 'Moses',
+  properties: ['Testament', 'Role', 'Gender', 'Era'],
+  options: [
+    { name: 'Moses', values: { 'Testament': 'Old', 'Role': 'Prophet', 'Gender': 'Male', 'Era': 'Exodus' } },
+    { name: 'David', values: { 'Testament': 'Old', 'Role': 'King', 'Gender': 'Male', 'Era': 'United Kingdom' } },
+    { name: 'Esther', values: { 'Testament': 'Old', 'Role': 'Queen', 'Gender': 'Female', 'Era': 'Exile' } },
+    { name: 'Paul', values: { 'Testament': 'New', 'Role': 'Apostle', 'Gender': 'Male', 'Era': 'Early Church' } },
+    { name: 'Ruth', values: { 'Testament': 'Old', 'Role': 'Ancestor', 'Gender': 'Female', 'Era': 'Judges' } },
+    { name: 'Peter', values: { 'Testament': 'New', 'Role': 'Apostle', 'Gender': 'Male', 'Era': 'Early Church' } },
+    { name: 'Abraham', values: { 'Testament': 'Old', 'Role': 'Patriarch', 'Gender': 'Male', 'Era': 'Patriarchal' } },
+    { name: 'Mary', values: { 'Testament': 'New', 'Role': 'Mother of Jesus', 'Gender': 'Female', 'Era': 'Gospel' } },
+  ]
+};
 
 interface PropertyMatcherGameProps {
   gameId: string;
@@ -10,17 +26,21 @@ interface PropertyMatcherGameProps {
 }
 
 const PropertyMatcherGame: React.FC<PropertyMatcherGameProps> = ({ gameId, gameData, submission, onComplete, isPreview = false }) => {
-  const [guesses, setGuesses] = useState<typeof gameData.options>([]);
+  const isSample = gameId.startsWith('sample-');
+  const dataToUse = isSample ? SAMPLE_DATA : gameData;
+
+  const [guesses, setGuesses] = useState<typeof dataToUse.options>([]);
   const [currentGuess, setCurrentGuess] = useState('');
   const [isCompleted, setIsCompleted] = useState(false);
   const [startTime, setStartTime] = useState(Date.now());
+  const [showInstructions, setShowInstructions] = useState(!submission && !isPreview);
   const maxGuesses = 6;
 
   // Masked answer might just be regular answer for logic, relying on gameData.answer
   // If we are given answer, we evaluate correctness based on it.
   const targetOption = useMemo(() => {
-    return gameData.options.find(opt => opt.name.toLowerCase() === gameData.answer.toLowerCase());
-  }, [gameData]);
+    return dataToUse.options.find(opt => opt.name.toLowerCase() === dataToUse.answer.toLowerCase());
+  }, [dataToUse]);
 
   useEffect(() => {
     if (submission && submission.submissionData) {
@@ -34,25 +54,25 @@ const PropertyMatcherGame: React.FC<PropertyMatcherGameProps> = ({ gameId, gameD
   }, [submission]);
 
   const availableOptions = useMemo(() => {
-    return gameData.options
+    return dataToUse.options
       .filter(opt => !guesses.some(g => g.name === opt.name))
       .filter(opt => opt.name.toLowerCase().includes(currentGuess.toLowerCase()));
-  }, [gameData.options, guesses, currentGuess]);
+  }, [dataToUse.options, guesses, currentGuess]);
 
   const handleGuess = (optionName: string) => {
     if (isCompleted || guesses.length >= maxGuesses) return;
 
-    const option = gameData.options.find(opt => opt.name === optionName);
+    const option = dataToUse.options.find(opt => opt.name === optionName);
     if (!option) return;
 
     const newGuesses = [...guesses, option];
     setGuesses(newGuesses);
     setCurrentGuess('');
 
-    const isWin = option.name.toLowerCase() === gameData.answer.toLowerCase();
+    const isWin = option.name.toLowerCase() === dataToUse.answer.toLowerCase();
     if (isWin || newGuesses.length >= maxGuesses) {
       setIsCompleted(true);
-      if (!isPreview) {
+      if (!isPreview && !isSample) {
         submitResult(isWin, newGuesses);
       }
     }
@@ -71,7 +91,7 @@ const PropertyMatcherGame: React.FC<PropertyMatcherGameProps> = ({ gameId, gameD
           submissionData: {
             solved,
             guesses: finalGuesses,
-            answer: gameData.answer
+            answer: dataToUse.answer
           }
         },
         complete: onComplete
@@ -80,9 +100,18 @@ const PropertyMatcherGame: React.FC<PropertyMatcherGameProps> = ({ gameId, gameD
     window.dispatchEvent(customEvent);
   };
 
+  const handleStartGame = () => {
+    setStartTime(Date.now());
+    setShowInstructions(false);
+  };
+
+  if (showInstructions) {
+    return <GameInstructionsModal gameType={GameType.PROPERTY_MATCHER} onStart={handleStartGame} onClose={handleStartGame} />;
+  }
+
   return (
     <div className="max-w-2xl mx-auto p-4 flex flex-col items-center">
-      <h2 className="text-3xl font-bold text-white mb-6 text-center">Property Matcher</h2>
+      <h2 className="text-3xl font-bold text-white mb-6 text-center">Property Matcher {isSample && <span className="text-sm bg-blue-600 px-2 py-1 rounded ml-2">Sample</span>}</h2>
 
       {/* Guesses Grid */}
       <div className="w-full mb-6 overflow-x-auto">
@@ -91,20 +120,20 @@ const PropertyMatcherGame: React.FC<PropertyMatcherGameProps> = ({ gameId, gameD
             <thead className="bg-gray-800 text-gray-400 capitalize">
               <tr>
                 <th className="px-4 py-3 border-b border-gray-700 font-semibold">Guess</th>
-                {gameData.properties.map((prop, idx) => (
+                {dataToUse.properties.map((prop, idx) => (
                   <th key={idx} className="px-4 py-3 border-b border-gray-700 font-semibold">{prop}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {guesses.map((guess, idx) => {
-                const isCorrectStr = guess.name.toLowerCase() === gameData.answer.toLowerCase();
+                const isCorrectStr = guess.name.toLowerCase() === dataToUse.answer.toLowerCase();
                 return (
                   <tr key={idx} className="border-b border-gray-700 bg-gray-900">
                     <td className={`px-4 py-3 font-medium ${isCorrectStr ? 'text-green-400' : 'text-gray-200'}`}>
                       {guess.name}
                     </td>
-                    {gameData.properties.map((prop, pIdx) => {
+                    {dataToUse.properties.map((prop, pIdx) => {
                       const guessVal = guess.values[prop];
                       const targetVal = targetOption?.values[prop];
                       let matchColor = 'bg-gray-600'; // unknown
@@ -130,7 +159,7 @@ const PropertyMatcherGame: React.FC<PropertyMatcherGameProps> = ({ gameId, gameD
               {Array.from({ length: Math.max(0, maxGuesses - guesses.length) }).map((_, idx) => (
                 <tr key={`empty-${idx}`} className="border-b border-gray-700 bg-gray-800/50">
                   <td className="px-4 py-4">&nbsp;</td>
-                  {gameData.properties.map((_, pIdx) => (
+                  {dataToUse.properties.map((_, pIdx) => (
                     <td key={`empty-prop-${pIdx}`} className="px-4 py-4">&nbsp;</td>
                   ))}
                 </tr>
@@ -177,7 +206,7 @@ const PropertyMatcherGame: React.FC<PropertyMatcherGameProps> = ({ gameId, gameD
       {/* Completion Message */}
       {isCompleted && (
         <div className="mt-8 text-center animate-fade-in bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-700 w-full max-w-md">
-          {guesses.some(g => g.name.toLowerCase() === gameData.answer.toLowerCase()) ? (
+          {guesses.some(g => g.name.toLowerCase() === dataToUse.answer.toLowerCase()) ? (
             <div>
               <h3 className="text-3xl font-bold text-green-400 mb-2">Correct!</h3>
               <p className="text-gray-300 mb-6">You found the right property match.</p>
@@ -185,7 +214,7 @@ const PropertyMatcherGame: React.FC<PropertyMatcherGameProps> = ({ gameId, gameD
           ) : (
             <div>
               <h3 className="text-3xl font-bold text-red-500 mb-2">Game Over!</h3>
-              <p className="text-gray-300 mb-6">The correct answer was <strong className="text-white text-xl">{gameData.answer}</strong>.</p>
+              <p className="text-gray-300 mb-6">The correct answer was <strong className="text-white text-xl">{dataToUse.answer}</strong>.</p>
             </div>
           )}
           {isPreview && <p className="text-yellow-400 font-semibold mb-4">Preview Mode Active - Not Submitting</p>}
