@@ -45,9 +45,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    # This is the corrected command:
-    # It ONLY starts the server, preventing the migration crash-loop.
-    command: sh -c "npm run server"
+    # Run migrations first, then start the server
+    command: sh -c "npm run migrate && npm run server"
     restart: unless-stopped
 
 volumes:
