@@ -1,8 +1,9 @@
 
 import { Group, PublicGroup, GroupInvite } from '../types';
+import { storage } from '../utils/storage';
 
-const getAuthHeaders = () => {
-  const token = localStorage.getItem('token');
+const getAuthHeaders = async () => {
+  const token = await storage.get('token');
   return {
     'Authorization': `Bearer ${token}`,
     'Content-Type': 'application/json'
@@ -15,7 +16,7 @@ const getAuthHeaders = () => {
 
 export const getGroups = async (): Promise<Group[]> => {
   const response = await fetch('/api/groups', {
-    headers: getAuthHeaders()
+    headers: await getAuthHeaders()
   });
   if (!response.ok) throw new Error('Failed to fetch groups');
   return response.json();
@@ -24,7 +25,7 @@ export const getGroups = async (): Promise<Group[]> => {
 export const getPublicGroups = async (search?: string): Promise<PublicGroup[]> => {
   const params = search ? `?search=${encodeURIComponent(search)}` : '';
   const response = await fetch(`/api/groups/public${params}`, {
-    headers: getAuthHeaders()
+    headers: await getAuthHeaders()
   });
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
@@ -37,7 +38,7 @@ export const getPublicGroups = async (search?: string): Promise<PublicGroup[]> =
 export const createGroup = async (name: string, isPublic = false): Promise<Group> => {
   const response = await fetch('/api/groups', {
     method: 'POST',
-    headers: getAuthHeaders(),
+    headers: await getAuthHeaders(),
     body: JSON.stringify({ name, isPublic })
   });
   if (!response.ok) throw new Error('Failed to create group');
@@ -47,7 +48,7 @@ export const createGroup = async (name: string, isPublic = false): Promise<Group
 export const updateGroup = async (groupId: string, updates: { name?: string; isPublic?: boolean }): Promise<void> => {
   const response = await fetch(`/api/groups/${groupId}`, {
     method: 'PUT',
-    headers: getAuthHeaders(),
+    headers: await getAuthHeaders(),
     body: JSON.stringify(updates)
   });
   if (!response.ok) throw new Error('Failed to update group');
@@ -60,7 +61,7 @@ export const updateGroup = async (groupId: string, updates: { name?: string; isP
 export const joinGroup = async (code: string): Promise<{ message: string; groupName: string; groupId?: string }> => {
   const response = await fetch('/api/groups/join', {
     method: 'POST',
-    headers: getAuthHeaders(),
+    headers: await getAuthHeaders(),
     body: JSON.stringify({ code })
   });
   if (!response.ok) {
@@ -73,7 +74,7 @@ export const joinGroup = async (code: string): Promise<{ message: string; groupN
 export const joinPublicGroup = async (groupId: string): Promise<{ message: string; groupName: string }> => {
   const response = await fetch(`/api/groups/${groupId}/join`, {
     method: 'POST',
-    headers: getAuthHeaders()
+    headers: await getAuthHeaders()
   });
   if (!response.ok) {
     const error = await response.json();
@@ -85,7 +86,7 @@ export const joinPublicGroup = async (groupId: string): Promise<{ message: strin
 export const leaveGroup = async (groupId: string): Promise<void> => {
   const response = await fetch(`/api/groups/${groupId}/leave`, {
     method: 'POST',
-    headers: getAuthHeaders()
+    headers: await getAuthHeaders()
   });
   if (!response.ok) throw new Error('Failed to leave group');
 };
@@ -96,7 +97,7 @@ export const leaveGroup = async (groupId: string): Promise<void> => {
 
 export const getGroupMembers = async (groupId: string): Promise<any[]> => {
   const response = await fetch(`/api/groups/${groupId}/members`, {
-    headers: getAuthHeaders()
+    headers: await getAuthHeaders()
   });
   if (!response.ok) throw new Error('Failed to fetch group members');
   return response.json();
@@ -105,7 +106,7 @@ export const getGroupMembers = async (groupId: string): Promise<any[]> => {
 export const addUserToGroup = async (groupId: string, userId: string): Promise<void> => {
   const response = await fetch(`/api/groups/${groupId}/members`, {
     method: 'POST',
-    headers: getAuthHeaders(),
+    headers: await getAuthHeaders(),
     body: JSON.stringify({ userId })
   });
   if (!response.ok) {
@@ -117,7 +118,7 @@ export const addUserToGroup = async (groupId: string, userId: string): Promise<v
 export const removeUserFromGroup = async (groupId: string, userId: string): Promise<void> => {
   const response = await fetch(`/api/groups/${groupId}/members/${userId}`, {
     method: 'DELETE',
-    headers: getAuthHeaders()
+    headers: await getAuthHeaders()
   });
   if (!response.ok) throw new Error('Failed to remove user from group');
 };
@@ -125,7 +126,7 @@ export const removeUserFromGroup = async (groupId: string, userId: string): Prom
 export const updateMemberRole = async (groupId: string, userId: string, role: 'member' | 'admin'): Promise<void> => {
   const response = await fetch(`/api/groups/${groupId}/members/${userId}/role`, {
     method: 'PATCH',
-    headers: getAuthHeaders(),
+    headers: await getAuthHeaders(),
     body: JSON.stringify({ role })
   });
   if (!response.ok) throw new Error('Failed to update member role');
@@ -138,7 +139,7 @@ export const updateMemberRole = async (groupId: string, userId: string, role: 'm
 export const createInvite = async (groupId: string, options?: { maxUses?: number; expiresInHours?: number }): Promise<GroupInvite> => {
   const response = await fetch(`/api/groups/${groupId}/invites`, {
     method: 'POST',
-    headers: getAuthHeaders(),
+    headers: await getAuthHeaders(),
     body: JSON.stringify(options || {})
   });
   if (!response.ok) throw new Error('Failed to create invite');
@@ -147,7 +148,7 @@ export const createInvite = async (groupId: string, options?: { maxUses?: number
 
 export const getInvites = async (groupId: string): Promise<GroupInvite[]> => {
   const response = await fetch(`/api/groups/${groupId}/invites`, {
-    headers: getAuthHeaders()
+    headers: await getAuthHeaders()
   });
   if (!response.ok) throw new Error('Failed to fetch invites');
   return response.json();
@@ -156,7 +157,7 @@ export const getInvites = async (groupId: string): Promise<GroupInvite[]> => {
 export const revokeInvite = async (groupId: string, inviteId: string): Promise<void> => {
   const response = await fetch(`/api/groups/${groupId}/invites/${inviteId}`, {
     method: 'DELETE',
-    headers: getAuthHeaders()
+    headers: await getAuthHeaders()
   });
   if (!response.ok) throw new Error('Failed to revoke invite');
 };

@@ -1,6 +1,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Group, User } from '../types';
+import { storage } from '../utils/storage';
 
 interface GroupContextType {
   currentGroup: Group | null;
@@ -27,7 +28,7 @@ export const GroupProvider: React.FC<{ children: React.ReactNode, user: User | n
 
     try {
       setIsLoading(true);
-      const token = localStorage.getItem('token');
+      const token = await storage.get('token');
       const response = await fetch('/api/groups/my', {
         headers: {
           'Authorization': `Bearer ${token}`
