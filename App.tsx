@@ -148,22 +148,9 @@ const JoinByInvite: React.FC<{ code: string; user: User | null; navigate: (path:
 };
 
 const App: React.FC = () => {
-  const [user, setUser] = useState<User | null>(null);
-
-  useEffect(() => {
-    // Check for existing token
-    const token = localStorage.getItem('token');
-    if (token) {
-      const storedUser = localStorage.getItem('user');
-      if (storedUser) {
-        setUser(JSON.parse(storedUser));
-      }
-    }
-  }, []);
-
   return (
     <AuthProvider>
-      <GroupProvider user={user}>
+      <GroupProvider>
         <Toaster position="top-center" />
         <IonApp>
           <MainContent />

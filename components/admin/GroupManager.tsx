@@ -3,8 +3,10 @@ import React, { useState, useEffect } from 'react';
 import { getGroups, createGroup, getGroupMembers, addUserToGroup, removeUserFromGroup, updateMemberRole, updateGroup, createInvite, getInvites, revokeInvite } from '../../services/groups';
 import { getUsers } from '../../services/api';
 import { Group, User, GroupInvite } from '../../types';
+import { useAuth } from '../../hooks/useAuth';
 
 const GroupManager: React.FC = () => {
+  const { user } = useAuth();
   const [groups, setGroups] = useState<Group[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [newGroupName, setNewGroupName] = useState('');
@@ -128,9 +130,7 @@ const GroupManager: React.FC = () => {
       let targetUserId = '';
 
       if (allUsers.length === 0) {
-        const storedUser = localStorage.getItem('user');
-        let currentUserId = '';
-        if (storedUser) currentUserId = JSON.parse(storedUser).id;
+        const currentUserId = user?.id || '';
 
         if (currentUserId) {
           const users = await getUsers(currentUserId, 1000);

@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { getPublicGroups, joinGroup, joinPublicGroup, leaveGroup } from '../services/groups';
 import { useGroup } from './GroupContext';
 import { PublicGroup, Group } from '../types';
+import { storage } from '../utils/storage';
 
 interface GroupBrowserProps {
   onBack: () => void;
@@ -102,7 +103,7 @@ const GroupBrowser: React.FC<GroupBrowserProps> = ({ onBack, navigate }) => {
 
   const handleSwitchGroup = (group: Group & { role: string }) => {
     setCurrentGroup(group);
-    localStorage.setItem('selectedGroupId', group.id);
+    storage.set('selectedGroupId', group.id);
     navigate('/');
     window.location.reload();
   };

@@ -5,6 +5,7 @@ import AuthModal from './auth/AuthModal';
 import GroupSelector from './GroupSelector';
 import { ICONS } from '../constants';
 import Tooltip from './ui/Tooltip';
+import { storage } from '../utils/storage';
 
 interface HeaderProps {
     challengeName?: string;
@@ -27,12 +28,13 @@ const Header: React.FC<HeaderProps> = ({ challengeName, onLogoClick, navigate })
         // 3. Permission is 'default' (not yet granted or denied)
         // 4. User hasn't seen/dismissed it on this device yet
         if (user && isSupported && notificationPermission === 'default') {
-            const hasSeenPopup = localStorage.getItem('smym-seen-push-popup');
-            if (!hasSeenPopup) {
-                // Small delay to not overwhelm user immediately upon login
-                const timer = setTimeout(() => setShowPushPopup(true), 1000);
-                return () => clearTimeout(timer);
-            }
+            (async () => {
+                const hasSeenPopup = await storage.get('seen-push-popup');
+                if (!hasSeenPopup) {
+                    const timer = setTimeout(() => setShowPushPopup(true), 1000);
+                    return () => clearTimeout(timer);
+                }
+            })();
         } else {
             setShowPushPopup(false);
         }
@@ -52,7 +54,7 @@ const Header: React.FC<HeaderProps> = ({ challengeName, onLogoClick, navigate })
 
     const handleDismissPopup = () => {
         setShowPushPopup(false);
-        localStorage.setItem('smym-seen-push-popup', 'true');
+        storage.set('seen-push-popup', 'true');
     };
 
     const handleSubscribeClicked = () => {
