@@ -26,7 +26,11 @@ export const getPublicGroups = async (search?: string): Promise<PublicGroup[]> =
   const response = await fetch(`/api/groups/public${params}`, {
     headers: getAuthHeaders()
   });
-  if (!response.ok) throw new Error('Failed to fetch public groups');
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    console.error('Public groups API error:', response.status, errorData);
+    throw new Error(errorData.error || 'Failed to fetch public groups');
+  }
   return response.json();
 };
 

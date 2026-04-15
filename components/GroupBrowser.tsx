@@ -20,13 +20,17 @@ const GroupBrowser: React.FC<GroupBrowserProps> = ({ onBack, navigate }) => {
   const [success, setSuccess] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
+  const [publicGroupsError, setPublicGroupsError] = useState(false);
+
   const loadPublicGroups = useCallback(async () => {
     setIsLoading(true);
+    setPublicGroupsError(false);
     try {
       const groups = await getPublicGroups(search || undefined);
       setPublicGroups(groups);
     } catch (err) {
       console.error('Failed to load public groups', err);
+      setPublicGroupsError(true);
     } finally {
       setIsLoading(false);
     }
@@ -229,6 +233,11 @@ const GroupBrowser: React.FC<GroupBrowserProps> = ({ onBack, navigate }) => {
 
         {isLoading ? (
           <div className="text-center py-8 text-gray-400">Loading groups...</div>
+        ) : publicGroupsError ? (
+          <div className="bg-gray-800 border border-red-600/30 rounded-xl p-8 text-center text-gray-400">
+            <p className="mb-2">Could not load public groups.</p>
+            <button onClick={loadPublicGroups} className="text-yellow-400 hover:text-yellow-300 text-sm underline">Try again</button>
+          </div>
         ) : publicGroups.length === 0 ? (
           <div className="bg-gray-800 border border-gray-700 rounded-xl p-8 text-center text-gray-400">
             {search ? 'No groups found matching your search.' : 'No public groups available.'}
