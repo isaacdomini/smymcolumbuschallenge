@@ -1,7 +1,7 @@
 
 import express from 'express';
 import pool from '../db/pool.js';
-import { authenticateToken, requireAdmin } from '../middleware/auth.js';
+import { authenticateToken, authenticateOptional, requireAdmin } from '../middleware/auth.js';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
 
@@ -31,19 +31,32 @@ function generateInviteCode(): string {
 // ==========================================
 
 // Get all public groups (for user browsing)
-router.get('/public', authenticateToken, async (req: any, res) => {
+router.get('/public', authenticateOptional, async (req: any, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user?.id || null;
     const search = (req.query.search as string || '').trim();
 
-    let query = `
-      SELECT g.*, 
-        (SELECT COUNT(*) FROM user_groups ug WHERE ug.group_id = g.id) as member_count,
-        EXISTS(SELECT 1 FROM user_groups ug WHERE ug.user_id = $1 AND ug.group_id = g.id) as is_member
-      FROM groups g
-      WHERE g.is_public = true
-    `;
-    const params: any[] = [userId];
+    let query: string;
+    const params: any[] = [];
+
+    if (userId) {
+      params.push(userId);
+      query = `
+        SELECT g.*, 
+          (SELECT COUNT(*) FROM user_groups ug WHERE ug.group_id = g.id) as member_count,
+          EXISTS(SELECT 1 FROM user_groups ug WHERE ug.user_id = $1 AND ug.group_id = g.id) as is_member
+        FROM groups g
+        WHERE g.is_public = true
+      `;
+    } else {
+      query = `
+        SELECT g.*, 
+          (SELECT COUNT(*) FROM user_groups ug WHERE ug.group_id = g.id) as member_count,
+          false as is_member
+        FROM groups g
+        WHERE g.is_public = true
+      `;
+    }
 
     if (search) {
       params.push(`%${search}%`);
