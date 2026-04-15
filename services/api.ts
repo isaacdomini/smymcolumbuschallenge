@@ -328,7 +328,7 @@ export const requestAccountDeletion = async (email: string, password: string): P
     }
 };
 
-export const getChallenge = async (): Promise<Challenge | null> => {
+export const getChallenge = async (groupId?: string): Promise<Challenge | null> => {
     if (USE_MOCK_DATA || await isTestUser()) {
         await simulateDelay(300);
         const now = new Date();
@@ -338,7 +338,8 @@ export const getChallenge = async (): Promise<Challenge | null> => {
 
         return MOCK_CHALLENGE;
     } else {
-        const response = await fetch(`${API_BASE_URL}/challenge`);
+        const params = groupId ? `?groupId=${encodeURIComponent(groupId)}` : '';
+        const response = await fetch(`${API_BASE_URL}/challenge${params}`);
         if (!response.ok) {
             if (response.status === 503) {
                 const err = await response.json().catch(() => ({ error: 'Service Unavailable' }));

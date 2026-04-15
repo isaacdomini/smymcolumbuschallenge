@@ -166,6 +166,7 @@ const MainContent: React.FC = () => {
   useLogger();
   useDevToolsDetection();
   const { user } = useAuth();
+  const { currentGroup } = useGroup();
   const [challenge, setChallenge] = useState<Challenge | null>(null);
   const [todaysGames, setTodaysGames] = useState<Game[]>([]);
   const [todaysSubmission, setTodaysSubmission] = useState<GameSubmission | null>(null);
@@ -400,7 +401,7 @@ const MainContent: React.FC = () => {
         setShowChristmasFlair(false);
       }
 
-      const currentChallenge = await getChallenge();
+      const currentChallenge = await getChallenge(currentGroup?.id);
       setChallenge(currentChallenge);
       if (currentChallenge) {
         const now = new Date();
@@ -457,7 +458,7 @@ const MainContent: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [user, locationPath]);
+  }, [user, locationPath, currentGroup]);
 
   useEffect(() => {
     fetchInitialData();
