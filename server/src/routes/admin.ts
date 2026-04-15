@@ -386,7 +386,8 @@ router.get('/challenges', async (req: Request, res: Response) => {
             name: row.name,
             startDate: row.start_date,
             endDate: row.end_date,
-            groupId: row.group_id
+            groupId: row.group_id,
+            wordBank: row.word_bank || []
         })));
     } catch (error) {
         console.error('Error fetching challenges:', error);
