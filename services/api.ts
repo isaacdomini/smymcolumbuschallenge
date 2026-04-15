@@ -1253,6 +1253,26 @@ export const getScoringCriteria = async (): Promise<any[]> => {
                 'Completion Bonus: 20 points for finding all words.',
                 'Time Bonus: Up to 30 points for speed.'
             ]
+        },
+        {
+            title: 'Book Guesser',
+            description: 'Guess which book of the Bible the passage is from.',
+            hidden: false,
+            points: [
+                'Win Score: 50 points for guessing correctly.',
+                'Guess Bonus: 5 points for each unused guess.',
+                'Time Bonus: Up to 20 points for speed.'
+            ]
+        },
+        {
+            title: 'Property Matcher',
+            description: 'Identify the biblical character based on their properties.',
+            hidden: false,
+            points: [
+                'Win Score: 50 points for guessing correctly.',
+                'Guess Bonus: 5 points for each unused guess.',
+                'Time Bonus: Up to 20 points for speed.'
+            ]
         }
     ];
 };
