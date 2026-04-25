@@ -757,11 +757,9 @@ const MainContent: React.FC = () => {
       {locationPath.startsWith('/game/') ? (
         <header className="bg-gray-800 shadow-md relative z-20 pt-safe-top">
           <div className="container mx-auto px-4 py-3 flex items-center">
-            <button onClick={() => navigate('/')} className="flex items-center text-gray-300 hover:text-white transition-colors">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="15 18 9 12 15 6"></polyline>
-              </svg>
-              <span className="ml-1 font-medium">Back</span>
+            <button onClick={() => navigate('/')} className="flex items-center gap-1.5 text-gray-300 hover:text-yellow-400 transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+              <span className="font-medium text-sm">Home</span>
             </button>
             <div id="game-header-target" className="flex-1 flex justify-end items-center"></div>
           </div>

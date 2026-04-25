@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { PropertyMatcherData, GameSubmission, GameType } from '../../types';
 import { useAuth } from '../../hooks/useAuth';
 import { submitGame } from '../../services/api';
@@ -113,13 +114,53 @@ const PropertyMatcherGame: React.FC<PropertyMatcherGameProps> = ({ gameId, gameD
     setShowInstructions(false);
   };
 
+  // --- Header Timer ---
+  const isReadOnly = !!submission;
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [headerTarget, setHeaderTarget] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    setHeaderTarget(document.getElementById('game-header-target'));
+  }, []);
+
+  useEffect(() => {
+    if (!startTime || isCompleted || isReadOnly || showInstructions) return;
+    const interval = setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - startTime) / 1000));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [startTime, isCompleted, isReadOnly, showInstructions]);
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const headerControls = (
+    <div className="flex items-center gap-2">
+      <h2 className="text-lg font-bold text-yellow-400 leading-none mr-2 hidden sm:block">
+        Property Matcher {isSample && <span className="text-xs bg-blue-600 text-white px-1.5 py-0.5 rounded ml-1 align-middle">Sample</span>}
+      </h2>
+      <div className="flex items-center gap-1.5 bg-zinc-900 px-2 py-1 rounded-lg border border-zinc-700/50">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-400"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+        <span className="font-mono text-zinc-100 font-bold text-sm tracking-wide">
+          {isReadOnly && submission ? formatTime(submission.timeTaken) : formatTime(elapsedSeconds)}
+        </span>
+      </div>
+      <button onClick={() => setShowInstructions(true)} className="text-zinc-400 hover:text-white p-1.5 hover:bg-zinc-700 rounded-lg transition-colors border border-zinc-700/50 bg-zinc-900" title="Show Instructions">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+      </button>
+    </div>
+  );
+
   if (showInstructions) {
     return <GameInstructionsModal gameType={GameType.PROPERTY_MATCHER} onStart={handleStartGame} onClose={handleStartGame} />;
   }
 
   return (
     <div className="max-w-2xl mx-auto p-4 flex flex-col items-center">
-      <h2 className="text-3xl font-bold text-white mb-6 text-center">Property Matcher {isSample && <span className="text-sm bg-blue-600 px-2 py-1 rounded ml-2">Sample</span>}</h2>
+      {headerTarget && createPortal(headerControls, headerTarget)}
 
       {/* Guesses Grid */}
       <div className="w-full mb-6 overflow-x-auto">

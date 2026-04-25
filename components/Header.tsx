@@ -66,10 +66,13 @@ const Header: React.FC<HeaderProps> = ({ challengeName, onLogoClick, navigate })
         <>
             <header className="bg-gray-800 shadow-md relative z-20 pt-safe-top">
                 <div className="container mx-auto px-4 py-3 flex justify-between items-center">
-                    <div onClick={onLogoClick} className="flex items-center space-x-3 cursor-pointer">
-                        {ICONS.smymLogo}
+                    <div
+                        onClick={() => { navigate('/'); onLogoClick?.(); }}
+                        className="flex items-center space-x-3 cursor-pointer group"
+                    >
+                        <span className="transition-opacity group-hover:opacity-80">{ICONS.smymLogo}</span>
                         <div>
-                            <h1 className="text-lg md:text-xl font-bold text-yellow-400">SMYM Christian Challenges</h1>
+                            <h1 className="text-lg md:text-xl font-bold text-yellow-400 group-hover:text-yellow-300 transition-colors">SMYM Christian Challenges</h1>
                             {challengeName && <p className="text-xs text-gray-400 hidden sm:block">{challengeName}</p>}
                         </div>
                     </div>
