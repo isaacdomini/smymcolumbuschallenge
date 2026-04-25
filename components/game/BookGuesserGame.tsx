@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BookGuesserData, GameSubmission, GameType } from '../../types';
+import { useAuth } from '../../hooks/useAuth';
+import { submitGame } from '../../services/api';
 import GameInstructionsModal from './GameInstructionsModal';
 
 const SAMPLE_DATA: BookGuesserData = {
@@ -21,12 +23,14 @@ interface BookGuesserGameProps {
 }
 
 const BookGuesserGame: React.FC<BookGuesserGameProps> = ({ gameId, gameData, submission, onComplete, isPreview = false }) => {
+  const { user } = useAuth();
   const isSample = gameId.startsWith('sample-');
   const dataToUse = isSample ? SAMPLE_DATA : gameData;
 
   const [revealedVerses, setRevealedVerses] = useState<number>(1);
   const [guess, setGuess] = useState<string | null>(null);
   const [isCompleted, setIsCompleted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [startTime, setStartTime] = useState(Date.now());
   const [showInstructions, setShowInstructions] = useState(!submission && !isPreview);
 
@@ -63,29 +67,32 @@ const BookGuesserGame: React.FC<BookGuesserGameProps> = ({ gameId, gameData, sub
     }
   };
 
-  const submitResult = (solved: boolean, finalGuess: string) => {
+  const submitResult = async (solved: boolean, finalGuess: string) => {
+    if (!user || isSubmitting) return;
+    setIsSubmitting(true);
     const timeTaken = Math.floor((Date.now() - startTime) / 1000);
-    // Mistake penalty calculation: 
-    // They get 1 guess. If wrong, mistake = max. Max score is 50. Let's send mistake=1 if wrong, 0 if right.
-    const mistakes = solved ? 0 : 3; // Setting penalty as 3 mistakes equivalent for wrong answer
-
-    const customEvent = new CustomEvent('gameCompleted', {
-      detail: {
-        payload: {
-          gameId,
-          timeTaken,
-          mistakes,
-          submissionData: {
-            solved,
-            guess: finalGuess,
-            revealedVerses,
-            answer: dataToUse.answer
-          }
-        },
-        complete: onComplete
-      }
-    });
-    window.dispatchEvent(customEvent);
+    // mistakes=0 for correct (max bonus), mistakes=3 for wrong (score will be 0 server-side)
+    const mistakes = solved ? 0 : 3;
+    try {
+      await submitGame({
+        userId: user.id,
+        gameId,
+        startedAt: new Date(startTime).toISOString(),
+        timeTaken,
+        mistakes,
+        submissionData: {
+          solved,
+          guess: finalGuess,
+          revealedVerses,
+          answer: dataToUse.answer
+        }
+      });
+    } catch (err) {
+      console.error('BookGuesser submit failed:', err);
+    } finally {
+      setIsSubmitting(false);
+      setTimeout(onComplete, 2000);
+    }
   };
 
   const handleStartGame = () => {

@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { PropertyMatcherData, GameSubmission, GameType } from '../../types';
+import { useAuth } from '../../hooks/useAuth';
+import { submitGame } from '../../services/api';
 import GameInstructionsModal from './GameInstructionsModal';
 
 const SAMPLE_DATA: PropertyMatcherData = {
@@ -26,12 +28,14 @@ interface PropertyMatcherGameProps {
 }
 
 const PropertyMatcherGame: React.FC<PropertyMatcherGameProps> = ({ gameId, gameData, submission, onComplete, isPreview = false }) => {
+  const { user } = useAuth();
   const isSample = gameId.startsWith('sample-');
   const dataToUse = isSample ? SAMPLE_DATA : gameData;
 
   const [guesses, setGuesses] = useState<typeof dataToUse.options>([]);
   const [currentGuess, setCurrentGuess] = useState('');
   const [isCompleted, setIsCompleted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [startTime, setStartTime] = useState(Date.now());
   const [showInstructions, setShowInstructions] = useState(!submission && !isPreview);
   const maxGuesses = 6;
@@ -78,26 +82,30 @@ const PropertyMatcherGame: React.FC<PropertyMatcherGameProps> = ({ gameId, gameD
     }
   };
 
-  const submitResult = (solved: boolean, finalGuesses: typeof gameData.options) => {
+  const submitResult = async (solved: boolean, finalGuesses: typeof gameData.options) => {
+    if (!user || isSubmitting) return;
+    setIsSubmitting(true);
     const timeTaken = Math.floor((Date.now() - startTime) / 1000);
     const mistakes = solved ? finalGuesses.length - 1 : maxGuesses;
-
-    const customEvent = new CustomEvent('gameCompleted', {
-      detail: {
-        payload: {
-          gameId,
-          timeTaken,
-          mistakes,
-          submissionData: {
-            solved,
-            guesses: finalGuesses,
-            answer: dataToUse.answer
-          }
-        },
-        complete: onComplete
-      }
-    });
-    window.dispatchEvent(customEvent);
+    try {
+      await submitGame({
+        userId: user.id,
+        gameId,
+        startedAt: new Date(startTime).toISOString(),
+        timeTaken,
+        mistakes,
+        submissionData: {
+          solved,
+          guesses: finalGuesses,
+          answer: dataToUse.answer
+        }
+      });
+    } catch (err) {
+      console.error('PropertyMatcher submit failed:', err);
+    } finally {
+      setIsSubmitting(false);
+      setTimeout(onComplete, 2000);
+    }
   };
 
   const handleStartGame = () => {

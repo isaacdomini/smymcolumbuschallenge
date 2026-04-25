@@ -127,6 +127,20 @@ export const calculateScore = (game: any, submissionData: any, timeTaken: number
       baseScore = wordScore + completionBonus + timeBonus;
       break;
     }
+    case 'book_guesser':
+    case 'property_matcher': {
+      // Wrong answer always scores 0
+      if (!submissionData?.solved) {
+        baseScore = 0;
+      } else {
+        const maxMistakes = 6;
+        const remainingGuesses = Math.max(0, maxMistakes - mistakes);
+        const guessBonus = remainingGuesses * 5;
+        const timeBonus = Math.max(0, 20 - Math.floor(timeTaken / 15));
+        baseScore = 50 + guessBonus + timeBonus;
+      }
+      break;
+    }
     default: {
       const timePenalty = Math.floor(timeTaken / 15);
       const mistakePenalty = mistakes * 10;

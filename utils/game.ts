@@ -30,7 +30,7 @@ export const getGameName = (gameType: GameType | string, isTestUser: boolean = f
     case 'word_search':
       return "Word Search";
     default:
-      return gameType.charAt(0).toUpperCase() + gameType.slice(1);
+      return formatGameType(gameType);
   }
 };
 
