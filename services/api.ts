@@ -1318,3 +1318,43 @@ export const sendAppDeprecationEmailRequest = async (userId: string): Promise<{ 
     }
     return await response.json();
 };
+
+// --- ADMIN NOTIFICATIONS ---
+
+export const sendAdminNotification = async (
+    userId: string,
+    payload: { title: string; body: string; url?: string; groupIds?: string[] }
+): Promise<{ message: string; recipients: number | 'all' }> => {
+    if (USE_MOCK_DATA || await isTestUser()) {
+        await simulateDelay(500);
+        return { message: 'Mock notification sent', recipients: 'all' };
+    }
+    const response = await fetch(`${API_BASE_URL}/admin/notifications/send`, {
+        method: 'POST',
+        headers: await getAuthHeaders(userId),
+        body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to send notification');
+    }
+    return await response.json();
+};
+
+export const triggerDailyReminders = async (
+    userId: string
+): Promise<{ message: string; result: any }> => {
+    if (USE_MOCK_DATA || await isTestUser()) {
+        await simulateDelay(500);
+        return { message: 'Mock reminders triggered', result: { skipped: false, usersNotified: 0 } };
+    }
+    const response = await fetch(`${API_BASE_URL}/admin/scheduler/run-reminders`, {
+        method: 'POST',
+        headers: await getAuthHeaders(userId),
+    });
+    if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to trigger reminders');
+    }
+    return await response.json();
+};
