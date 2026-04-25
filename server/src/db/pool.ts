@@ -11,6 +11,9 @@ export const pool = new Pool({
   database: process.env.DB_NAME || 'smym_bible_games',
   user: process.env.DB_USER || 'postgres',
   password: process.env.DB_PASSWORD || 'postgres',
+  max: 20,                  // enough headroom for concurrent push logging
+  idleTimeoutMillis: 30000, // release idle connections after 30s
+  connectionTimeoutMillis: 5000, // fail fast if pool is exhausted
 });
 
 export default pool;
