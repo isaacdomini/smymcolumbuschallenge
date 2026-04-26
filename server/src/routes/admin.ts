@@ -468,6 +468,42 @@ router.delete('/challenges/:id', async (req: Request, res: Response) => {
 
 // --- DAILY MESSAGES ---
 
+async function shiftStagedMessages(client: any, date: string, groupId: string): Promise<void> {
+    const pendingResult = await client.query(`
+        SELECT id FROM staging_daily_messages 
+        WHERE date = $1 AND group_id = $2 AND status = 'pending'
+    `, [date, groupId]);
+
+    if (pendingResult.rows.length === 0) return;
+
+    const result = await client.query(`
+        WITH RECURSIVE dates AS (
+            SELECT ($1::date + interval '1 day')::date AS date
+            UNION ALL
+            SELECT (date + interval '1 day')::date
+            FROM dates
+            WHERE date < $1::date + interval '365 days'
+        )
+        SELECT to_char(d.date, 'YYYY-MM-DD') AS date
+        FROM dates d
+        WHERE NOT EXISTS (
+            SELECT 1 FROM daily_messages dm WHERE dm.date = to_char(d.date, 'YYYY-MM-DD') AND dm.group_id = $2
+        )
+        ORDER BY d.date
+        LIMIT 1;
+    `, [date, groupId]);
+    
+    if (result.rows.length > 0) {
+        const nextDate = result.rows[0].date;
+        const ids = pendingResult.rows.map((r: any) => r.id);
+        await client.query(`
+            UPDATE staging_daily_messages 
+            SET date = $1 
+            WHERE id = ANY($2)
+        `, [nextDate, ids]);
+    }
+}
+
 // Get all daily messages (paginated)
 router.get('/daily-messages', async (req: Request, res: Response) => {
     try {
@@ -498,22 +534,39 @@ router.get('/daily-messages', async (req: Request, res: Response) => {
 // Create or update a daily message
 router.post('/daily-messages', async (req: Request, res: Response) => {
     try {
-        const { date, content, groupId = 'default' } = req.body;
+        const { date, content, groupIds = ['default'] } = req.body;
 
         if (!date || !content) {
             return res.status(400).json({ error: 'Date and content are required' });
         }
+        
+        // Backwards compatibility if frontend still sends groupId
+        const targetGroupIds = req.body.groupId ? [req.body.groupId] : groupIds;
 
-        const id = `msg-${date}-${groupId}`;
-
-        await pool.query(
-            `INSERT INTO daily_messages (id, date, content, group_id) 
-             VALUES ($1, $2, $3, $4) 
-             ON CONFLICT (date, group_id) DO UPDATE SET content = EXCLUDED.content`,
-            [id, date, content, groupId]
-        );
-
-        res.json({ message: 'Daily message saved successfully', id });
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+            
+            for (const groupId of targetGroupIds) {
+                const id = `msg-${date}-${groupId}`;
+                await client.query(
+                    `INSERT INTO daily_messages (id, date, content, group_id) 
+                     VALUES ($1, $2, $3, $4) 
+                     ON CONFLICT (date, group_id) DO UPDATE SET content = EXCLUDED.content`,
+                    [id, date, content, groupId]
+                );
+                
+                await shiftStagedMessages(client, date, groupId);
+            }
+            
+            await client.query('COMMIT');
+            res.json({ message: 'Daily message saved successfully' });
+        } catch (error) {
+            await client.query('ROLLBACK');
+            throw error;
+        } finally {
+            client.release();
+        }
     } catch (error) {
         console.error('Error saving daily message:', error);
         res.status(500).json({ error: 'Internal server error' });
@@ -880,13 +933,8 @@ router.post('/staging-messages/:id/promote', async (req: Request, res: Response)
                 [id]
             );
 
-            // Mark other staging messages for the same original date+group as rejected
-            // (or if we changed the date, it rejects the original date's alternatives. Let's stick with the original date for cleanup)
-            await client.query(
-                `UPDATE staging_daily_messages SET status = 'rejected'
-                 WHERE date = $1 AND group_id = $2 AND id != $3 AND status = 'pending'`,
-                [staging.date, staging.group_id, id]
-            );
+            // Shift any pending staged messages for the target date to the next available date
+            await shiftStagedMessages(client, targetDate, staging.group_id);
 
             await client.query('COMMIT');
 

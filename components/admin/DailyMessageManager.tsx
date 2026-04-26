@@ -18,7 +18,7 @@ const DailyMessageManager: React.FC = () => {
   // Group support
   const [groups, setGroups] = useState<Group[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState<string>('all');
-  const [targetGroupId, setTargetGroupId] = useState<string>('default');
+  const [targetGroupIds, setTargetGroupIds] = useState<string[]>(['default']);
 
   // Form state
   const [date, setDate] = useState('');
@@ -80,7 +80,7 @@ const DailyMessageManager: React.FC = () => {
       await saveDailyMessage(user.id, {
         date,
         content: JSON.stringify(blocks),
-        groupId: targetGroupId
+        groupIds: targetGroupIds
       });
       setSuccess('Message saved successfully');
       fetchMessages();
@@ -107,7 +107,7 @@ const DailyMessageManager: React.FC = () => {
   const handleEdit = (msg: DailyMessage) => {
     setDate(msg.date);
     // @ts-ignore
-    setTargetGroupId(msg.group_id || 'default');
+    setTargetGroupIds([msg.group_id || 'default']);
     try {
       const parsed = typeof msg.content === 'string' ? JSON.parse(msg.content) : msg.content;
       if (Array.isArray(parsed)) {
@@ -126,7 +126,7 @@ const DailyMessageManager: React.FC = () => {
     setDate('');
     setBlocks([]);
     setIsEditing(false);
-    setTargetGroupId('default');
+    setTargetGroupIds(['default']);
   };
 
   const fetchStagingMessages = useCallback(async () => {
@@ -404,17 +404,38 @@ const DailyMessageManager: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-gray-400 mb-1 text-sm">Group</label>
-                  <select
-                    value={targetGroupId}
-                    onChange={(e) => setTargetGroupId(e.target.value)}
-                    className="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white focus:border-yellow-500 focus:outline-none"
-                  >
-                    <option value="default">Default (General)</option>
+                  <label className="block text-gray-400 mb-2 text-sm">Assign to Groups</label>
+                  <div className="bg-gray-700 border border-gray-600 rounded p-2 max-h-40 overflow-y-auto space-y-2">
+                    <label className="flex items-center space-x-2 text-white text-sm cursor-pointer hover:bg-gray-600/50 p-1 rounded">
+                      <input
+                        type="checkbox"
+                        checked={targetGroupIds.includes('default')}
+                        onChange={(e) => {
+                          if (e.target.checked) setTargetGroupIds([...targetGroupIds, 'default']);
+                          else setTargetGroupIds(targetGroupIds.filter(id => id !== 'default'));
+                        }}
+                        className="rounded bg-gray-800 border-gray-500 text-yellow-500 focus:ring-yellow-500"
+                      />
+                      <span>Default (General)</span>
+                    </label>
                     {groups.map(g => (
-                      <option key={g.id} value={g.id}>{g.name}</option>
+                      <label key={g.id} className="flex items-center space-x-2 text-white text-sm cursor-pointer hover:bg-gray-600/50 p-1 rounded">
+                        <input
+                          type="checkbox"
+                          checked={targetGroupIds.includes(g.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) setTargetGroupIds([...targetGroupIds, g.id]);
+                            else setTargetGroupIds(targetGroupIds.filter(id => id !== g.id));
+                          }}
+                          className="rounded bg-gray-800 border-gray-500 text-yellow-500 focus:ring-yellow-500"
+                        />
+                        <span>{g.name}</span>
+                      </label>
                     ))}
-                  </select>
+                  </div>
+                  {targetGroupIds.length === 0 && (
+                    <p className="text-red-400 text-xs mt-1">Please select at least one group.</p>
+                  )}
                 </div>
               </div>
 

@@ -1242,7 +1242,7 @@ export const getAllDailyMessages = async (userId: string, groupId?: string): Pro
     return await response.json();
 };
 
-export const saveDailyMessage = async (userId: string, message: { date: string, content: string, groupId?: string }): Promise<void> => {
+export const saveDailyMessage = async (userId: string, message: { date: string, content: string, groupIds?: string[] }): Promise<void> => {
     if (USE_MOCK_DATA || await isTestUser()) return;
     const response = await fetch(`${API_BASE_URL}/admin/daily-messages`, {
         method: 'POST',
