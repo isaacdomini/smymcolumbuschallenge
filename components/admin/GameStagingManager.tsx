@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { StagingGame, GameType, Challenge } from '../../types';
-import { getStagingGames, generateStagingGames, promoteStagingGame, deleteStagingGame, getChallenges, getGroups } from '../../services/api';
+import { getStagingGames, generateStagingGames, promoteStagingGame, deleteStagingGame, getChallenges } from '../../services/api';
+import { getGroups } from '../../services/groups';
 import WordleGame from '../game/WordleGame';
 import ConnectionsGame from '../game/ConnectionsGame';
 import CrosswordGame from '../game/CrosswordGame';
