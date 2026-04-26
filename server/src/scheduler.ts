@@ -192,7 +192,7 @@ export const runDailyGameGenerationJob = async () => {
         const cleanupResult = await pool.query(
             "DELETE FROM staging_games WHERE generated_at < NOW() - INTERVAL '30 days'"
         );
-        if (cleanupResult.rowCount > 0) {
+        if (cleanupResult.rowCount && cleanupResult.rowCount > 0) {
             console.log(`[GameGen] Cleaned up ${cleanupResult.rowCount} stale staging games.`);
         }
 
