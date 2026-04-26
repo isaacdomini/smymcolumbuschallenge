@@ -45,19 +45,36 @@ const VerseScrambleGame: React.FC<VerseScrambleGameProps> = ({ gameId, gameData,
   const [draggingItem, setDraggingItem] = useState<DragState | null>(null);
   const [dragPosition, setDragPosition] = useState<{ x: number, y: number } | null>(null);
   const dragItemRef = useRef<HTMLButtonElement | null>(null);
+  const [lastAddedWordId, setLastAddedWordId] = useState<string | null>(null);
 
   const dataToUse = isSample ? SAMPLE_DATA : gameData;
 
   useEffect(() => {
     const loadState = async () => {
-      let initialWords: string[] = [];
+      let rawWords: string[] = [];
       if (isSample) {
-        initialWords = SAMPLE_DATA.verse!.split(' ');
-      } else if (gameData.scrambledWords) {
-        initialWords = gameData.scrambledWords;
+        rawWords = SAMPLE_DATA.verse!.split(' ');
       } else if (gameData.verse) {
-        initialWords = gameData.verse.split(' ');
+        rawWords = gameData.verse.split(' ');
+      } else if (gameData.scrambledWords) {
+        rawWords = gameData.scrambledWords;
       }
+
+      let initialWords: string[] = rawWords.map((w, i) => {
+        const cleanWord = w.replace(/[^a-zA-Z]/g, '');
+        if (!cleanWord) return w;
+        
+        const lower = cleanWord.toLowerCase();
+        const properNouns = ['god', 'lord', 'jesus', 'christ', 'spirit', 'holy', 'father', 'son'];
+        
+        if (properNouns.includes(lower)) {
+            return cleanWord.charAt(0).toUpperCase() + cleanWord.slice(1).toLowerCase();
+        }
+        if (i > 0 && cleanWord[0] === cleanWord[0].toUpperCase()) {
+            return cleanWord;
+        }
+        return lower;
+      }).filter(w => w.length > 0);
 
       if (isReadOnly && submission) {
         const verse = submission.submissionData.verse || (isSample ? SAMPLE_DATA.verse : '');
@@ -267,6 +284,20 @@ const VerseScrambleGame: React.FC<VerseScrambleGameProps> = ({ gameId, gameData,
     // Get the element at the drop coordinates
     const dropTarget = document.elementFromPoint(dropX, dropY);
 
+    const isTap = Math.abs(dropX - draggingItem.startX) < 5 && Math.abs(dropY - draggingItem.startY) < 5;
+
+    if (isTap && draggingItem.source === 'pool') {
+      const wordToAdd = draggingItem.word;
+      setAvailableWords(prev => prev.filter((_, i) => i !== draggingItem.index));
+      setPlacedWords(prev => [...prev, wordToAdd]);
+      setLastAddedWordId(wordToAdd.id);
+      setTimeout(() => setLastAddedWordId(null), 1500); // Highlight for 1.5 seconds
+
+      setDraggingItem(null);
+      setDragPosition(null);
+      return;
+    }
+
     const inSolution = solutionArea?.contains(dropTarget) || dropTarget?.closest('#verse-solution-area');
     const inPool = poolArea?.contains(dropTarget) || dropTarget?.closest('#verse-pool-area');
 
@@ -384,7 +415,20 @@ const VerseScrambleGame: React.FC<VerseScrambleGameProps> = ({ gameId, gameData,
         <>
           {/* Solution Area */}
           <div className="w-full mb-8">
-            <p className="mb-2 text-gray-400 text-sm text-center uppercase tracking-wider font-bold">Solution Area</p>
+            <div className="flex justify-between items-end mb-2 px-2">
+                <p className="text-gray-400 text-sm uppercase tracking-wider font-bold">Solution Area</p>
+                {placedWords.length > 0 && (
+                    <button
+                        onClick={() => {
+                            setAvailableWords(prev => [...prev, ...placedWords]);
+                            setPlacedWords([]);
+                        }}
+                        className="text-xs bg-red-900/50 hover:bg-red-900 text-red-200 px-3 py-1 rounded transition-colors border border-red-800/50"
+                    >
+                        Reset Words
+                    </button>
+                )}
+            </div>
             <div
               id="verse-solution-area"
               className="w-full min-h-[140px] bg-gray-800/80 border-2 border-dashed border-gray-600 rounded-xl p-4 flex flex-wrap gap-3 justify-center items-start content-start transition-colors duration-300"
@@ -402,7 +446,8 @@ const VerseScrambleGame: React.FC<VerseScrambleGameProps> = ({ gameId, gameData,
                   onPointerCancel={handlePointerUp}
                   disabled={isReadOnly}
                   className={`
-                        px-3 py-2 rounded-lg font-semibold text-lg bg-yellow-500 text-gray-900 shadow-md transition-all touch-none
+                        px-3 py-2 rounded-lg font-semibold text-lg shadow-md transition-all touch-none
+                        ${word.id === lastAddedWordId ? 'bg-white text-gray-900 ring-4 ring-yellow-400 scale-110 z-10' : 'bg-yellow-500 text-gray-900'}
                         ${draggingItem?.word.id === word.id ? 'opacity-0' : 'hover:scale-105 active:scale-95'}
                     `}
                 >
