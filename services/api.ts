@@ -1006,7 +1006,7 @@ export interface DailyMessage {
     group_id?: string;
 }
 
-export const getDailyMessage = async (date?: string): Promise<DailyMessage | null> => {
+export const getDailyMessage = async (date?: string, groupId?: string): Promise<DailyMessage | null> => {
     if (USE_MOCK_DATA || await isTestUser()) {
         // Mock data
         const mockContent = JSON.stringify([
@@ -1026,10 +1026,81 @@ export const getDailyMessage = async (date?: string): Promise<DailyMessage | nul
             content: mockContent
         };
     }
-    const query = date ? `?date=${date}` : '';
+    const params = new URLSearchParams();
+    if (date) params.set('date', date);
+    if (groupId) params.set('groupId', groupId);
+    const query = params.toString() ? `?${params.toString()}` : '';
     const response = await fetch(`${API_BASE_URL}/daily-message${query}`);
     if (!response.ok) throw new Error('Failed to fetch daily message');
     return await response.json();
+};
+
+// --- STAGING DAILY MESSAGES (AI Suggestions) ---
+
+export interface StagingDailyMessage {
+    id: string;
+    date: string;
+    group_id: string;
+    group_name?: string;
+    content: string;
+    status: 'pending' | 'promoted' | 'rejected';
+    model?: string;
+    generated_at: string;
+}
+
+export const getStagingMessages = async (
+    userId: string,
+    filters?: { date?: string; groupId?: string; status?: string }
+): Promise<StagingDailyMessage[]> => {
+    if (USE_MOCK_DATA || await isTestUser()) return [];
+    const params = new URLSearchParams();
+    if (filters?.date) params.set('date', filters.date);
+    if (filters?.groupId) params.set('groupId', filters.groupId);
+    if (filters?.status) params.set('status', filters.status);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    const response = await fetch(`${API_BASE_URL}/admin/staging-messages${query}`, {
+        headers: await getAuthHeaders(userId)
+    });
+    if (!response.ok) throw new Error('Failed to fetch staging messages');
+    return await response.json();
+};
+
+export const generateStagingMessages = async (userId: string, date?: string): Promise<{ message: string; date: string }> => {
+    if (USE_MOCK_DATA || await isTestUser()) return { message: 'Mock generation started', date: date || 'tomorrow' };
+    const response = await fetch(`${API_BASE_URL}/admin/staging-messages/generate`, {
+        method: 'POST',
+        headers: await getAuthHeaders(userId),
+        body: JSON.stringify({ date })
+    });
+    if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to start generation');
+    }
+    return await response.json();
+};
+
+export const promoteStagingMessage = async (userId: string, stagingId: string): Promise<void> => {
+    if (USE_MOCK_DATA || await isTestUser()) return;
+    const response = await fetch(`${API_BASE_URL}/admin/staging-messages/${stagingId}/promote`, {
+        method: 'POST',
+        headers: await getAuthHeaders(userId)
+    });
+    if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to promote message');
+    }
+};
+
+export const deleteStagingMessage = async (userId: string, stagingId: string): Promise<void> => {
+    if (USE_MOCK_DATA || await isTestUser()) return;
+    const response = await fetch(`${API_BASE_URL}/admin/staging-messages/${stagingId}`, {
+        method: 'DELETE',
+        headers: await getAuthHeaders(userId)
+    });
+    if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to delete staging message');
+    }
 };
 
 // --- BANNER MESSAGES ---

@@ -1,12 +1,15 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../hooks/useAuth';
-import { getAllDailyMessages, saveDailyMessage, deleteDailyMessage, DailyMessage } from '../../services/api';
+import { getAllDailyMessages, saveDailyMessage, deleteDailyMessage, DailyMessage, getStagingMessages, generateStagingMessages, promoteStagingMessage, deleteStagingMessage, StagingDailyMessage } from '../../services/api';
 import { getGroups } from '../../services/groups';
 import { DailyMessageBlock, DailyMessageContent, Group } from '../../types';
 
+type ManagerTab = 'editor' | 'ai';
+
 const DailyMessageManager: React.FC = () => {
   const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<ManagerTab>('editor');
   const [messages, setMessages] = useState<DailyMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -21,6 +24,19 @@ const DailyMessageManager: React.FC = () => {
   const [date, setDate] = useState('');
   const [blocks, setBlocks] = useState<DailyMessageContent>([]);
   const [isEditing, setIsEditing] = useState(false);
+
+  // AI Suggestions state
+  const [stagingMessages, setStagingMessages] = useState<StagingDailyMessage[]>([]);
+  const [stagingLoading, setStagingLoading] = useState(false);
+  const [stagingError, setStagingError] = useState<string | null>(null);
+  const [stagingSuccess, setStagingSuccess] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [stagingDate, setStagingDate] = useState(() => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow.toISOString().split('T')[0];
+  });
+  const [stagingGroupFilter, setStagingGroupFilter] = useState<string>('all');
 
   useEffect(() => {
     loadGroups();
@@ -113,9 +129,224 @@ const DailyMessageManager: React.FC = () => {
     setTargetGroupId('default');
   };
 
-  return (
-    <div className="space-y-8">
+  const fetchStagingMessages = useCallback(async () => {
+    if (!user) return;
+    setStagingLoading(true);
+    setStagingError(null);
+    try {
+      const data = await getStagingMessages(user.id, {
+        date: stagingDate,
+        groupId: stagingGroupFilter !== 'all' ? stagingGroupFilter : undefined
+      });
+      setStagingMessages(data);
+    } catch (err: any) {
+      setStagingError(err.message || 'Failed to load AI suggestions');
+    } finally {
+      setStagingLoading(false);
+    }
+  }, [user, stagingDate, stagingGroupFilter]);
 
+  useEffect(() => {
+    if (activeTab === 'ai') fetchStagingMessages();
+  }, [activeTab, fetchStagingMessages]);
+
+  const handleGenerate = async () => {
+    if (!user) return;
+    setIsGenerating(true);
+    setStagingError(null);
+    setStagingSuccess(null);
+    try {
+      const result = await generateStagingMessages(user.id, stagingDate);
+      setStagingSuccess(`Generation started for ${result.date}. You'll receive a push notification when ready (~5 mins). Refresh this tab after.`);
+    } catch (err: any) {
+      setStagingError(err.message || 'Failed to start generation');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handlePromote = async (id: string) => {
+    if (!user || !window.confirm('Promote this message to live?')) return;
+    try {
+      await promoteStagingMessage(user.id, id);
+      setStagingSuccess('Message promoted to live!');
+      fetchStagingMessages();
+      fetchMessages();
+    } catch (err: any) {
+      setStagingError(err.message || 'Failed to promote');
+    }
+  };
+
+  const handleDeleteStaging = async (id: string) => {
+    if (!user || !window.confirm('Delete this suggestion?')) return;
+    try {
+      await deleteStagingMessage(user.id, id);
+      setStagingSuccess('Suggestion deleted.');
+      fetchStagingMessages();
+    } catch (err: any) {
+      setStagingError(err.message || 'Failed to delete');
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'promoted': return <span className="bg-green-900 text-green-200 text-xs px-2 py-1 rounded-full font-semibold">✓ Promoted</span>;
+      case 'rejected': return <span className="bg-gray-700 text-gray-400 text-xs px-2 py-1 rounded-full">Rejected</span>;
+      default: return <span className="bg-yellow-900/60 text-yellow-300 text-xs px-2 py-1 rounded-full">Pending</span>;
+    }
+  };
+
+  const previewContent = (content: string) => {
+    try {
+      const blocks = typeof content === 'string' ? JSON.parse(content) : content;
+      if (Array.isArray(blocks)) {
+        const verse = blocks.find((b: any) => b.type === 'verse');
+        const para = blocks.find((b: any) => b.type === 'paragraph');
+        if (verse) return `📖 ${verse.reference}: "${verse.text?.substring(0, 80)}...`;
+        if (para) return para.text?.substring(0, 120) + '...';
+      }
+    } catch {}
+    return String(content).substring(0, 120) + '...';
+  };
+
+  return (
+    <div className="space-y-6">
+
+      {/* Tab switcher */}
+      <div className="flex space-x-1 bg-gray-900/50 p-1 rounded-lg">
+        <button
+          onClick={() => setActiveTab('editor')}
+          className={`flex-1 py-2 px-4 rounded-md font-medium transition-colors text-sm ${
+            activeTab === 'editor' ? 'bg-yellow-500 text-gray-900' : 'text-gray-400 hover:text-white hover:bg-gray-700'
+          }`}
+        >
+          ✏️ Manual Editor
+        </button>
+        <button
+          onClick={() => setActiveTab('ai')}
+          className={`flex-1 py-2 px-4 rounded-md font-medium transition-colors text-sm ${
+            activeTab === 'ai' ? 'bg-yellow-500 text-gray-900' : 'text-gray-400 hover:text-white hover:bg-gray-700'
+          }`}
+        >
+          🤖 AI Suggestions
+        </button>
+      </div>
+
+      {activeTab === 'ai' && (
+        <div className="space-y-6">
+          {/* Generation controls */}
+          <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
+            <h2 className="text-xl font-bold text-white mb-4">Generate AI Suggestions</h2>
+            <p className="text-gray-400 text-sm mb-4">
+              Uses Ollama ({process.env.OLLAMA_MODEL || 'gemma4:e2b'}) to generate 3 Bible-based message suggestions per group. Generation takes ~5 minutes — you'll receive a push notification when done.
+            </p>
+
+            {stagingError && <div className="bg-red-900/50 text-red-200 p-3 rounded mb-4">{stagingError}</div>}
+            {stagingSuccess && <div className="bg-green-900/50 text-green-200 p-3 rounded mb-4">{stagingSuccess}</div>}
+
+            <div className="flex flex-wrap gap-3 items-end">
+              <div>
+                <label className="block text-gray-400 text-sm mb-1">Target Date</label>
+                <input
+                  type="date"
+                  value={stagingDate}
+                  onChange={e => setStagingDate(e.target.value)}
+                  className="bg-gray-700 border border-gray-600 rounded p-2 text-white focus:border-yellow-500 focus:outline-none"
+                />
+              </div>
+              <button
+                onClick={handleGenerate}
+                disabled={isGenerating}
+                className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-bold py-2 px-6 rounded transition-colors flex items-center gap-2"
+              >
+                {isGenerating ? (
+                  <><span className="animate-spin">⏳</span> Starting...</>
+                ) : (
+                  <>🤖 Generate Now</>
+                )}
+              </button>
+              <button
+                onClick={fetchStagingMessages}
+                disabled={stagingLoading}
+                className="bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded transition-colors text-sm"
+              >
+                🔄 Refresh
+              </button>
+            </div>
+          </div>
+
+          {/* Suggestions list */}
+          <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-white">Suggestions for {stagingDate}</h2>
+              <select
+                value={stagingGroupFilter}
+                onChange={e => setStagingGroupFilter(e.target.value)}
+                className="bg-gray-700 text-white rounded px-3 py-2 border border-gray-600 text-sm"
+              >
+                <option value="all">All Groups</option>
+                {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+              </select>
+            </div>
+
+            {stagingLoading ? (
+              <div className="text-center py-8 text-gray-400">Loading suggestions...</div>
+            ) : stagingMessages.length === 0 ? (
+              <div className="text-center py-8 border-2 border-dashed border-gray-700 rounded-lg text-gray-500">
+                No suggestions yet for this date/group. Click "Generate Now" to create some.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {stagingMessages.map(msg => (
+                  <div
+                    key={msg.id}
+                    className={`p-4 rounded-lg border ${
+                      msg.status === 'promoted' ? 'border-green-600/50 bg-green-900/10' :
+                      msg.status === 'rejected' ? 'border-gray-700 bg-gray-900/30 opacity-60' :
+                      'border-gray-600 bg-gray-700/30'
+                    }`}
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {getStatusBadge(msg.status)}
+                        <span className="bg-blue-900/60 text-blue-200 text-xs px-2 py-1 rounded">
+                          {(msg as any).group_name || msg.group_id}
+                        </span>
+                        {msg.model && (
+                          <span className="text-gray-500 text-xs">{msg.model}</span>
+                        )}
+                        <span className="text-gray-500 text-xs">
+                          {new Date(msg.generated_at).toLocaleString()}
+                        </span>
+                      </div>
+                      {msg.status === 'pending' && (
+                        <div className="flex gap-2 ml-2 shrink-0">
+                          <button
+                            onClick={() => handlePromote(msg.id)}
+                            className="bg-green-600 hover:bg-green-700 text-white text-xs font-bold px-3 py-1 rounded transition-colors"
+                          >
+                            ✓ Promote to Live
+                          </button>
+                          <button
+                            onClick={() => handleDeleteStaging(msg.id)}
+                            className="bg-red-800 hover:bg-red-700 text-white text-xs px-3 py-1 rounded transition-colors"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-gray-300 text-sm italic">{previewContent(msg.content)}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'editor' && (
+        <>
       <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
         <h2 className="text-xl font-bold text-white mb-4">
           {isEditing ? 'Edit Daily Message' : 'Create Daily Message'}
@@ -455,6 +686,8 @@ const DailyMessageManager: React.FC = () => {
           </div>
         )}
       </div>
+        </>
+      )}
     </div>
   );
 };

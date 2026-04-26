@@ -440,9 +440,9 @@ const MainContent: React.FC = () => {
           }
         }
 
-        // Fetch daily message
+        // Fetch daily message (group-specific)
         try {
-          const message = await getDailyMessage();
+          const message = await getDailyMessage(undefined, currentGroup?.id || 'default');
           setDailyMessage(message);
         } catch (e) {
           console.error("Failed to fetch daily message", e);

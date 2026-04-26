@@ -266,7 +266,21 @@ CREATE TABLE IF NOT EXISTS user_message_dismissals (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )`,
   `CREATE INDEX IF NOT EXISTS idx_group_invites_group_id ON group_invites(group_id)`,
-  `CREATE INDEX IF NOT EXISTS idx_group_invites_code ON group_invites(code)`
+  `CREATE INDEX IF NOT EXISTS idx_group_invites_code ON group_invites(code)`,
+
+  // Staging Daily Messages table (AI-generated suggestions pending admin review)
+  `CREATE TABLE IF NOT EXISTS staging_daily_messages (
+    id VARCHAR(255) PRIMARY KEY,
+    date VARCHAR(10) NOT NULL,
+    group_id VARCHAR(255) REFERENCES groups(id) DEFAULT 'default',
+    content JSONB NOT NULL,
+    status VARCHAR(20) DEFAULT 'pending',
+    model VARCHAR(100),
+    generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_staging_daily_messages_date ON staging_daily_messages(date)`,
+  `CREATE INDEX IF NOT EXISTS idx_staging_daily_messages_group ON staging_daily_messages(group_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_staging_daily_messages_status ON staging_daily_messages(status)`
 
 ];
 

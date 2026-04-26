@@ -1,9 +1,12 @@
 import cron from 'node-cron';
 import pool from './db/pool.js';
 import { sendDailyReminder } from './services/email.js';
-import { sendPushNotification } from './services/push.js';
+import { sendPushNotification, sendBatchPushNotification } from './services/push.js';
 import { runDailyGameMaintenance } from './services/maintenance.js';
 import { getGameName } from './utils/game.js';
+import { generateDailyMessage } from './services/ollama.js';
+
+const SUGGESTIONS_PER_GROUP = 3;
 
 // Exported so it can be triggered manually via the admin API
 export const runDailyReminderJob = async () => {
@@ -85,6 +88,93 @@ export const runDailyReminderJob = async () => {
     }
 };
 
+/**
+ * Generate AI daily message suggestions for the next day across all groups.
+ * Stores results in staging_daily_messages and notifies admins.
+ */
+export const runDailyMessageGeneration = async (targetDate?: string) => {
+    const dateStr = targetDate || (() => {
+        // Default: generate for tomorrow (in Eastern time)
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        return tomorrow.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+    })();
+
+    console.log(`[MessageGen] Starting AI daily message generation for date: ${dateStr}`);
+
+    try {
+        // Fetch all groups
+        const groupsResult = await pool.query('SELECT id, name FROM groups ORDER BY name');
+        const groups = groupsResult.rows;
+
+        if (groups.length === 0) {
+            console.log('[MessageGen] No groups found, skipping.');
+            return { skipped: true, reason: 'No groups' };
+        }
+
+        const model = process.env.OLLAMA_MODEL || 'gemma4:e2b';
+        let totalGenerated = 0;
+        const errors: string[] = [];
+
+        for (const group of groups) {
+            console.log(`[MessageGen] Generating ${SUGGESTIONS_PER_GROUP} suggestions for group "${group.name}" (${group.id})...`);
+
+            for (let i = 0; i < SUGGESTIONS_PER_GROUP; i++) {
+                try {
+                    const blocks = await generateDailyMessage(group.name, dateStr);
+                    const id = `staging-${dateStr}-${group.id}-${Date.now()}-${i}`;
+
+                    await pool.query(
+                        `INSERT INTO staging_daily_messages (id, date, group_id, content, status, model)
+                         VALUES ($1, $2, $3, $4, 'pending', $5)`,
+                        [id, dateStr, group.id, JSON.stringify(blocks), model]
+                    );
+
+                    totalGenerated++;
+                    console.log(`[MessageGen] Saved suggestion ${i + 1}/${SUGGESTIONS_PER_GROUP} for group "${group.name}"`);
+                } catch (err: any) {
+                    const errMsg = `Failed to generate suggestion ${i + 1} for group "${group.name}": ${err.message}`;
+                    console.error(`[MessageGen] ${errMsg}`);
+                    errors.push(errMsg);
+                }
+            }
+        }
+
+        console.log(`[MessageGen] Generation complete. ${totalGenerated} suggestions created.`);
+
+        // Notify all admins via push notification
+        try {
+            const adminResult = await pool.query(
+                'SELECT id FROM users WHERE is_admin = true AND is_verified = true'
+            );
+
+            if (adminResult.rows.length > 0) {
+                const adminIds = adminResult.rows.map((r: any) => r.id);
+                await sendBatchPushNotification(adminIds, {
+                    title: '📖 Daily Messages Ready for Review',
+                    body: `${totalGenerated} AI-generated suggestions are ready to review for ${dateStr}. Tap to open admin panel.`,
+                    url: '/admin'
+                });
+                console.log(`[MessageGen] Notified ${adminIds.length} admin(s).`);
+            }
+        } catch (notifyErr) {
+            console.error('[MessageGen] Failed to notify admins:', notifyErr);
+        }
+
+        return {
+            skipped: false,
+            date: dateStr,
+            groups: groups.length,
+            totalGenerated,
+            errors: errors.length > 0 ? errors : undefined
+        };
+
+    } catch (error) {
+        console.error('[MessageGen] Fatal error during message generation:', error);
+        throw error;
+    }
+};
+
 export const initScheduler = () => {
     console.log('Initializing scheduler...');
 
@@ -99,6 +189,20 @@ export const initScheduler = () => {
 
     // 2. Daily User Reminders at 7:00 AM and 6:00 PM Eastern Time
     cron.schedule('0 7,18 * * *', runDailyReminderJob, {
+        scheduled: true,
+        timezone: 'America/New_York'
+    });
+
+    // 3. Daily AI Message Generation at 2:00 AM Eastern Time
+    // Generates suggestions for the NEXT day so admins can review them before morning
+    cron.schedule('0 2 * * *', async () => {
+        console.log('[Scheduler] Running daily AI message generation...');
+        try {
+            await runDailyMessageGeneration();
+        } catch (err) {
+            console.error('[Scheduler] Daily message generation failed:', err);
+        }
+    }, {
         scheduled: true,
         timezone: 'America/New_York'
     });
