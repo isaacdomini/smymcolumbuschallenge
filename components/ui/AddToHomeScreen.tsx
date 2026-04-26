@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Capacitor } from '@capacitor/core'; // Import Capacitor
+import { Capacitor } from '@capacitor/core';
+import { storage } from '../../utils/storage';
 
 // Define types for the BeforeInstallPromptEvent
 interface BeforeInstallPromptEvent extends Event {
@@ -26,46 +27,35 @@ const AddToHomeScreen: React.FC = () => {
 
         // Check if already in standalone mode (added to home screen)
         const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone;
-        // Check if user has already dismissed the banner
-        const hasDismissed = localStorage.getItem('smym-dismissed-a2hs');
 
-        if (isStandalone || hasDismissed) {
-            return;
-        }
+        (async () => {
+            const hasDismissed = await storage.get('dismissed-a2hs');
+            if (isStandalone || hasDismissed) return;
 
-        // --- Android (PWA) Install Prompt ---
-        const handleBeforeInstallPrompt = (e: Event) => {
-            e.preventDefault();
-            console.log("beforeinstallprompt fired");
-            setDeferredPrompt(e as BeforeInstallPromptEvent);
-            setPromptType('android');
-            setShowBanner(true);
-        };
-        
-        window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-
-        // --- iOS Install Prompt ---
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
-        if (isIOS) {
-             // Delay showing the banner slightly
-            const timer = setTimeout(() => {
-                setPromptType('ios');
+            // --- Android (PWA) Install Prompt ---
+            const handleBeforeInstallPrompt = (e: Event) => {
+                e.preventDefault();
+                console.log("beforeinstallprompt fired");
+                setDeferredPrompt(e as BeforeInstallPromptEvent);
+                setPromptType('android');
                 setShowBanner(true);
-            }, 3000);
-            return () => {
-                clearTimeout(timer);
-                window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
             };
-        }
+            window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
-        return () => {
-            window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-        };
+            // --- iOS Install Prompt ---
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+            if (isIOS) {
+                setTimeout(() => {
+                    setPromptType('ios');
+                    setShowBanner(true);
+                }, 3000);
+            }
+        })();
     }, []);
 
     const handleDismiss = () => {
         setShowBanner(false);
-        localStorage.setItem('smym-dismissed-a2hs', 'true');
+        storage.set('dismissed-a2hs', 'true');
     };
 
     const handleAndroidInstall = async () => {
@@ -80,7 +70,7 @@ const AddToHomeScreen: React.FC = () => {
         }
         setDeferredPrompt(null);
         setShowBanner(false);
-        localStorage.setItem('smym-dismissed-a2hs', 'true'); // Also dismiss if they accept or deny
+        storage.set('dismissed-a2hs', 'true');
     };
 
     if (!showBanner || !promptType) return null;

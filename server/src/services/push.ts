@@ -61,15 +61,14 @@ function initializeAPN() {
             keyId: process.env.APNS_KEY_ID || '',
             teamId: process.env.APNS_TEAM_ID || '',
         },
-        // --- FIX ---
-        // Force development mode for testing with Xcode.
-        // Set to `process.env.NODE_ENV === 'production'` for real release builds.
+        // Uses production APNs gateway when NODE_ENV=production (App Store/TestFlight builds),
+        // and sandbox/development gateway otherwise (Xcode debug builds).
         production: process.env.NODE_ENV === 'production',
     };
 
     if (options.token.key && options.token.keyId && options.token.teamId) {
         apnProvider = new apn.Provider(options);
-        console.log('APN Provider initialized (Forcing Development/Sandbox Mode).');
+        console.log(`APN Provider initialized (${process.env.NODE_ENV === 'production' ? 'Production' : 'Sandbox/Development'} Mode).`);
     } else {
         console.warn('APNS environment variables not set. iOS push notifications will not work.');
     }
@@ -149,12 +148,15 @@ async function sendFirebasePush(tokens: string[], payload: { title: string, body
         const response = await admin.messaging().sendEachForMulticast(message);
         if (response.failureCount > 0) {
             const tokensToDelete: string[] = [];
-            const logPromises = response.responses.map(async (resp, idx) => {
+            // Sequential logging to avoid saturating the DB connection pool
+            for (let idx = 0; idx < response.responses.length; idx++) {
+                const resp = response.responses[idx];
                 if (!resp.success) {
                     const errorCode = resp.error?.code;
                     // Check for errors indicating an invalid or unregistered token
                     if (errorCode === 'messaging/registration-token-not-registered' ||
-                        errorCode === 'messaging/invalid-registration-token') {
+                        errorCode === 'messaging/invalid-registration-token' ||
+                        errorCode === 'messaging/mismatched-credential') {
                         console.log(`Invalid FCM token ${tokens[idx]}, scheduling for deletion.`);
                         tokensToDelete.push(tokens[idx]);
                     } else {
@@ -164,8 +166,7 @@ async function sendFirebasePush(tokens: string[], payload: { title: string, body
                 } else {
                     await logNotification(null, 'push_android', tokens[idx], payload, 'sent');
                 }
-            });
-            await Promise.all(logPromises);
+            }
 
             if (tokensToDelete.length > 0) {
                 await pool.query('DELETE FROM push_subscriptions WHERE device_token = ANY($1::text[]) AND platform = $2', [tokensToDelete, 'android']);
@@ -201,26 +202,24 @@ async function sendApplePush(tokens: string[], payload: { title: string, body: s
     try {
         const response = await apnProvider.send(notification, tokens);
 
-        const sentPromises = response.sent.map(async (device) => {
+        // Sequential logging to avoid saturating the DB connection pool
+        for (const device of response.sent) {
             await logNotification(null, 'push_ios', device.device, payload, 'sent');
-        });
-        await Promise.all(sentPromises);
+        }
 
         if (response.failed.length > 0) {
             const tokensToDelete: string[] = [];
-            const failedPromises = response.failed.map(async (failure) => {
+            for (const failure of response.failed) {
                 const reason = failure.response?.reason || failure.error?.message || 'Unknown Reason';
                 console.error(`APN Error: ${failure.status} ${reason} for token ${failure.device}`);
                 await logNotification(null, 'push_ios', failure.device, payload, 'failed', `${failure.status} ${reason}`);
 
-                // --- FIX ---
                 // 'Unregistered' (410) means the user uninstalled the app
                 // 'BadDeviceToken' (400) means the token is invalid for this environment
                 if (failure.status === '410' || reason === 'Unregistered' || reason === 'BadDeviceToken') {
                     tokensToDelete.push(failure.device);
                 }
-            });
-            await Promise.all(failedPromises);
+            }
 
             if (tokensToDelete.length > 0) {
                 await pool.query('DELETE FROM push_subscriptions WHERE device_token = ANY($1::text[]) AND platform = $2', [tokensToDelete, 'ios']);

@@ -249,7 +249,24 @@ CREATE TABLE IF NOT EXISTS user_message_dismissals (
   `INSERT INTO user_groups (user_id, group_id, role)
    SELECT id, 'default', CASE WHEN is_admin THEN 'admin' ELSE 'member' END
    FROM users
-   ON CONFLICT (user_id, group_id) DO NOTHING`
+   ON CONFLICT (user_id, group_id) DO NOTHING`,
+
+  // Add public/private visibility to groups
+  `ALTER TABLE groups ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAULT false`,
+
+  // Group Invites table
+  `CREATE TABLE IF NOT EXISTS group_invites (
+    id VARCHAR(255) PRIMARY KEY,
+    group_id VARCHAR(255) NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+    code VARCHAR(20) NOT NULL UNIQUE,
+    created_by VARCHAR(255) REFERENCES users(id) ON DELETE SET NULL,
+    max_uses INTEGER DEFAULT NULL,
+    uses INTEGER DEFAULT 0,
+    expires_at TIMESTAMP DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_group_invites_group_id ON group_invites(group_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_group_invites_code ON group_invites(code)`
 
 ];
 

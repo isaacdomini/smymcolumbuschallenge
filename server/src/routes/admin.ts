@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import pool from '../db/pool.js';
 import { requireAdmin } from '../middleware/auth.js';
 import { sendBatchPushNotification } from '../services/push.js';
+import { runDailyReminderJob } from '../scheduler.js';
 
 const router = Router();
 
@@ -386,7 +387,8 @@ router.get('/challenges', async (req: Request, res: Response) => {
             name: row.name,
             startDate: row.start_date,
             endDate: row.end_date,
-            groupId: row.group_id
+            groupId: row.group_id,
+            wordBank: row.word_bank || []
         })));
     } catch (error) {
         console.error('Error fetching challenges:', error);
@@ -715,6 +717,59 @@ router.put('/feature-flags/:key', async (req: Request, res: Response) => {
         res.json(updatedFlag);
     } catch (error) {
         console.error('Error updating feature flag:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// --- NOTIFICATIONS ---
+
+// Send a custom push notification to users in selected groups (or all users)
+router.post('/notifications/send', async (req: Request, res: Response) => {
+    try {
+        const { title, body, url, groupIds } = req.body;
+
+        if (!title || !body) {
+            return res.status(400).json({ error: 'Title and body are required' });
+        }
+
+        let userIds: string[] | null = null;
+
+        if (groupIds && Array.isArray(groupIds) && groupIds.length > 0) {
+            // Resolve user IDs from the selected groups
+            const result = await pool.query(
+                `SELECT DISTINCT user_id FROM user_groups WHERE group_id = ANY($1::text[])`,
+                [groupIds]
+            );
+            userIds = result.rows.map((r: any) => r.user_id);
+
+            if (userIds.length === 0) {
+                return res.status(200).json({ message: 'No users found in selected groups', sent: 0 });
+            }
+        }
+        // If groupIds is empty/not provided, userIds remains null → sends to all
+
+        await sendBatchPushNotification(userIds, { title, body, url: url || '/' });
+
+        res.json({
+            message: 'Notification dispatched',
+            recipients: userIds ? userIds.length : 'all'
+        });
+    } catch (error) {
+        console.error('Error sending admin notification:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// --- SCHEDULER ---
+
+// Manually trigger the daily reminder job (for testing / catch-up runs)
+router.post('/scheduler/run-reminders', async (req: Request, res: Response) => {
+    try {
+        console.log('Manual reminder trigger invoked by admin.');
+        const result = await runDailyReminderJob();
+        res.json({ message: 'Reminder job completed', result });
+    } catch (error) {
+        console.error('Error running manual reminder job:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });

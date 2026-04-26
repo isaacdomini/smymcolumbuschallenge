@@ -56,6 +56,8 @@ const ScoringCriteria: React.FC<{ isTestUser?: boolean }> = ({ isTestUser = fals
               else if (item.title === 'Verse Scramble') sampleUrl = '/game/sample-verse_scramble';
               else if (item.title === 'Word Search') sampleUrl = '/game/sample-word_search';
               else if (item.title === 'Hangman') sampleUrl = '/game/sample-who_am_i';
+              else if (item.title === 'Book Guesser') sampleUrl = '/game/sample-book_guesser';
+              else if (item.title === 'Property Matcher') sampleUrl = '/game/sample-property_matcher';
 
               return (
                 <div key={item.title} className="bg-gray-700/50 p-4 rounded-lg border-l-4 border-yellow-500 flex flex-col h-full">

@@ -5,6 +5,7 @@ import AuthModal from './auth/AuthModal';
 import GroupSelector from './GroupSelector';
 import { ICONS } from '../constants';
 import Tooltip from './ui/Tooltip';
+import { storage } from '../utils/storage';
 
 interface HeaderProps {
     challengeName?: string;
@@ -27,12 +28,13 @@ const Header: React.FC<HeaderProps> = ({ challengeName, onLogoClick, navigate })
         // 3. Permission is 'default' (not yet granted or denied)
         // 4. User hasn't seen/dismissed it on this device yet
         if (user && isSupported && notificationPermission === 'default') {
-            const hasSeenPopup = localStorage.getItem('smym-seen-push-popup');
-            if (!hasSeenPopup) {
-                // Small delay to not overwhelm user immediately upon login
-                const timer = setTimeout(() => setShowPushPopup(true), 1000);
-                return () => clearTimeout(timer);
-            }
+            (async () => {
+                const hasSeenPopup = await storage.get('seen-push-popup');
+                if (!hasSeenPopup) {
+                    const timer = setTimeout(() => setShowPushPopup(true), 1000);
+                    return () => clearTimeout(timer);
+                }
+            })();
         } else {
             setShowPushPopup(false);
         }
@@ -52,7 +54,7 @@ const Header: React.FC<HeaderProps> = ({ challengeName, onLogoClick, navigate })
 
     const handleDismissPopup = () => {
         setShowPushPopup(false);
-        localStorage.setItem('smym-seen-push-popup', 'true');
+        storage.set('seen-push-popup', 'true');
     };
 
     const handleSubscribeClicked = () => {
@@ -64,15 +66,18 @@ const Header: React.FC<HeaderProps> = ({ challengeName, onLogoClick, navigate })
         <>
             <header className="bg-gray-800 shadow-md relative z-20 pt-safe-top">
                 <div className="container mx-auto px-4 py-3 flex justify-between items-center">
-                    <div onClick={onLogoClick} className="flex items-center space-x-3 cursor-pointer">
-                        {ICONS.smymLogo}
+                    <div
+                        onClick={() => { navigate('/'); onLogoClick?.(); }}
+                        className="flex items-center space-x-3 cursor-pointer group"
+                    >
+                        <span className="transition-opacity group-hover:opacity-80">{ICONS.smymLogo}</span>
                         <div>
-                            <h1 className="text-lg md:text-xl font-bold text-yellow-400">SMYM Christian Challenges</h1>
+                            <h1 className="text-lg md:text-xl font-bold text-yellow-400 group-hover:text-yellow-300 transition-colors">SMYM Christian Challenges</h1>
                             {challengeName && <p className="text-xs text-gray-400 hidden sm:block">{challengeName}</p>}
                         </div>
                     </div>
                     <div className="flex items-center space-x-4">
-                        {user && <GroupSelector />}
+                        {user && <GroupSelector navigate={navigate} />}
 
 
                         {user ? (

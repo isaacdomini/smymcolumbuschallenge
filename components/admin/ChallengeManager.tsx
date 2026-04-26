@@ -8,6 +8,8 @@ import { getGameName } from '../../utils/game';
 import WordleGame from '../game/WordleGame';
 import ConnectionsGame from '../game/ConnectionsGame';
 import CrosswordGame from '../game/CrosswordGame';
+import PropertyMatcherGame from '../game/PropertyMatcherGame';
+import BookGuesserGame from '../game/BookGuesserGame';
 import WordBankEditor from './WordBankEditor';
 
 interface ChallengeManagerProps {
@@ -410,6 +412,24 @@ export const ChallengeManager: React.FC<ChallengeManagerProps> = ({ user }) => {
                                         gameData={previewGame.data}
                                         onComplete={() => setPreviewGame(null)}
                                         isPreview={true}
+                                    />
+                                )}
+                                {previewGame.type === GameType.PROPERTY_MATCHER && (
+                                    <PropertyMatcherGame
+                                        gameId="preview-propertymatcher"
+                                        gameData={previewGame.data}
+                                        onComplete={() => setPreviewGame(null)}
+                                        isPreview={true}
+                                        submission={null}
+                                    />
+                                )}
+                                {previewGame.type === GameType.BOOK_GUESSER && (
+                                    <BookGuesserGame
+                                        gameId="preview-bookguesser"
+                                        gameData={previewGame.data}
+                                        onComplete={() => setPreviewGame(null)}
+                                        isPreview={true}
+                                        submission={null}
                                     />
                                 )}
                             </div>

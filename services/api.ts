@@ -1,5 +1,5 @@
 import { storage } from '@/utils/storage';
-import { User, Challenge, Game, GameType, GameSubmission, WordleData, ConnectionsData, CrosswordData, MatchTheWordData, SubmitGamePayload, GameProgress, AdminStats, LogEntry, BannerMessage } from '@/types';
+import { User, Challenge, Game, GameType, GameSubmission, WordleData, ConnectionsData, CrosswordData, MatchTheWordData, SubmitGamePayload, GameProgress, AdminStats, LogEntry, BannerMessage, PropertyMatcherData, BookGuesserData } from '@/types';
 
 const USE_MOCK_DATA = import.meta.env.MODE === 'development';
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
@@ -328,7 +328,7 @@ export const requestAccountDeletion = async (email: string, password: string): P
     }
 };
 
-export const getChallenge = async (): Promise<Challenge | null> => {
+export const getChallenge = async (groupId?: string): Promise<Challenge | null> => {
     if (USE_MOCK_DATA || await isTestUser()) {
         await simulateDelay(300);
         const now = new Date();
@@ -338,7 +338,8 @@ export const getChallenge = async (): Promise<Challenge | null> => {
 
         return MOCK_CHALLENGE;
     } else {
-        const response = await fetch(`${API_BASE_URL}/challenge`);
+        const params = groupId ? `?groupId=${encodeURIComponent(groupId)}` : '';
+        const response = await fetch(`${API_BASE_URL}/challenge${params}`);
         if (!response.ok) {
             if (response.status === 503) {
                 const err = await response.json().catch(() => ({ error: 'Service Unavailable' }));
@@ -517,7 +518,9 @@ const calculateScore = (payload: SubmitGamePayload, game: Game): number => {
             return completionScore + accuracyScore + timeBonus;
         }
 
-        case GameType.WHO_AM_I: {
+        case GameType.WHO_AM_I:
+        case GameType.PROPERTY_MATCHER:
+        case GameType.BOOK_GUESSER: {
             // Max Score: 100
             // Win: 50
             // Guesses Remaining: 5 pts each (max 6 guesses allowed -> 5 * 6 = 30)
@@ -1251,6 +1254,26 @@ export const getScoringCriteria = async (): Promise<any[]> => {
                 'Completion Bonus: 20 points for finding all words.',
                 'Time Bonus: Up to 30 points for speed.'
             ]
+        },
+        {
+            title: 'Book Guesser',
+            description: 'Guess which book of the Bible the passage is from.',
+            hidden: false,
+            points: [
+                'Win Score: 50 points for guessing correctly.',
+                'Guess Bonus: 5 points for each unused guess.',
+                'Time Bonus: Up to 20 points for speed.'
+            ]
+        },
+        {
+            title: 'Property Matcher',
+            description: 'Identify the biblical character based on their properties.',
+            hidden: false,
+            points: [
+                'Win Score: 50 points for guessing correctly.',
+                'Guess Bonus: 5 points for each unused guess.',
+                'Time Bonus: Up to 20 points for speed.'
+            ]
         }
     ];
 };
@@ -1292,6 +1315,46 @@ export const sendAppDeprecationEmailRequest = async (userId: string): Promise<{ 
     });
     if (!response.ok) {
         throw new Error('Failed to send deprecation email');
+    }
+    return await response.json();
+};
+
+// --- ADMIN NOTIFICATIONS ---
+
+export const sendAdminNotification = async (
+    userId: string,
+    payload: { title: string; body: string; url?: string; groupIds?: string[] }
+): Promise<{ message: string; recipients: number | 'all' }> => {
+    if (USE_MOCK_DATA || await isTestUser()) {
+        await simulateDelay(500);
+        return { message: 'Mock notification sent', recipients: 'all' };
+    }
+    const response = await fetch(`${API_BASE_URL}/admin/notifications/send`, {
+        method: 'POST',
+        headers: await getAuthHeaders(userId),
+        body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to send notification');
+    }
+    return await response.json();
+};
+
+export const triggerDailyReminders = async (
+    userId: string
+): Promise<{ message: string; result: any }> => {
+    if (USE_MOCK_DATA || await isTestUser()) {
+        await simulateDelay(500);
+        return { message: 'Mock reminders triggered', result: { skipped: false, usersNotified: 0 } };
+    }
+    const response = await fetch(`${API_BASE_URL}/admin/scheduler/run-reminders`, {
+        method: 'POST',
+        headers: await getAuthHeaders(userId),
+    });
+    if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to trigger reminders');
     }
     return await response.json();
 };

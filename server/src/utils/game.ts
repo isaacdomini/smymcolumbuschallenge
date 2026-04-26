@@ -17,6 +17,6 @@ export const getGameName = (gameType: string): string => {
     case 'word_search':
       return "Word Search";
     default:
-      return gameType.charAt(0).toUpperCase() + gameType.slice(1);
+      return gameType.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
   }
 };
