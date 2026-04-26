@@ -1019,30 +1019,38 @@ router.post('/staging-games/generate', async (req: Request, res: Response) => {
         if (!types || !Array.isArray(types)) {
             return res.status(400).json({ error: 'types array is required' });
         }
+
+        // Respond immediately
+        res.json({ 
+            message: 'AI game generation started in the background. Refresh the page in a few minutes.', 
+            generatedCount: types.length 
+        });
         
-        const model = process.env.OLLAMA_MODEL || 'gemma4:e4b';
-        let generatedCount = 0;
-
-        for (const type of types) {
-            const examplesResult = await pool.query(
-                "SELECT data FROM games WHERE type = $1 ORDER BY created_at DESC LIMIT 2",
-                [type]
-            );
-            const examples = examplesResult.rows.map((r: any) => r.data);
-            const gameData = await generateGameSuggestion(type, examples);
-            const id = `staging-game-${type}-${Date.now()}`;
-            
-            await pool.query(
-                `INSERT INTO staging_games (id, type, data, status, model)
-                 VALUES ($1, $2, $3, 'pending', $4)`,
-                [id, type, JSON.stringify(gameData), model]
-            );
-            generatedCount++;
-        }
-
-        res.json({ message: 'Generation complete', generatedCount });
+        // Run asynchronously in the background
+        setImmediate(async () => {
+            const model = process.env.OLLAMA_MODEL || 'gemma4:e4b';
+            try {
+                for (const type of types) {
+                    const examplesResult = await pool.query(
+                        "SELECT data FROM games WHERE type = $1 ORDER BY created_at DESC LIMIT 2",
+                        [type]
+                    );
+                    const examples = examplesResult.rows.map((r: any) => r.data);
+                    const gameData = await generateGameSuggestion(type, examples);
+                    const id = `staging-game-${type}-${Date.now()}`;
+                    
+                    await pool.query(
+                        `INSERT INTO staging_games (id, type, data, status, model)
+                         VALUES ($1, $2, $3, 'pending', $4)`,
+                        [id, type, JSON.stringify(gameData), model]
+                    );
+                }
+            } catch (err) {
+                console.error('[Admin] Manual game generation failed:', err);
+            }
+        });
     } catch (error) {
-        console.error('Error generating staging games:', error);
+        console.error('Error triggering staging games generation:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });

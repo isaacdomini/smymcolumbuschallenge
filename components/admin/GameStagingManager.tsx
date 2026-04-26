@@ -87,7 +87,7 @@ const GameStagingManager: React.FC<GameStagingManagerProps> = ({ userId }) => {
         setSuccess(null);
         try {
             const res = await generateStagingGames(userId, generateTypes);
-            setSuccess(`Successfully generated ${res.generatedCount} games.`);
+            setSuccess(res.message);
             setShowGenerateModal(false);
             setGenerateTypes([]);
             fetchSuggestions();
