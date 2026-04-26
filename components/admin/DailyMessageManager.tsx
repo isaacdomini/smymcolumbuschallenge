@@ -165,11 +165,19 @@ const DailyMessageManager: React.FC = () => {
     }
   };
 
-  const handlePromote = async (id: string) => {
-    if (!user || !window.confirm('Promote this message to live?')) return;
+  const handlePromote = async (msg: StagingDailyMessage) => {
+    if (!user) return;
+    
+    const targetDate = window.prompt(
+      'Promote this message to live?\n\nEnter the target date (YYYY-MM-DD):', 
+      msg.date
+    );
+    
+    if (!targetDate) return; // User cancelled
+    
     try {
-      await promoteStagingMessage(user.id, id);
-      setStagingSuccess('Message promoted to live!');
+      await promoteStagingMessage(user.id, msg.id, targetDate);
+      setStagingSuccess(`Message promoted to live for ${targetDate}!`);
       fetchStagingMessages();
       fetchMessages();
     } catch (err: any) {
@@ -196,17 +204,48 @@ const DailyMessageManager: React.FC = () => {
     }
   };
 
-  const previewContent = (content: string) => {
+  const renderContentBlocks = (content: string) => {
     try {
       const blocks = typeof content === 'string' ? JSON.parse(content) : content;
       if (Array.isArray(blocks)) {
-        const verse = blocks.find((b: any) => b.type === 'verse');
-        const para = blocks.find((b: any) => b.type === 'paragraph');
-        if (verse) return `📖 ${verse.reference}: "${verse.text?.substring(0, 80)}...`;
-        if (para) return para.text?.substring(0, 120) + '...';
+        return (
+          <div className="space-y-4 mt-4 text-gray-200 text-sm">
+            {blocks.map((b: any, i: number) => {
+              if (b.type === 'verse') {
+                return (
+                  <div key={i} className="border-l-4 border-yellow-500/70 pl-4 py-1">
+                    <p className="italic text-gray-300 leading-relaxed">"{b.text}"</p>
+                    <p className="text-yellow-500 text-xs font-bold mt-2">— {b.reference}</p>
+                  </div>
+                );
+              }
+              if (b.type === 'paragraph') {
+                return <p key={i} className="leading-relaxed">{b.text}</p>;
+              }
+              if (b.type === 'long_text') {
+                return (
+                  <div key={i} className="bg-gray-900/50 p-4 rounded-lg border border-gray-700/50">
+                    <h4 className="font-bold text-white mb-2">{b.title}</h4>
+                    <p className="whitespace-pre-wrap leading-relaxed text-gray-300">{b.text}</p>
+                  </div>
+                );
+              }
+              if (b.type === 'youtube') {
+                return (
+                  <div key={i} className="bg-red-900/20 p-3 rounded border border-red-900/30">
+                    <span className="text-red-400 font-bold mb-1 block">🎥 YouTube Video</span>
+                    <a href={b.url} target="_blank" rel="noreferrer" className="text-blue-400 hover:underline text-xs break-all">{b.url}</a>
+                    {b.caption && <p className="text-xs mt-2 text-gray-400">{b.caption}</p>}
+                  </div>
+                );
+              }
+              return null;
+            })}
+          </div>
+        );
       }
     } catch { }
-    return String(content).substring(0, 120) + '...';
+    return <p className="text-gray-300 text-sm italic mt-4">{String(content)}</p>;
   };
 
   return (
@@ -319,7 +358,7 @@ const DailyMessageManager: React.FC = () => {
                       {msg.status === 'pending' && (
                         <div className="flex gap-2 ml-2 shrink-0">
                           <button
-                            onClick={() => handlePromote(msg.id)}
+                            onClick={() => handlePromote(msg)}
                             className="bg-green-600 hover:bg-green-700 text-white text-xs font-bold px-3 py-1 rounded transition-colors"
                           >
                             ✓ Promote to Live
@@ -333,7 +372,7 @@ const DailyMessageManager: React.FC = () => {
                         </div>
                       )}
                     </div>
-                    <p className="text-gray-300 text-sm italic">{previewContent(msg.content)}</p>
+                    {renderContentBlocks(msg.content)}
                   </div>
                 ))}
               </div>

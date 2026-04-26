@@ -858,19 +858,20 @@ router.post('/staging-messages/:id/promote', async (req: Request, res: Response)
         }
 
         const staging = stagingResult.rows[0];
+        const targetDate = req.body.targetDate || staging.date;
 
         const client = await pool.connect();
         try {
             await client.query('BEGIN');
 
-            // Upsert into daily_messages (same date+group_id)
-            const liveId = `msg-${staging.date}-${staging.group_id}`;
+            // Upsert into daily_messages (using targetDate + group_id)
+            const liveId = `msg-${targetDate}-${staging.group_id}`;
             await client.query(
                 `INSERT INTO daily_messages (id, date, content, group_id)
                  VALUES ($1, $2, $3, $4)
                  ON CONFLICT (date, group_id)
                  DO UPDATE SET content = EXCLUDED.content`,
-                [liveId, staging.date, staging.content, staging.group_id]
+                [liveId, targetDate, staging.content, staging.group_id]
             );
 
             // Mark staging message as promoted
@@ -879,7 +880,8 @@ router.post('/staging-messages/:id/promote', async (req: Request, res: Response)
                 [id]
             );
 
-            // Mark other staging messages for the same date+group as rejected
+            // Mark other staging messages for the same original date+group as rejected
+            // (or if we changed the date, it rejects the original date's alternatives. Let's stick with the original date for cleanup)
             await client.query(
                 `UPDATE staging_daily_messages SET status = 'rejected'
                  WHERE date = $1 AND group_id = $2 AND id != $3 AND status = 'pending'`,
@@ -891,7 +893,8 @@ router.post('/staging-messages/:id/promote', async (req: Request, res: Response)
             res.json({
                 message: 'Message promoted to live successfully',
                 liveId,
-                date: staging.date,
+                date: targetDate,
+                originalDate: staging.date,
                 groupId: staging.group_id
             });
         } catch (err) {

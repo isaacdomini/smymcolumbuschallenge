@@ -1079,11 +1079,12 @@ export const generateStagingMessages = async (userId: string, date?: string): Pr
     return await response.json();
 };
 
-export const promoteStagingMessage = async (userId: string, stagingId: string): Promise<void> => {
+export const promoteStagingMessage = async (userId: string, stagingId: string, targetDate?: string): Promise<void> => {
     if (USE_MOCK_DATA || await isTestUser()) return;
     const response = await fetch(`${API_BASE_URL}/admin/staging-messages/${stagingId}/promote`, {
         method: 'POST',
-        headers: await getAuthHeaders(userId)
+        headers: await getAuthHeaders(userId),
+        ...(targetDate && { body: JSON.stringify({ targetDate }) })
     });
     if (!response.ok) {
         const err = await response.json();
