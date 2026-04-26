@@ -13,10 +13,10 @@ import GroupManager from './GroupManager';
 import NotificationManager from './NotificationManager';
 
 import FeatureFlagManager from './FeatureFlagManager';
-
 import SubmissionViewer from './SubmissionViewer';
+import GameStagingManager from './GameStagingManager';
 
-type Tab = 'challenges' | 'games' | 'submissions' | 'users' | 'logs' | 'messages' | 'support' | 'banners' | 'features' | 'groups' | 'notifications';
+type Tab = 'challenges' | 'games' | 'aigames' | 'submissions' | 'users' | 'logs' | 'messages' | 'support' | 'banners' | 'features' | 'groups' | 'notifications';
 
 const AdminDashboard: React.FC = () => {
     const { user } = useAuth();
@@ -43,6 +43,7 @@ const AdminDashboard: React.FC = () => {
     const tabs: { id: Tab; label: string }[] = [
         { id: 'challenges', label: 'Challenges' },
         { id: 'games', label: 'Game Builder' },
+        { id: 'aigames', label: 'AI Games' },
         { id: 'submissions', label: 'Submissions' },
         { id: 'messages', label: 'Daily Messages' },
         { id: 'banners', label: 'Banner Messages' },
@@ -103,6 +104,7 @@ const AdminDashboard: React.FC = () => {
                         challenges={challenges}
                     />
                 )}
+                {activeTab === 'aigames' && <GameStagingManager userId={user.id} />}
                 {activeTab === 'submissions' && <SubmissionViewer />}
                 {activeTab === 'messages' && <DailyMessageManager />}
                 {activeTab === 'banners' && <BannerManager />}

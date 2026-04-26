@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import pool from '../db/pool.js';
 import { requireAdmin } from '../middleware/auth.js';
+import { generateDailyMessage, generateGameSuggestion } from '../services/ollama.js';
 import { sendBatchPushNotification } from '../services/push.js';
 import { runDailyReminderJob, runDailyMessageGeneration } from '../scheduler.js';
 
@@ -975,6 +976,146 @@ router.delete('/staging-messages/:id', async (req: Request, res: Response) => {
         res.json({ message: 'Staging message deleted' });
     } catch (error) {
         console.error('Error deleting staging message:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// --- STAGING GAMES (AI Suggestions) ---
+
+// Get staging games
+router.get('/staging-games', async (req: Request, res: Response) => {
+    try {
+        const { type, status } = req.query;
+        let query = 'SELECT * FROM staging_games';
+        const params: any[] = [];
+        const conditions: string[] = [];
+
+        if (type && type !== 'all') {
+            conditions.push(`type = $${params.length + 1}`);
+            params.push(type);
+        }
+        if (status && status !== 'all') {
+            conditions.push(`status = $${params.length + 1}`);
+            params.push(status);
+        }
+
+        if (conditions.length > 0) {
+            query += ' WHERE ' + conditions.join(' AND ');
+        }
+        query += ' ORDER BY generated_at DESC';
+
+        const result = await pool.query(query, params);
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching staging games:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Manually generate staging games
+router.post('/staging-games/generate', async (req: Request, res: Response) => {
+    try {
+        const { types } = req.body;
+        if (!types || !Array.isArray(types)) {
+            return res.status(400).json({ error: 'types array is required' });
+        }
+        
+        const model = process.env.OLLAMA_MODEL || 'gemma4:e4b';
+        let generatedCount = 0;
+
+        for (const type of types) {
+            const examplesResult = await pool.query(
+                "SELECT data FROM games WHERE type = $1 ORDER BY created_at DESC LIMIT 2",
+                [type]
+            );
+            const examples = examplesResult.rows.map((r: any) => r.data);
+            const gameData = await generateGameSuggestion(type, examples);
+            const id = `staging-game-${type}-${Date.now()}`;
+            
+            await pool.query(
+                `INSERT INTO staging_games (id, type, data, status, model)
+                 VALUES ($1, $2, $3, 'pending', $4)`,
+                [id, type, JSON.stringify(gameData), model]
+            );
+            generatedCount++;
+        }
+
+        res.json({ message: 'Generation complete', generatedCount });
+    } catch (error) {
+        console.error('Error generating staging games:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Promote a staging game
+router.post('/staging-games/:id/promote', async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { challengeId, date } = req.body;
+
+        if (!challengeId || !date) {
+            return res.status(400).json({ error: 'Challenge ID and date are required' });
+        }
+
+        const stagingResult = await pool.query(
+            'SELECT * FROM staging_games WHERE id = $1',
+            [id]
+        );
+
+        if (stagingResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Staging game not found' });
+        }
+
+        const staging = stagingResult.rows[0];
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+
+            const liveId = `game-${challengeId}-${date}-${staging.type}-${Date.now()}`;
+            const dataStr = typeof staging.data === 'string' ? staging.data : JSON.stringify(staging.data);
+
+            await client.query(
+                `INSERT INTO games (id, challenge_id, date, type, data)
+                 VALUES ($1, $2, $3, $4, $5)`,
+                [liveId, challengeId, date, staging.type, dataStr]
+            );
+
+            await client.query(
+                `UPDATE staging_games SET status = 'promoted' WHERE id = $1`,
+                [id]
+            );
+
+            await client.query('COMMIT');
+
+            res.json({ message: 'Game promoted to live successfully', liveId });
+        } catch (err) {
+            await client.query('ROLLBACK');
+            throw err;
+        } finally {
+            client.release();
+        }
+    } catch (error) {
+        console.error('Error promoting staging game:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Delete a staging game
+router.delete('/staging-games/:id', async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const result = await pool.query(
+            'DELETE FROM staging_games WHERE id = $1 RETURNING *',
+            [id]
+        );
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: 'Staging game not found' });
+        }
+
+        res.json({ message: 'Staging game deleted' });
+    } catch (error) {
+        console.error('Error deleting staging game:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });

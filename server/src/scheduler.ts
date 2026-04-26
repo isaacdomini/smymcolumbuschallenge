@@ -4,7 +4,7 @@ import { sendDailyReminder } from './services/email.js';
 import { sendPushNotification, sendBatchPushNotification } from './services/push.js';
 import { runDailyGameMaintenance } from './services/maintenance.js';
 import { getGameName } from './utils/game.js';
-import { generateDailyMessage } from './services/ollama.js';
+import { generateDailyMessage, generateGameSuggestion } from './services/ollama.js';
 
 const SUGGESTIONS_PER_GROUP = 3;
 
@@ -175,6 +175,90 @@ export const runDailyMessageGeneration = async (targetDate?: string) => {
     }
 };
 
+const ALLOWED_GAME_TYPES = [
+    'wordle', 'wordle_advanced', 'connections', 'crossword', 
+    'match_the_word', 'verse_scramble', 'who_am_i', 'word_search', 
+    'property_matcher', 'book_guesser'
+];
+
+export const runDailyGameGenerationJob = async () => {
+    console.log('[GameGen] Starting daily AI game generation job...');
+    const model = process.env.OLLAMA_MODEL || 'gemma4:e4b';
+    let totalGenerated = 0;
+    const errors: string[] = [];
+
+    try {
+        // Clean up stale staging games (older than 30 days)
+        const cleanupResult = await pool.query(
+            "DELETE FROM staging_games WHERE generated_at < NOW() - INTERVAL '30 days'"
+        );
+        if (cleanupResult.rowCount > 0) {
+            console.log(`[GameGen] Cleaned up ${cleanupResult.rowCount} stale staging games.`);
+        }
+
+        // For each allowed game type, ensure there is at least 1 pending suggestion
+        for (const type of ALLOWED_GAME_TYPES) {
+            const pendingResult = await pool.query(
+                "SELECT COUNT(*) FROM staging_games WHERE type = $1 AND status = 'pending'",
+                [type]
+            );
+
+            if (parseInt(pendingResult.rows[0].count) === 0) {
+                console.log(`[GameGen] Generating new game suggestion for type: ${type}`);
+                
+                // Fetch examples
+                const examplesResult = await pool.query(
+                    "SELECT data FROM games WHERE type = $1 ORDER BY created_at DESC LIMIT 2",
+                    [type]
+                );
+                const examples = examplesResult.rows.map((r: any) => r.data);
+
+                try {
+                    const gameData = await generateGameSuggestion(type, examples);
+                    const id = `staging-game-${type}-${Date.now()}`;
+                    
+                    await pool.query(
+                        `INSERT INTO staging_games (id, type, data, status, model)
+                         VALUES ($1, $2, $3, 'pending', $4)`,
+                        [id, type, JSON.stringify(gameData), model]
+                    );
+                    
+                    totalGenerated++;
+                    console.log(`[GameGen] Successfully staged new game for ${type}.`);
+                } catch (err: any) {
+                    console.error(`[GameGen] Failed to generate game for ${type}: ${err.message}`);
+                    errors.push(`Failed for ${type}: ${err.message}`);
+                }
+            } else {
+                console.log(`[GameGen] Found existing pending suggestion for ${type}. Skipping.`);
+            }
+        }
+
+        console.log(`[GameGen] Generation complete. ${totalGenerated} new games created.`);
+
+        if (totalGenerated > 0) {
+            // Notify admins
+            const adminResult = await pool.query(
+                'SELECT id FROM users WHERE is_admin = true AND is_verified = true'
+            );
+
+            if (adminResult.rows.length > 0) {
+                const adminIds = adminResult.rows.map((r: any) => r.id);
+                await sendBatchPushNotification(adminIds, {
+                    title: '🎮 New Game Suggestions Ready',
+                    body: `${totalGenerated} AI-generated game suggestions are ready for review. Tap to view.`,
+                    url: '/admin'
+                });
+            }
+        }
+
+        return { skipped: false, totalGenerated, errors: errors.length > 0 ? errors : undefined };
+    } catch (err) {
+        console.error('[GameGen] Fatal error during game generation:', err);
+        throw err;
+    }
+};
+
 export const initScheduler = () => {
     console.log('Initializing scheduler...');
 
@@ -200,7 +284,20 @@ export const initScheduler = () => {
         try {
             await runDailyMessageGeneration();
         } catch (err) {
-            console.error('[Scheduler] Daily message generation failed:', err);
+            console.error('[Scheduler] Error in AI message generation:', err);
+        }
+    }, {
+        scheduled: true,
+        timezone: 'America/New_York'
+    });
+
+    // 4. Daily AI Game Generation at 3:00 AM Eastern Time
+    cron.schedule('0 3 * * *', async () => {
+        console.log('[Scheduler] Running daily AI game generation...');
+        try {
+            await runDailyGameGenerationJob();
+        } catch (err) {
+            console.error('[Scheduler] Error in AI game generation:', err);
         }
     }, {
         scheduled: true,

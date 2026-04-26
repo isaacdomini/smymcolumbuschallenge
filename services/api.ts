@@ -1104,6 +1104,63 @@ export const deleteStagingMessage = async (userId: string, stagingId: string): P
     }
 };
 
+// --- STAGING GAMES ---
+
+export const getStagingGames = async (
+    userId: string,
+    filters?: { type?: string; status?: string }
+): Promise<StagingGame[]> => {
+    if (USE_MOCK_DATA || await isTestUser()) return [];
+    const params = new URLSearchParams();
+    if (filters?.type) params.set('type', filters.type);
+    if (filters?.status) params.set('status', filters.status);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    const response = await fetch(`${API_BASE_URL}/admin/staging-games${query}`, {
+        headers: await getAuthHeaders(userId)
+    });
+    if (!response.ok) throw new Error('Failed to fetch staging games');
+    return await response.json();
+};
+
+export const generateStagingGames = async (userId: string, types: string[]): Promise<{ message: string; generatedCount: number }> => {
+    if (USE_MOCK_DATA || await isTestUser()) return { message: 'Mock generation started', generatedCount: types.length };
+    const response = await fetch(`${API_BASE_URL}/admin/staging-games/generate`, {
+        method: 'POST',
+        headers: await getAuthHeaders(userId),
+        body: JSON.stringify({ types })
+    });
+    if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to start generation');
+    }
+    return await response.json();
+};
+
+export const promoteStagingGame = async (userId: string, stagingId: string, challengeId: string, date: string): Promise<void> => {
+    if (USE_MOCK_DATA || await isTestUser()) return;
+    const response = await fetch(`${API_BASE_URL}/admin/staging-games/${stagingId}/promote`, {
+        method: 'POST',
+        headers: await getAuthHeaders(userId),
+        body: JSON.stringify({ challengeId, date })
+    });
+    if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to promote game');
+    }
+};
+
+export const deleteStagingGame = async (userId: string, stagingId: string): Promise<void> => {
+    if (USE_MOCK_DATA || await isTestUser()) return;
+    const response = await fetch(`${API_BASE_URL}/admin/staging-games/${stagingId}`, {
+        method: 'DELETE',
+        headers: await getAuthHeaders(userId)
+    });
+    if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to delete staging game');
+    }
+};
+
 // --- BANNER MESSAGES ---
 
 export const getBannerMessages = async (): Promise<BannerMessage[]> => {

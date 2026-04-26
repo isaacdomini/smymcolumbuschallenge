@@ -143,3 +143,68 @@ function parseOllamaResponse(rawText: string): DailyMessageBlock[] {
         }];
     }
 }
+
+/**
+ * Generates a game suggestion of a specific type using past examples for few-shot learning.
+ */
+export const generateGameSuggestion = async (
+    gameType: string,
+    examples: any[]
+): Promise<any> => {
+    let prompt = `You are an expert game designer creating a new game of type "${gameType}" for a Bible trivia app.\n`;
+    prompt += `The game data must be returned as a valid JSON object.\n`;
+    prompt += `Do NOT wrap the JSON in code blocks or add conversational text. Return ONLY the raw JSON object.\n\n`;
+
+    if (examples && examples.length > 0) {
+        prompt += `Here are some examples of past games of this type to show you the expected JSON structure and difficulty level:\n`;
+        examples.forEach((ex, i) => {
+            prompt += `\n--- Example ${i + 1} ---\n${JSON.stringify(ex, null, 2)}\n`;
+        });
+    }
+
+    prompt += `\nGenerate a brand new, unique game of type "${gameType}" with completely different answers and clues from the examples. Ensure it is biblically accurate and strictly follows the exact same JSON schema as the examples.`;
+
+    console.log(`[Ollama] Generating game suggestion for type "${gameType}" using model ${OLLAMA_MODEL}...`);
+
+    const response = await fetch(`${OLLAMA_HOST}/api/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            model: OLLAMA_MODEL,
+            prompt,
+            stream: false,
+            options: {
+                temperature: 0.8,
+            }
+        }),
+        // @ts-ignore
+        signal: AbortSignal.timeout(10 * 60 * 1000)
+    });
+
+    if (!response.ok) {
+        const errText = await response.text().catch(() => 'unknown error');
+        throw new Error(`Ollama API error ${response.status}: ${errText}`);
+    }
+
+    const data = await response.json() as { response: string };
+    const rawText = data.response?.trim() || '';
+
+    let jsonStr = rawText;
+    const fenceMatch = rawText.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (fenceMatch) {
+        jsonStr = fenceMatch[1].trim();
+    } else {
+        const objMatch = jsonStr.match(/\{[\s\S]*\}/);
+        if (objMatch) {
+            jsonStr = objMatch[0];
+        }
+    }
+
+    try {
+        return JSON.parse(jsonStr);
+    } catch (err) {
+        console.error('[Ollama] Failed to parse JSON response for game:', err);
+        console.error('[Ollama] Raw text was:', rawText.substring(0, 500));
+        throw new Error('Failed to parse AI generated game data');
+    }
+};
