@@ -1994,13 +1994,14 @@ router.post('/games/:gameId/check', async (req: Request, res: Response) => {
       return res.json({ correct: positions.length > 0, positions });
 
     } else if (gameType === 'verse_scramble') {
-      // Usually checked on client for "placed" words, but final check here?
-      // Or maybe we just check if the sentence matches?
-      // The client sends the full sentence or list of words?
-      // Let's assume client sends list of words in order.
       const guessWords = guess as string[];
       const correctWords = gameData.verse.split(' ');
-      const correct = JSON.stringify(guessWords) === JSON.stringify(correctWords);
+      
+      const normalize = (str: string) => str.replace(/[^a-zA-Z]/g, '').toLowerCase();
+      const guessNorm = guessWords.map(normalize).join('');
+      const correctNorm = correctWords.map(normalize).join('');
+      
+      const correct = guessNorm === correctNorm;
       return res.json({ correct });
     }
 

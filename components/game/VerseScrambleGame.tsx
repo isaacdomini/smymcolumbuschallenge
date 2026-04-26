@@ -131,7 +131,8 @@ const VerseScrambleGame: React.FC<VerseScrambleGameProps> = ({ gameId, gameData,
       const correctSentence = isSample ? SAMPLE_DATA.verse : gameData.verse;
 
       if (isSample) {
-        if (currentSentence === correctSentence) {
+        const normalize = (str: string) => str.replace(/[^a-zA-Z]/g, '').toLowerCase();
+        if (normalize(currentSentence) === normalize(correctSentence || '')) {
           setGameState('won');
         }
       } else {
