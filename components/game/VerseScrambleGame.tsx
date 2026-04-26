@@ -302,13 +302,23 @@ const VerseScrambleGame: React.FC<VerseScrambleGameProps> = ({ gameId, gameData,
     const inPool = poolArea?.contains(dropTarget) || dropTarget?.closest('#verse-pool-area');
 
     if (inSolution) {
-      // Find if dropped ON specific item in solution to reorder
-      const droppedOnItem = dropTarget?.closest('[data-solution-index]');
-      let targetIndex = placedWords.length; // Default append
-
-      if (droppedOnItem) {
-        const idx = parseInt(droppedOnItem.getAttribute('data-solution-index') || '-1');
-        if (idx !== -1) targetIndex = idx;
+      let targetIndex = placedWords.length;
+      if (solutionArea) {
+        const solutionItems = Array.from(solutionArea.querySelectorAll('[data-solution-index]'));
+        for (let i = 0; i < solutionItems.length; i++) {
+          const rect = solutionItems[i].getBoundingClientRect();
+          // Check if drop is before the horizontal middle of this item
+          // Since items wrap, we also need to check Y.
+          if (dropY >= rect.top - 10 && dropY <= rect.bottom + 10) {
+            if (dropX < rect.left + rect.width / 2) {
+              targetIndex = i;
+              break;
+            }
+          } else if (dropY < rect.top) {
+            targetIndex = i;
+            break;
+          }
+        }
       }
 
       if (draggingItem.source === 'pool') {
@@ -325,56 +335,13 @@ const VerseScrambleGame: React.FC<VerseScrambleGameProps> = ({ gameId, gameData,
         setPlacedWords(prev => {
           const newPlaced = [...prev];
           const [moved] = newPlaced.splice(draggingItem.index, 1);
-          // Adjust target index if shifting. 
-          // If we drag from index 0 to index 2 (current index 2 is shifted down), 
-          // Logic: remove at oldIdx, insert at newIdx.
-          // However, targetIndex is based on DOM before removal. 
-          // If target > dragging, we need to decr target by 1?
-          // Actually, standard splice logic:
-          // If dragging index < targetIndex, we insert at targetIndex - 0?
-          // Wait, if I drag item 0 to item 1. It should swap.
-          // Let's rely on simple splicing.
-          // If I am at 0 and drop on 2. 
-          // Remove 0. New array length is N-1.
-          // Insert at 2 (which is now effectively index 1 in new array).
-          let finalTarget = targetIndex;
+          
+          let insertIndex = targetIndex;
           if (draggingItem.index < targetIndex) {
-            // element at targetIndex shifts down after removal if it was after
-            // but since we found the element at drop time, its index is what we want to take the place of?
-            // Actually, if we drop on item X, we typically want to insert BEFORE item X.
-            // If target > index, the target index shifts down by 1 after removal.
-            finalTarget = targetIndex - 1;
-            // Wait, that logic is complex.
-            // Let's just use simpler logic: remove then insert.
-            // But if I drop ON the item at index 4, I want to be at index 4.
-            // If I came from index 0, index 4 (old) becomes index 3 (new). 
-            // So I insert at 3? No, I want to be *before* what was at 4?
-            // Let's simplify: insert at index.
-            // If draggingItem.index < targetIndex, we need to account for shift.
-            finalTarget = targetIndex;
+            insertIndex = targetIndex - 1;
           }
-
-          // Correction: if dropping on itself, do nothing.
-          if (draggingItem.index === targetIndex) return prev;
-
-          // Simple reorder: remove then splice.
-          // If I remove index 0, everything shifts left.
-          // If I insert at index 2 (old), that corresponds to index 1 (new).
-          if (draggingItem.index < targetIndex) {
-            newPlaced.splice(targetIndex, 0, moved);
-            // This puts it AFTER? No splice inserts BEFORE index.
-            // If I have [A, B, C] and drag A(0) to C(2).
-            // Remove A -> [B, C].
-            // splice(2, 0, A) -> [B, C, A]. Correct (inserted before old undefined/end).
-            // If I drag A(0) to B(1).
-            // Remove A -> [B, C].
-            // splice(1, 0, A) -> [B, A, C]. Correct.
-            // So if index < target, use target.
-            // EXCEPT if simply moving 1 slot right?
-          } else {
-            newPlaced.splice(targetIndex, 0, moved);
-          }
-
+          
+          newPlaced.splice(insertIndex, 0, moved);
           return newPlaced;
         });
       }
