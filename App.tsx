@@ -51,6 +51,43 @@ const LoadingFallback: React.FC = () => (
   <div className="text-center p-10">Loading...</div>
 );
 
+// Catches chunk load errors when the server deploys a new version 
+// and the mobile webview tries to load an old cached chunk.
+class ChunkErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean}> {
+  constructor(props: {children: React.ReactNode}) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error: any) {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: any, errorInfo: any) {
+    const isChunkLoadFailed = /Loading chunk [\d]+ failed/i.test(error.message) || 
+                              /Failed to fetch dynamically imported module/i.test(error.message) || 
+                              /Importing a module script failed/i.test(error.message);
+    if (isChunkLoadFailed) {
+      console.warn('Chunk load error caught. Forcing reload to fetch new app version...');
+      // Force reload to bypass cache and get new index.html
+      window.location.reload();
+    }
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex flex-col items-center justify-center p-8 mt-20 text-center">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-yellow-400 mb-4 mx-auto"></div>
+          <h2 className="text-xl font-bold text-gray-200 mb-2">Updating App...</h2>
+          <p className="text-gray-400 text-sm">Please wait while we load the latest version.</p>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 import { GroupProvider, useGroup } from './components/GroupContext';
 import { joinGroup } from './services/groups';
 
@@ -783,9 +820,11 @@ const MainContent: React.FC = () => {
             </div>
           )}
 
-          <Suspense fallback={<LoadingFallback />}>
-            {renderContent()}
-          </Suspense>
+          <ChunkErrorBoundary>
+            <Suspense fallback={<LoadingFallback />}>
+              {renderContent()}
+            </Suspense>
+          </ChunkErrorBoundary>
         </main>
 
         <AddToHomeScreen />
