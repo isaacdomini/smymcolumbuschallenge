@@ -236,7 +236,7 @@ const DailyMessageManager: React.FC = () => {
           <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
             <h2 className="text-xl font-bold text-white mb-4">Generate AI Suggestions</h2>
             <p className="text-gray-400 text-sm mb-4">
-              Uses Ollama ({process.env.OLLAMA_MODEL || 'gemma4:e4b'}) to generate 3 Bible-based message suggestions per group. Generation takes ~5 minutes — you'll receive a push notification when done.
+              Uses Ollama to generate 3 Bible-based message suggestions per group. Generation takes ~5 minutes — you'll receive a push notification when done.
             </p>
 
             {stagingError && <div className="bg-red-900/50 text-red-200 p-3 rounded mb-4">{stagingError}</div>}

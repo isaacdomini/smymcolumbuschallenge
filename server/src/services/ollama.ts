@@ -36,7 +36,6 @@ export const generateDailyMessage = async (
             stream: false,
             options: {
                 temperature: 0.8,
-                num_predict: 1024,
             }
         }),
         // @ts-ignore - signal not in older node types
