@@ -205,7 +205,7 @@ const DailyMessageManager: React.FC = () => {
         if (verse) return `📖 ${verse.reference}: "${verse.text?.substring(0, 80)}...`;
         if (para) return para.text?.substring(0, 120) + '...';
       }
-    } catch {}
+    } catch { }
     return String(content).substring(0, 120) + '...';
   };
 
@@ -216,17 +216,15 @@ const DailyMessageManager: React.FC = () => {
       <div className="flex space-x-1 bg-gray-900/50 p-1 rounded-lg">
         <button
           onClick={() => setActiveTab('editor')}
-          className={`flex-1 py-2 px-4 rounded-md font-medium transition-colors text-sm ${
-            activeTab === 'editor' ? 'bg-yellow-500 text-gray-900' : 'text-gray-400 hover:text-white hover:bg-gray-700'
-          }`}
+          className={`flex-1 py-2 px-4 rounded-md font-medium transition-colors text-sm ${activeTab === 'editor' ? 'bg-yellow-500 text-gray-900' : 'text-gray-400 hover:text-white hover:bg-gray-700'
+            }`}
         >
           ✏️ Manual Editor
         </button>
         <button
           onClick={() => setActiveTab('ai')}
-          className={`flex-1 py-2 px-4 rounded-md font-medium transition-colors text-sm ${
-            activeTab === 'ai' ? 'bg-yellow-500 text-gray-900' : 'text-gray-400 hover:text-white hover:bg-gray-700'
-          }`}
+          className={`flex-1 py-2 px-4 rounded-md font-medium transition-colors text-sm ${activeTab === 'ai' ? 'bg-yellow-500 text-gray-900' : 'text-gray-400 hover:text-white hover:bg-gray-700'
+            }`}
         >
           🤖 AI Suggestions
         </button>
@@ -238,7 +236,7 @@ const DailyMessageManager: React.FC = () => {
           <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
             <h2 className="text-xl font-bold text-white mb-4">Generate AI Suggestions</h2>
             <p className="text-gray-400 text-sm mb-4">
-              Uses Ollama ({process.env.OLLAMA_MODEL || 'gemma4:e2b'}) to generate 3 Bible-based message suggestions per group. Generation takes ~5 minutes — you'll receive a push notification when done.
+              Uses Ollama ({process.env.OLLAMA_MODEL || 'gemma4:e4b'}) to generate 3 Bible-based message suggestions per group. Generation takes ~5 minutes — you'll receive a push notification when done.
             </p>
 
             {stagingError && <div className="bg-red-900/50 text-red-200 p-3 rounded mb-4">{stagingError}</div>}
@@ -300,11 +298,10 @@ const DailyMessageManager: React.FC = () => {
                 {stagingMessages.map(msg => (
                   <div
                     key={msg.id}
-                    className={`p-4 rounded-lg border ${
-                      msg.status === 'promoted' ? 'border-green-600/50 bg-green-900/10' :
-                      msg.status === 'rejected' ? 'border-gray-700 bg-gray-900/30 opacity-60' :
-                      'border-gray-600 bg-gray-700/30'
-                    }`}
+                    className={`p-4 rounded-lg border ${msg.status === 'promoted' ? 'border-green-600/50 bg-green-900/10' :
+                        msg.status === 'rejected' ? 'border-gray-700 bg-gray-900/30 opacity-60' :
+                          'border-gray-600 bg-gray-700/30'
+                      }`}
                   >
                     <div className="flex justify-between items-start mb-2">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -347,345 +344,345 @@ const DailyMessageManager: React.FC = () => {
 
       {activeTab === 'editor' && (
         <>
-      <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
-        <h2 className="text-xl font-bold text-white mb-4">
-          {isEditing ? 'Edit Daily Message' : 'Create Daily Message'}
-        </h2>
+          <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
+            <h2 className="text-xl font-bold text-white mb-4">
+              {isEditing ? 'Edit Daily Message' : 'Create Daily Message'}
+            </h2>
 
-        {error && <div className="bg-red-900/50 text-red-200 p-3 rounded mb-4">{error}</div>}
-        {success && <div className="bg-green-900/50 text-green-200 p-3 rounded mb-4">{success}</div>}
+            {error && <div className="bg-red-900/50 text-red-200 p-3 rounded mb-4">{error}</div>}
+            {success && <div className="bg-green-900/50 text-green-200 p-3 rounded mb-4">{success}</div>}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-gray-400 mb-1 text-sm">Date (YYYY-MM-DD)</label>
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                required
-                className="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white focus:border-yellow-500 focus:outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-gray-400 mb-1 text-sm">Group</label>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-gray-400 mb-1 text-sm">Date (YYYY-MM-DD)</label>
+                  <input
+                    type="date"
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    required
+                    className="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white focus:border-yellow-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-400 mb-1 text-sm">Group</label>
+                  <select
+                    value={targetGroupId}
+                    onChange={(e) => setTargetGroupId(e.target.value)}
+                    className="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white focus:border-yellow-500 focus:outline-none"
+                  >
+                    <option value="default">Default (General)</option>
+                    {groups.map(g => (
+                      <option key={g.id} value={g.id}>{g.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <label className="block text-gray-400 text-sm">Content Blocks</label>
+                  <div className="space-x-2">
+                    <button
+                      type="button"
+                      onClick={() => setBlocks([...blocks, { type: 'paragraph', text: '' }])}
+                      className="bg-gray-700 hover:bg-gray-600 text-xs text-white px-3 py-1 rounded"
+                    >
+                      + Paragraph
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBlocks([...blocks, { type: 'verse', text: '', reference: '' }])}
+                      className="bg-gray-700 hover:bg-gray-600 text-xs text-white px-3 py-1 rounded"
+                    >
+                      + Verse
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBlocks([...blocks, { type: 'long_text', title: '', text: '' }])}
+                      className="bg-gray-700 hover:bg-gray-600 text-xs text-white px-3 py-1 rounded"
+                    >
+                      + Long Text
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBlocks([...blocks, { type: 'youtube', url: '', caption: '' }])}
+                      className="bg-red-700 hover:bg-red-600 text-xs text-white px-3 py-1 rounded"
+                    >
+                      + YouTube
+                    </button>
+                  </div>
+                </div>
+
+                {blocks.map((block, index) => (
+                  <div key={index} className="bg-gray-900/50 p-4 rounded border border-gray-700 relative group">
+                    <div className="absolute top-2 right-2 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (index > 0) {
+                            const newBlocks = [...blocks];
+                            [newBlocks[index - 1], newBlocks[index]] = [newBlocks[index], newBlocks[index - 1]];
+                            setBlocks(newBlocks);
+                          }
+                        }}
+                        disabled={index === 0}
+                        className="text-gray-400 hover:text-white p-1 disabled:opacity-30"
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (index < blocks.length - 1) {
+                            const newBlocks = [...blocks];
+                            [newBlocks[index + 1], newBlocks[index]] = [newBlocks[index], newBlocks[index + 1]];
+                            setBlocks(newBlocks);
+                          }
+                        }}
+                        disabled={index === blocks.length - 1}
+                        className="text-gray-400 hover:text-white p-1 disabled:opacity-30"
+                      >
+                        ↓
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setBlocks(blocks.filter((_, i) => i !== index))}
+                        className="text-red-400 hover:text-red-300 p-1"
+                      >
+                        ×
+                      </button>
+                    </div>
+
+                    {(() => {
+                      if (block.type === 'paragraph') {
+                        return (
+                          <div>
+                            <label className="text-xs text-gray-500 mb-1 block">Paragraph (Markdown supported)</label>
+                            <textarea
+                              value={block.text}
+                              onChange={(e) => {
+                                const newBlocks = [...blocks];
+                                if (newBlocks[index].type === 'paragraph') {
+                                  newBlocks[index].text = e.target.value;
+                                  setBlocks(newBlocks);
+                                }
+                              }}
+                              rows={3}
+                              className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white focus:border-yellow-500 focus:outline-none"
+                              placeholder="Enter paragraph text..."
+                            />
+                          </div>
+                        );
+                      } else if (block.type === 'verse') {
+                        return (
+                          <div className="space-y-2">
+                            <label className="text-xs text-yellow-500/70 mb-1 block">Verse</label>
+                            <textarea
+                              value={block.text}
+                              onChange={(e) => {
+                                const newBlocks = [...blocks];
+                                if (newBlocks[index].type === 'verse') {
+                                  newBlocks[index].text = e.target.value;
+                                  setBlocks(newBlocks);
+                                }
+                              }}
+                              rows={2}
+                              className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white italic focus:border-yellow-500 focus:outline-none"
+                              placeholder="Enter verse text..."
+                            />
+                            <input
+                              type="text"
+                              value={block.reference}
+                              onChange={(e) => {
+                                const newBlocks = [...blocks];
+                                if (newBlocks[index].type === 'verse') {
+                                  newBlocks[index].reference = e.target.value;
+                                  setBlocks(newBlocks);
+                                }
+                              }}
+                              className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white text-sm focus:border-yellow-500 focus:outline-none"
+                              placeholder="Reference (e.g. John 3:16)"
+                            />
+                          </div>
+                        );
+                      } else if (block.type === 'youtube') {
+                        return (
+                          <div className="space-y-2">
+                            <label className="text-xs text-red-400 mb-1 block">YouTube Video</label>
+                            <input
+                              type="text"
+                              value={block.url}
+                              onChange={(e) => {
+                                const newBlocks = [...blocks];
+                                if (newBlocks[index].type === 'youtube') {
+                                  newBlocks[index].url = e.target.value;
+                                  setBlocks(newBlocks);
+                                }
+                              }}
+                              className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white text-sm focus:border-red-500 focus:outline-none"
+                              placeholder="YouTube URL (e.g. https://www.youtube.com/watch?v=...)"
+                            />
+                            <input
+                              type="text"
+                              value={block.caption || ''}
+                              onChange={(e) => {
+                                const newBlocks = [...blocks];
+                                if (newBlocks[index].type === 'youtube') {
+                                  newBlocks[index].caption = e.target.value;
+                                  setBlocks(newBlocks);
+                                }
+                              }}
+                              className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white text-sm focus:border-red-500 focus:outline-none"
+                              placeholder="Caption (Optional)"
+                            />
+                          </div>
+                        );
+                      } else {
+                        return (
+                          <div className="space-y-2">
+                            <label className="text-xs text-blue-400 mb-1 block">Long Text (Link)</label>
+                            <input
+                              type="text"
+                              value={block.title}
+                              onChange={(e) => {
+                                const newBlocks = [...blocks];
+                                if (newBlocks[index].type === 'long_text') {
+                                  newBlocks[index].title = e.target.value;
+                                  setBlocks(newBlocks);
+                                }
+                              }}
+                              className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white font-bold focus:border-yellow-500 focus:outline-none"
+                              placeholder="Title (e.g. Daily Reflection)"
+                            />
+                            <textarea
+                              value={block.text}
+                              onChange={(e) => {
+                                const newBlocks = [...blocks];
+                                if (newBlocks[index].type === 'long_text') {
+                                  newBlocks[index].text = e.target.value;
+                                  setBlocks(newBlocks);
+                                }
+                              }}
+                              rows={5}
+                              className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white focus:border-yellow-500 focus:outline-none font-mono text-sm"
+                              placeholder="Enter long text content (Markdown supported)..."
+                            />
+                            <input
+                              type="text"
+                              value={block.pdfUrl || ''}
+                              onChange={(e) => {
+                                const newBlocks = [...blocks];
+                                if (newBlocks[index].type === 'long_text') {
+                                  newBlocks[index].pdfUrl = e.target.value;
+                                  setBlocks(newBlocks);
+                                }
+                              }}
+                              className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white text-sm focus:border-yellow-500 focus:outline-none"
+                              placeholder="PDF Download URL (Optional) - e.g. https://example.com/file.pdf"
+                            />
+                          </div>
+                        );
+                      }
+                    })()}
+                  </div>
+                ))}
+
+                {blocks.length === 0 && (
+                  <div className="text-center py-8 border-2 border-dashed border-gray-700 rounded-lg text-gray-500">
+                    No content blocks. Add a paragraph, verse, long text, or YouTube video to start.
+                  </div>
+                )}
+              </div>
+
+              <div className="flex space-x-3">
+                <button
+                  type="submit"
+                  className="bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold py-2 px-6 rounded transition-colors"
+                >
+                  {isEditing ? 'Update Message' : 'Save Message'}
+                </button>
+                {isEditing && (
+                  <button
+                    type="button"
+                    onClick={resetForm}
+                    className="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded transition-colors"
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
+            </form>
+          </div>
+
+          <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-white">Existing Messages</h2>
               <select
-                value={targetGroupId}
-                onChange={(e) => setTargetGroupId(e.target.value)}
-                className="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white focus:border-yellow-500 focus:outline-none"
+                value={selectedGroupId}
+                onChange={(e) => setSelectedGroupId(e.target.value)}
+                className="bg-gray-700 text-white rounded px-3 py-2 border border-gray-600 text-sm"
               >
-                <option value="default">Default (General)</option>
+                <option value="all">All Groups</option>
                 {groups.map(g => (
                   <option key={g.id} value={g.id}>{g.name}</option>
                 ))}
               </select>
             </div>
-          </div>
 
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <label className="block text-gray-400 text-sm">Content Blocks</label>
-              <div className="space-x-2">
-                <button
-                  type="button"
-                  onClick={() => setBlocks([...blocks, { type: 'paragraph', text: '' }])}
-                  className="bg-gray-700 hover:bg-gray-600 text-xs text-white px-3 py-1 rounded"
-                >
-                  + Paragraph
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setBlocks([...blocks, { type: 'verse', text: '', reference: '' }])}
-                  className="bg-gray-700 hover:bg-gray-600 text-xs text-white px-3 py-1 rounded"
-                >
-                  + Verse
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setBlocks([...blocks, { type: 'long_text', title: '', text: '' }])}
-                  className="bg-gray-700 hover:bg-gray-600 text-xs text-white px-3 py-1 rounded"
-                >
-                  + Long Text
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setBlocks([...blocks, { type: 'youtube', url: '', caption: '' }])}
-                  className="bg-red-700 hover:bg-red-600 text-xs text-white px-3 py-1 rounded"
-                >
-                  + YouTube
-                </button>
-              </div>
-            </div>
-
-            {blocks.map((block, index) => (
-              <div key={index} className="bg-gray-900/50 p-4 rounded border border-gray-700 relative group">
-                <div className="absolute top-2 right-2 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (index > 0) {
-                        const newBlocks = [...blocks];
-                        [newBlocks[index - 1], newBlocks[index]] = [newBlocks[index], newBlocks[index - 1]];
-                        setBlocks(newBlocks);
-                      }
-                    }}
-                    disabled={index === 0}
-                    className="text-gray-400 hover:text-white p-1 disabled:opacity-30"
-                  >
-                    ↑
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (index < blocks.length - 1) {
-                        const newBlocks = [...blocks];
-                        [newBlocks[index + 1], newBlocks[index]] = [newBlocks[index], newBlocks[index + 1]];
-                        setBlocks(newBlocks);
-                      }
-                    }}
-                    disabled={index === blocks.length - 1}
-                    className="text-gray-400 hover:text-white p-1 disabled:opacity-30"
-                  >
-                    ↓
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setBlocks(blocks.filter((_, i) => i !== index))}
-                    className="text-red-400 hover:text-red-300 p-1"
-                  >
-                    ×
-                  </button>
-                </div>
-
-                {(() => {
-                  if (block.type === 'paragraph') {
-                    return (
-                      <div>
-                        <label className="text-xs text-gray-500 mb-1 block">Paragraph (Markdown supported)</label>
-                        <textarea
-                          value={block.text}
-                          onChange={(e) => {
-                            const newBlocks = [...blocks];
-                            if (newBlocks[index].type === 'paragraph') {
-                              newBlocks[index].text = e.target.value;
-                              setBlocks(newBlocks);
-                            }
-                          }}
-                          rows={3}
-                          className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white focus:border-yellow-500 focus:outline-none"
-                          placeholder="Enter paragraph text..."
-                        />
+            {isLoading ? (
+              <div className="text-center py-8 text-gray-400">Loading...</div>
+            ) : messages.length === 0 ? (
+              <div className="text-center py-8 text-gray-400">No messages found.</div>
+            ) : (
+              <div className="space-y-4">
+                {messages.map((msg) => (
+                  <div key={msg.id} className="bg-gray-700/50 p-4 rounded border border-gray-600 flex justify-between items-start">
+                    <div>
+                      <div className="flex items-center space-x-3 mb-2">
+                        <span className="bg-blue-900 text-blue-200 text-xs px-2 py-1 rounded font-mono">
+                          {msg.date}
+                        </span>
+                        {/* @ts-ignore */}
+                        <span className="bg-gray-800 text-gray-300 text-xs px-2 py-1 rounded">
+                          {groups.find(g => g.id === msg.group_id)?.name || 'Default'}
+                        </span>
                       </div>
-                    );
-                  } else if (block.type === 'verse') {
-                    return (
-                      <div className="space-y-2">
-                        <label className="text-xs text-yellow-500/70 mb-1 block">Verse</label>
-                        <textarea
-                          value={block.text}
-                          onChange={(e) => {
-                            const newBlocks = [...blocks];
-                            if (newBlocks[index].type === 'verse') {
-                              newBlocks[index].text = e.target.value;
-                              setBlocks(newBlocks);
+                      <div className="text-gray-300 text-sm line-clamp-2">
+                        {(() => {
+                          try {
+                            const parsed = typeof msg.content === 'string' ? JSON.parse(msg.content) : msg.content;
+                            if (Array.isArray(parsed)) {
+                              return parsed.map(b => b.text).join(' ');
                             }
-                          }}
-                          rows={2}
-                          className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white italic focus:border-yellow-500 focus:outline-none"
-                          placeholder="Enter verse text..."
-                        />
-                        <input
-                          type="text"
-                          value={block.reference}
-                          onChange={(e) => {
-                            const newBlocks = [...blocks];
-                            if (newBlocks[index].type === 'verse') {
-                              newBlocks[index].reference = e.target.value;
-                              setBlocks(newBlocks);
-                            }
-                          }}
-                          className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white text-sm focus:border-yellow-500 focus:outline-none"
-                          placeholder="Reference (e.g. John 3:16)"
-                        />
+                            return String(msg.content);
+                          } catch {
+                            return String(msg.content);
+                          }
+                        })()}
                       </div>
-                    );
-                  } else if (block.type === 'youtube') {
-                    return (
-                      <div className="space-y-2">
-                        <label className="text-xs text-red-400 mb-1 block">YouTube Video</label>
-                        <input
-                          type="text"
-                          value={block.url}
-                          onChange={(e) => {
-                            const newBlocks = [...blocks];
-                            if (newBlocks[index].type === 'youtube') {
-                              newBlocks[index].url = e.target.value;
-                              setBlocks(newBlocks);
-                            }
-                          }}
-                          className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white text-sm focus:border-red-500 focus:outline-none"
-                          placeholder="YouTube URL (e.g. https://www.youtube.com/watch?v=...)"
-                        />
-                        <input
-                          type="text"
-                          value={block.caption || ''}
-                          onChange={(e) => {
-                            const newBlocks = [...blocks];
-                            if (newBlocks[index].type === 'youtube') {
-                              newBlocks[index].caption = e.target.value;
-                              setBlocks(newBlocks);
-                            }
-                          }}
-                          className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white text-sm focus:border-red-500 focus:outline-none"
-                          placeholder="Caption (Optional)"
-                        />
-                      </div>
-                    );
-                  } else {
-                    return (
-                      <div className="space-y-2">
-                        <label className="text-xs text-blue-400 mb-1 block">Long Text (Link)</label>
-                        <input
-                          type="text"
-                          value={block.title}
-                          onChange={(e) => {
-                            const newBlocks = [...blocks];
-                            if (newBlocks[index].type === 'long_text') {
-                              newBlocks[index].title = e.target.value;
-                              setBlocks(newBlocks);
-                            }
-                          }}
-                          className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white font-bold focus:border-yellow-500 focus:outline-none"
-                          placeholder="Title (e.g. Daily Reflection)"
-                        />
-                        <textarea
-                          value={block.text}
-                          onChange={(e) => {
-                            const newBlocks = [...blocks];
-                            if (newBlocks[index].type === 'long_text') {
-                              newBlocks[index].text = e.target.value;
-                              setBlocks(newBlocks);
-                            }
-                          }}
-                          rows={5}
-                          className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white focus:border-yellow-500 focus:outline-none font-mono text-sm"
-                          placeholder="Enter long text content (Markdown supported)..."
-                        />
-                        <input
-                          type="text"
-                          value={block.pdfUrl || ''}
-                          onChange={(e) => {
-                            const newBlocks = [...blocks];
-                            if (newBlocks[index].type === 'long_text') {
-                              newBlocks[index].pdfUrl = e.target.value;
-                              setBlocks(newBlocks);
-                            }
-                          }}
-                          className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white text-sm focus:border-yellow-500 focus:outline-none"
-                          placeholder="PDF Download URL (Optional) - e.g. https://example.com/file.pdf"
-                        />
-                      </div>
-                    );
-                  }
-                })()}
-              </div>
-            ))}
-
-            {blocks.length === 0 && (
-              <div className="text-center py-8 border-2 border-dashed border-gray-700 rounded-lg text-gray-500">
-                No content blocks. Add a paragraph, verse, long text, or YouTube video to start.
+                    </div>
+                    <div className="flex space-x-2 ml-4">
+                      <button
+                        onClick={() => handleEdit(msg)}
+                        className="text-blue-400 hover:text-blue-300 p-1"
+                        title="Edit"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+                      </button>
+                      <button
+                        onClick={() => handleDelete(msg.id)}
+                        className="text-red-400 hover:text-red-300 p-1"
+                        title="Delete"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
-
-          <div className="flex space-x-3">
-            <button
-              type="submit"
-              className="bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold py-2 px-6 rounded transition-colors"
-            >
-              {isEditing ? 'Update Message' : 'Save Message'}
-            </button>
-            {isEditing && (
-              <button
-                type="button"
-                onClick={resetForm}
-                className="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded transition-colors"
-              >
-                Cancel
-              </button>
-            )}
-          </div>
-        </form>
-      </div>
-
-      <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold text-white">Existing Messages</h2>
-          <select
-            value={selectedGroupId}
-            onChange={(e) => setSelectedGroupId(e.target.value)}
-            className="bg-gray-700 text-white rounded px-3 py-2 border border-gray-600 text-sm"
-          >
-            <option value="all">All Groups</option>
-            {groups.map(g => (
-              <option key={g.id} value={g.id}>{g.name}</option>
-            ))}
-          </select>
-        </div>
-
-        {isLoading ? (
-          <div className="text-center py-8 text-gray-400">Loading...</div>
-        ) : messages.length === 0 ? (
-          <div className="text-center py-8 text-gray-400">No messages found.</div>
-        ) : (
-          <div className="space-y-4">
-            {messages.map((msg) => (
-              <div key={msg.id} className="bg-gray-700/50 p-4 rounded border border-gray-600 flex justify-between items-start">
-                <div>
-                  <div className="flex items-center space-x-3 mb-2">
-                    <span className="bg-blue-900 text-blue-200 text-xs px-2 py-1 rounded font-mono">
-                      {msg.date}
-                    </span>
-                    {/* @ts-ignore */}
-                    <span className="bg-gray-800 text-gray-300 text-xs px-2 py-1 rounded">
-                      {groups.find(g => g.id === msg.group_id)?.name || 'Default'}
-                    </span>
-                  </div>
-                  <div className="text-gray-300 text-sm line-clamp-2">
-                    {(() => {
-                      try {
-                        const parsed = typeof msg.content === 'string' ? JSON.parse(msg.content) : msg.content;
-                        if (Array.isArray(parsed)) {
-                          return parsed.map(b => b.text).join(' ');
-                        }
-                        return String(msg.content);
-                      } catch {
-                        return String(msg.content);
-                      }
-                    })()}
-                  </div>
-                </div>
-                <div className="flex space-x-2 ml-4">
-                  <button
-                    onClick={() => handleEdit(msg)}
-                    className="text-blue-400 hover:text-blue-300 p-1"
-                    title="Edit"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
-                  </button>
-                  <button
-                    onClick={() => handleDelete(msg.id)}
-                    className="text-red-400 hover:text-red-300 p-1"
-                    title="Delete"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
         </>
       )}
     </div>

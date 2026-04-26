@@ -112,7 +112,7 @@ export const runDailyMessageGeneration = async (targetDate?: string) => {
             return { skipped: true, reason: 'No groups' };
         }
 
-        const model = process.env.OLLAMA_MODEL || 'gemma4:e2b';
+        const model = process.env.OLLAMA_MODEL || 'gemma4:e4b';
         let totalGenerated = 0;
         const errors: string[] = [];
 

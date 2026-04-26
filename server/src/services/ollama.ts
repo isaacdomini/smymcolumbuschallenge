@@ -2,7 +2,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const OLLAMA_HOST = process.env.OLLAMA_HOST || 'http://localhost:11434';
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'gemma4:e2b';
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'gemma4:e4b';
 
 export interface DailyMessageBlock {
     type: 'paragraph' | 'verse' | 'long_text' | 'youtube';
