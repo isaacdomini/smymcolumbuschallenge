@@ -917,6 +917,8 @@ router.post('/staging-messages/:id/promote', async (req: Request, res: Response)
         try {
             await client.query('BEGIN');
 
+            const contentStr = typeof staging.content === 'string' ? staging.content : JSON.stringify(staging.content);
+
             // Upsert into daily_messages (using targetDate + group_id)
             const liveId = `msg-${targetDate}-${staging.group_id}`;
             await client.query(
@@ -924,7 +926,7 @@ router.post('/staging-messages/:id/promote', async (req: Request, res: Response)
                  VALUES ($1, $2, $3, $4)
                  ON CONFLICT (date, group_id)
                  DO UPDATE SET content = EXCLUDED.content`,
-                [liveId, targetDate, staging.content, staging.group_id]
+                [liveId, targetDate, contentStr, staging.group_id]
             );
 
             // Mark staging message as promoted
