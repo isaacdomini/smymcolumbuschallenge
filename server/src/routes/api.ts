@@ -20,9 +20,22 @@ router.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok' });
 });
 
+import fs from 'fs';
+import path from 'path';
+
+let appVersion = 'unknown';
+try {
+  // Read package.json from the current working directory (project root)
+  const pkgPath = path.join(process.cwd(), 'package.json');
+  const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+  appVersion = pkg.version;
+} catch (e) {
+  console.error('Failed to read package.json version dynamically. Make sure server is run from project root.', e);
+}
+
 // --- VERSION CHECK ---
 router.get('/version', (req, res) => {
-  res.json({ version: '1.0.13' });
+  res.json({ version: appVersion });
 });
 
 // Helper to get 'YYYY-MM-DD' in Eastern Time
