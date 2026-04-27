@@ -22,11 +22,7 @@ router.get('/health', (req, res) => {
 
 // --- VERSION CHECK ---
 router.get('/version', (req, res) => {
-  // Hardcoded for now to match package.json, or read it. 
-  // Since we are compiling, reading package.json at runtime might be tricky depending on build structure.
-  // Simplest is to update this manually or via build script. 
-  // For this environment, let's hardcode '0.1.0' to match what we just set.
-  res.json({ version: '0.1.0' });
+  res.json({ version: '1.0.13' });
 });
 
 // Helper to get 'YYYY-MM-DD' in Eastern Time
@@ -1996,11 +1992,11 @@ router.post('/games/:gameId/check', async (req: Request, res: Response) => {
     } else if (gameType === 'verse_scramble') {
       const guessWords = guess as string[];
       const correctWords = gameData.verse.split(' ');
-      
+
       const normalize = (str: string) => str.replace(/[^a-zA-Z]/g, '').toLowerCase();
       const guessNorm = guessWords.map(normalize).join('');
       const correctNorm = correctWords.map(normalize).join('');
-      
+
       const correct = guessNorm === correctNorm;
       return res.json({ correct });
     }
