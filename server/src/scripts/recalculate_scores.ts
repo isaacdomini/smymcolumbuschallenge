@@ -1,5 +1,5 @@
 import pool from '../db/pool.js';
-import { calculateScore, resolveGameData } from '../routes/api.js';
+import { calculateScore, resolveGameData } from '../utils/gameUtils.js';
 
 const parseArgs = () => {
   const args = process.argv.slice(2);

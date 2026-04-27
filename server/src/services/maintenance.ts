@@ -1,5 +1,5 @@
 import pool from '../db/pool.js';
-import { resolveGameData } from '../routes/api.js';
+import { resolveGameData } from '../utils/gameUtils.js';
 
 export const runDailyGameMaintenance = async (targetDate?: Date) => {
   console.log(`Running daily game maintenance job${targetDate ? ` for ${targetDate.toISOString()}` : ''}...`);
