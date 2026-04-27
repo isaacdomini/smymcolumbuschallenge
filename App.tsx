@@ -395,14 +395,27 @@ const MainContent: React.FC = () => {
 
       const serverData = await getServerVersion();
       if (serverData && serverData.version && serverData.version !== APP_VERSION) {
+        const lastReloadVersion = sessionStorage.getItem('reloaded_for_version');
+        
+        // If we already tried reloading for this specific version and it's STILL a mismatch,
+        // it means either the webview cache is unbreakable, OR the server hasn't been re-built
+        // with the new frontend code yet. Stop the infinite loop.
+        if (lastReloadVersion === serverData.version) {
+          console.error(`Already attempted to reload for version ${serverData.version} but app is still on ${APP_VERSION}. Stopping infinite loop.`);
+          return;
+        }
+
         console.log(`Version mismatch: Local ${APP_VERSION} vs Server ${serverData.version}. Reloading...`);
-        // Force reload
-        // Add timestamp to prevent infinite loop if server caches old version
+        sessionStorage.setItem('reloaded_for_version', serverData.version);
+        
         // Force reload with cache busting
         const url = new URL(window.location.href);
         url.searchParams.set('v', serverData.version); // Track version
         url.searchParams.set('t', Date.now().toString()); // Bust cache
         window.location.replace(url.toString());
+      } else if (serverData && serverData.version === APP_VERSION) {
+        // Clear it if we successfully updated
+        sessionStorage.removeItem('reloaded_for_version');
       }
     };
 
