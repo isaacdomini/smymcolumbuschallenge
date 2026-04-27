@@ -68,14 +68,47 @@ class ChunkErrorBoundary extends React.Component<{children: React.ReactNode}, {h
                               /Failed to fetch dynamically imported module/i.test(error.message) || 
                               /Importing a module script failed/i.test(error.message);
     if (isChunkLoadFailed) {
-      console.warn('Chunk load error caught. Forcing reload to fetch new app version...');
-      // Force reload to bypass cache and get new index.html
-      window.location.reload();
+      const lastReload = sessionStorage.getItem('chunk_reload_time');
+      const now = Date.now();
+      
+      // If we reloaded less than 10 seconds ago, don't reload again to prevent infinite loops
+      if (lastReload && now - parseInt(lastReload, 10) < 10000) {
+        console.error('Chunk load error persists after reload. Stopping infinite loop.');
+        return;
+      }
+      
+      sessionStorage.setItem('chunk_reload_time', now.toString());
+      console.warn('Chunk load error caught. Forcing cache-busted reload...');
+      
+      // Use query param to aggressively bust the webview cache instead of just reloading
+      const url = new URL(window.location.href);
+      url.searchParams.set('v', now.toString());
+      window.location.href = url.toString();
     }
   }
 
   render() {
     if (this.state.hasError) {
+      const lastReload = sessionStorage.getItem('chunk_reload_time');
+      const now = Date.now();
+      const isLooping = lastReload && now - parseInt(lastReload || '0', 10) < 10000;
+
+      if (isLooping) {
+        return (
+          <div className="flex flex-col items-center justify-center p-8 mt-20 text-center">
+            <div className="text-5xl mb-4">⚠️</div>
+            <h2 className="text-xl font-bold text-gray-200 mb-2">Update Failed</h2>
+            <p className="text-gray-400 text-sm mb-6">The app is having trouble updating. Please try manually restarting the app.</p>
+            <button onClick={() => {
+              sessionStorage.removeItem('chunk_reload_time');
+              window.location.href = '/';
+            }} className="bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold py-2 px-6 rounded-lg transition-colors">
+              Try Again
+            </button>
+          </div>
+        );
+      }
+
       return (
         <div className="flex flex-col items-center justify-center p-8 mt-20 text-center">
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-yellow-400 mb-4 mx-auto"></div>
