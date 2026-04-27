@@ -1,8 +1,9 @@
 import { Router, Request, Response } from 'express';
 import pool from '../db/pool.js';
 import { requireAdmin } from '../middleware/auth.js';
+import { generateDailyMessage, generateGameSuggestion } from '../services/ollama.js';
 import { sendBatchPushNotification } from '../services/push.js';
-import { runDailyReminderJob } from '../scheduler.js';
+import { runDailyReminderJob, runDailyMessageGeneration } from '../scheduler.js';
 
 const router = Router();
 
@@ -468,6 +469,42 @@ router.delete('/challenges/:id', async (req: Request, res: Response) => {
 
 // --- DAILY MESSAGES ---
 
+async function shiftStagedMessages(client: any, date: string, groupId: string): Promise<void> {
+    const pendingResult = await client.query(`
+        SELECT id FROM staging_daily_messages 
+        WHERE date = $1 AND group_id = $2 AND status = 'pending'
+    `, [date, groupId]);
+
+    if (pendingResult.rows.length === 0) return;
+
+    const result = await client.query(`
+        WITH RECURSIVE dates AS (
+            SELECT ($1::date + interval '1 day')::date AS date
+            UNION ALL
+            SELECT (date + interval '1 day')::date
+            FROM dates
+            WHERE date < $1::date + interval '365 days'
+        )
+        SELECT to_char(d.date, 'YYYY-MM-DD') AS date
+        FROM dates d
+        WHERE NOT EXISTS (
+            SELECT 1 FROM daily_messages dm WHERE dm.date = to_char(d.date, 'YYYY-MM-DD') AND dm.group_id = $2
+        )
+        ORDER BY d.date
+        LIMIT 1;
+    `, [date, groupId]);
+    
+    if (result.rows.length > 0) {
+        const nextDate = result.rows[0].date;
+        const ids = pendingResult.rows.map((r: any) => r.id);
+        await client.query(`
+            UPDATE staging_daily_messages 
+            SET date = $1 
+            WHERE id = ANY($2)
+        `, [nextDate, ids]);
+    }
+}
+
 // Get all daily messages (paginated)
 router.get('/daily-messages', async (req: Request, res: Response) => {
     try {
@@ -498,22 +535,39 @@ router.get('/daily-messages', async (req: Request, res: Response) => {
 // Create or update a daily message
 router.post('/daily-messages', async (req: Request, res: Response) => {
     try {
-        const { date, content, groupId = 'default' } = req.body;
+        const { date, content, groupIds = ['default'] } = req.body;
 
         if (!date || !content) {
             return res.status(400).json({ error: 'Date and content are required' });
         }
+        
+        // Backwards compatibility if frontend still sends groupId
+        const targetGroupIds = req.body.groupId ? [req.body.groupId] : groupIds;
 
-        const id = `msg-${date}-${groupId}`;
-
-        await pool.query(
-            `INSERT INTO daily_messages (id, date, content, group_id) 
-             VALUES ($1, $2, $3, $4) 
-             ON CONFLICT (date, group_id) DO UPDATE SET content = EXCLUDED.content`,
-            [id, date, content, groupId]
-        );
-
-        res.json({ message: 'Daily message saved successfully', id });
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+            
+            for (const groupId of targetGroupIds) {
+                const id = `msg-${date}-${groupId}`;
+                await client.query(
+                    `INSERT INTO daily_messages (id, date, content, group_id) 
+                     VALUES ($1, $2, $3, $4) 
+                     ON CONFLICT (date, group_id) DO UPDATE SET content = EXCLUDED.content`,
+                    [id, date, content, groupId]
+                );
+                
+                await shiftStagedMessages(client, date, groupId);
+            }
+            
+            await client.query('COMMIT');
+            res.json({ message: 'Daily message saved successfully' });
+        } catch (error) {
+            await client.query('ROLLBACK');
+            throw error;
+        } finally {
+            client.release();
+        }
     } catch (error) {
         console.error('Error saving daily message:', error);
         res.status(500).json({ error: 'Internal server error' });
@@ -770,6 +824,306 @@ router.post('/scheduler/run-reminders', async (req: Request, res: Response) => {
         res.json({ message: 'Reminder job completed', result });
     } catch (error) {
         console.error('Error running manual reminder job:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+
+// --- STAGING DAILY MESSAGES (AI Suggestions) ---
+
+// Get staging messages (filterable by date and/or group)
+router.get('/staging-messages', async (req: Request, res: Response) => {
+    try {
+        const { date, groupId, status } = req.query;
+
+        let query = `
+            SELECT s.*, g.name as group_name
+            FROM staging_daily_messages s
+            LEFT JOIN groups g ON s.group_id = g.id
+        `;
+        const params: any[] = [];
+        const conditions: string[] = [];
+
+        if (date) {
+            conditions.push(`s.date = $${params.length + 1}`);
+            params.push(date);
+        }
+        if (groupId && groupId !== 'all') {
+            conditions.push(`s.group_id = $${params.length + 1}`);
+            params.push(groupId);
+        }
+        if (status) {
+            conditions.push(`s.status = $${params.length + 1}`);
+            params.push(status);
+        }
+
+        if (conditions.length > 0) {
+            query += ' WHERE ' + conditions.join(' AND ');
+        }
+
+        query += ' ORDER BY s.generated_at DESC LIMIT 100';
+
+        const result = await pool.query(query, params);
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching staging messages:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Manually trigger AI generation for a specific date (async — returns immediately)
+router.post('/staging-messages/generate', async (req: Request, res: Response) => {
+    try {
+        const { date } = req.body;
+
+        // Respond immediately — generation can take several minutes
+        res.json({
+            message: 'AI message generation started. You will receive a push notification when ready.',
+            date: date || 'tomorrow'
+        });
+
+        // Run asynchronously in the background
+        setImmediate(async () => {
+            try {
+                await runDailyMessageGeneration(date);
+            } catch (err) {
+                console.error('[Admin] Manual generation failed:', err);
+            }
+        });
+    } catch (error) {
+        console.error('Error triggering staging message generation:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Promote a staging message to live daily_messages
+router.post('/staging-messages/:id/promote', async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+
+        // Fetch the staging message
+        const stagingResult = await pool.query(
+            'SELECT * FROM staging_daily_messages WHERE id = $1',
+            [id]
+        );
+
+        if (stagingResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Staging message not found' });
+        }
+
+        const staging = stagingResult.rows[0];
+        const targetDate = req.body.targetDate || staging.date;
+
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+
+            const contentStr = typeof staging.content === 'string' ? staging.content : JSON.stringify(staging.content);
+
+            // Upsert into daily_messages (using targetDate + group_id)
+            const liveId = `msg-${targetDate}-${staging.group_id}`;
+            await client.query(
+                `INSERT INTO daily_messages (id, date, content, group_id)
+                 VALUES ($1, $2, $3, $4)
+                 ON CONFLICT (date, group_id)
+                 DO UPDATE SET content = EXCLUDED.content`,
+                [liveId, targetDate, contentStr, staging.group_id]
+            );
+
+            // Mark staging message as promoted
+            await client.query(
+                `UPDATE staging_daily_messages SET status = 'promoted' WHERE id = $1`,
+                [id]
+            );
+
+            // Shift any pending staged messages for the target date to the next available date
+            await shiftStagedMessages(client, targetDate, staging.group_id);
+
+            await client.query('COMMIT');
+
+            res.json({
+                message: 'Message promoted to live successfully',
+                liveId,
+                date: targetDate,
+                originalDate: staging.date,
+                groupId: staging.group_id
+            });
+        } catch (err) {
+            await client.query('ROLLBACK');
+            throw err;
+        } finally {
+            client.release();
+        }
+    } catch (error) {
+        console.error('Error promoting staging message:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Delete a staging message
+router.delete('/staging-messages/:id', async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const result = await pool.query(
+            'DELETE FROM staging_daily_messages WHERE id = $1 RETURNING *',
+            [id]
+        );
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: 'Staging message not found' });
+        }
+
+        res.json({ message: 'Staging message deleted' });
+    } catch (error) {
+        console.error('Error deleting staging message:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// --- STAGING GAMES (AI Suggestions) ---
+
+// Get staging games
+router.get('/staging-games', async (req: Request, res: Response) => {
+    try {
+        const { type, status } = req.query;
+        let query = 'SELECT * FROM staging_games';
+        const params: any[] = [];
+        const conditions: string[] = [];
+
+        if (type && type !== 'all') {
+            conditions.push(`type = $${params.length + 1}`);
+            params.push(type);
+        }
+        if (status && status !== 'all') {
+            conditions.push(`status = $${params.length + 1}`);
+            params.push(status);
+        }
+
+        if (conditions.length > 0) {
+            query += ' WHERE ' + conditions.join(' AND ');
+        }
+        query += ' ORDER BY generated_at DESC';
+
+        const result = await pool.query(query, params);
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching staging games:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Manually generate staging games
+router.post('/staging-games/generate', async (req: Request, res: Response) => {
+    try {
+        const { types } = req.body;
+        if (!types || !Array.isArray(types)) {
+            return res.status(400).json({ error: 'types array is required' });
+        }
+
+        // Respond immediately
+        res.json({ 
+            message: 'AI game generation started in the background. Refresh the page in a few minutes.', 
+            generatedCount: types.length 
+        });
+        
+        // Run asynchronously in the background
+        setImmediate(async () => {
+            const model = process.env.OLLAMA_MODEL || 'gemma4:e4b';
+            try {
+                for (const type of types) {
+                    const examplesResult = await pool.query(
+                        "SELECT data FROM games WHERE type = $1 ORDER BY created_at DESC LIMIT 2",
+                        [type]
+                    );
+                    const examples = examplesResult.rows.map((r: any) => r.data);
+                    const gameData = await generateGameSuggestion(type, examples);
+                    const id = `staging-game-${type}-${Date.now()}`;
+                    
+                    await pool.query(
+                        `INSERT INTO staging_games (id, type, data, status, model)
+                         VALUES ($1, $2, $3, 'pending', $4)`,
+                        [id, type, JSON.stringify(gameData), model]
+                    );
+                }
+            } catch (err) {
+                console.error('[Admin] Manual game generation failed:', err);
+            }
+        });
+    } catch (error) {
+        console.error('Error triggering staging games generation:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Promote a staging game
+router.post('/staging-games/:id/promote', async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { challengeId, date } = req.body;
+
+        if (!challengeId || !date) {
+            return res.status(400).json({ error: 'Challenge ID and date are required' });
+        }
+
+        const stagingResult = await pool.query(
+            'SELECT * FROM staging_games WHERE id = $1',
+            [id]
+        );
+
+        if (stagingResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Staging game not found' });
+        }
+
+        const staging = stagingResult.rows[0];
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+
+            const liveId = `game-${challengeId}-${date}-${staging.type}-${Date.now()}`;
+            const dataStr = typeof staging.data === 'string' ? staging.data : JSON.stringify(staging.data);
+
+            await client.query(
+                `INSERT INTO games (id, challenge_id, date, type, data)
+                 VALUES ($1, $2, $3, $4, $5)`,
+                [liveId, challengeId, date, staging.type, dataStr]
+            );
+
+            await client.query(
+                `UPDATE staging_games SET status = 'promoted' WHERE id = $1`,
+                [id]
+            );
+
+            await client.query('COMMIT');
+
+            res.json({ message: 'Game promoted to live successfully', liveId });
+        } catch (err) {
+            await client.query('ROLLBACK');
+            throw err;
+        } finally {
+            client.release();
+        }
+    } catch (error) {
+        console.error('Error promoting staging game:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Delete a staging game
+router.delete('/staging-games/:id', async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const result = await pool.query(
+            'DELETE FROM staging_games WHERE id = $1 RETURNING *',
+            [id]
+        );
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: 'Staging game not found' });
+        }
+
+        res.json({ message: 'Staging game deleted' });
+    } catch (error) {
+        console.error('Error deleting staging game:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });

@@ -244,6 +244,15 @@ export interface GameProgress {
   updatedAt: string;
 }
 
+export interface StagingGame {
+  id: string;
+  type: GameType;
+  data: any;
+  status: 'pending' | 'promoted' | 'rejected';
+  model?: string;
+  generated_at: string;
+}
+
 export interface AdminStats {
   totalUsers: number;
   playsToday: number;

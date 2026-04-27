@@ -51,6 +51,76 @@ const LoadingFallback: React.FC = () => (
   <div className="text-center p-10">Loading...</div>
 );
 
+// Catches chunk load errors when the server deploys a new version 
+// and the mobile webview tries to load an old cached chunk.
+class ChunkErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean}> {
+  constructor(props: {children: React.ReactNode}) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error: any) {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: any, errorInfo: any) {
+    const isChunkLoadFailed = /Loading chunk [\d]+ failed/i.test(error.message) || 
+                              /Failed to fetch dynamically imported module/i.test(error.message) || 
+                              /Importing a module script failed/i.test(error.message);
+    if (isChunkLoadFailed) {
+      const lastReload = sessionStorage.getItem('chunk_reload_time');
+      const now = Date.now();
+      
+      // If we reloaded less than 10 seconds ago, don't reload again to prevent infinite loops
+      if (lastReload && now - parseInt(lastReload, 10) < 10000) {
+        console.error('Chunk load error persists after reload. Stopping infinite loop.');
+        return;
+      }
+      
+      sessionStorage.setItem('chunk_reload_time', now.toString());
+      console.warn('Chunk load error caught. Forcing cache-busted reload...');
+      
+      // Use query param to aggressively bust the webview cache instead of just reloading
+      const url = new URL(window.location.href);
+      url.searchParams.set('v', now.toString());
+      window.location.href = url.toString();
+    }
+  }
+
+  render() {
+    if (this.state.hasError) {
+      const lastReload = sessionStorage.getItem('chunk_reload_time');
+      const now = Date.now();
+      const isLooping = lastReload && now - parseInt(lastReload || '0', 10) < 10000;
+
+      if (isLooping) {
+        return (
+          <div className="flex flex-col items-center justify-center p-8 mt-20 text-center">
+            <div className="text-5xl mb-4">⚠️</div>
+            <h2 className="text-xl font-bold text-gray-200 mb-2">Update Failed</h2>
+            <p className="text-gray-400 text-sm mb-6">The app is having trouble updating. Please try manually restarting the app.</p>
+            <button onClick={() => {
+              sessionStorage.removeItem('chunk_reload_time');
+              window.location.href = '/';
+            }} className="bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold py-2 px-6 rounded-lg transition-colors">
+              Try Again
+            </button>
+          </div>
+        );
+      }
+
+      return (
+        <div className="flex flex-col items-center justify-center p-8 mt-20 text-center">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-yellow-400 mb-4 mx-auto"></div>
+          <h2 className="text-xl font-bold text-gray-200 mb-2">Updating App...</h2>
+          <p className="text-gray-400 text-sm">Please wait while we load the latest version.</p>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 import { GroupProvider, useGroup } from './components/GroupContext';
 import { joinGroup } from './services/groups';
 
@@ -325,14 +395,27 @@ const MainContent: React.FC = () => {
 
       const serverData = await getServerVersion();
       if (serverData && serverData.version && serverData.version !== APP_VERSION) {
+        const lastReloadVersion = sessionStorage.getItem('reloaded_for_version');
+        
+        // If we already tried reloading for this specific version and it's STILL a mismatch,
+        // it means either the webview cache is unbreakable, OR the server hasn't been re-built
+        // with the new frontend code yet. Stop the infinite loop.
+        if (lastReloadVersion === serverData.version) {
+          console.error(`Already attempted to reload for version ${serverData.version} but app is still on ${APP_VERSION}. Stopping infinite loop.`);
+          return;
+        }
+
         console.log(`Version mismatch: Local ${APP_VERSION} vs Server ${serverData.version}. Reloading...`);
-        // Force reload
-        // Add timestamp to prevent infinite loop if server caches old version
+        sessionStorage.setItem('reloaded_for_version', serverData.version);
+        
         // Force reload with cache busting
         const url = new URL(window.location.href);
         url.searchParams.set('v', serverData.version); // Track version
         url.searchParams.set('t', Date.now().toString()); // Bust cache
         window.location.replace(url.toString());
+      } else if (serverData && serverData.version === APP_VERSION) {
+        // Clear it if we successfully updated
+        sessionStorage.removeItem('reloaded_for_version');
       }
     };
 
@@ -440,9 +523,9 @@ const MainContent: React.FC = () => {
           }
         }
 
-        // Fetch daily message
+        // Fetch daily message (group-specific)
         try {
-          const message = await getDailyMessage();
+          const message = await getDailyMessage(undefined, currentGroup?.id || 'default');
           setDailyMessage(message);
         } catch (e) {
           console.error("Failed to fetch daily message", e);
@@ -783,9 +866,11 @@ const MainContent: React.FC = () => {
             </div>
           )}
 
-          <Suspense fallback={<LoadingFallback />}>
-            {renderContent()}
-          </Suspense>
+          <ChunkErrorBoundary>
+            <Suspense fallback={<LoadingFallback />}>
+              {renderContent()}
+            </Suspense>
+          </ChunkErrorBoundary>
         </main>
 
         <AddToHomeScreen />

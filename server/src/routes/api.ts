@@ -20,13 +20,22 @@ router.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok' });
 });
 
+import fs from 'fs';
+import path from 'path';
+
+let appVersion = 'unknown';
+try {
+  // Read package.json from the current working directory (project root)
+  const pkgPath = path.join(process.cwd(), 'package.json');
+  const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+  appVersion = pkg.version;
+} catch (e) {
+  console.error('Failed to read package.json version dynamically. Make sure server is run from project root.', e);
+}
+
 // --- VERSION CHECK ---
 router.get('/version', (req, res) => {
-  // Hardcoded for now to match package.json, or read it. 
-  // Since we are compiling, reading package.json at runtime might be tricky depending on build structure.
-  // Simplest is to update this manually or via build script. 
-  // For this environment, let's hardcode '0.1.0' to match what we just set.
-  res.json({ version: '0.1.0' });
+  res.json({ version: appVersion });
 });
 
 // Helper to get 'YYYY-MM-DD' in Eastern Time
@@ -1994,13 +2003,14 @@ router.post('/games/:gameId/check', async (req: Request, res: Response) => {
       return res.json({ correct: positions.length > 0, positions });
 
     } else if (gameType === 'verse_scramble') {
-      // Usually checked on client for "placed" words, but final check here?
-      // Or maybe we just check if the sentence matches?
-      // The client sends the full sentence or list of words?
-      // Let's assume client sends list of words in order.
       const guessWords = guess as string[];
       const correctWords = gameData.verse.split(' ');
-      const correct = JSON.stringify(guessWords) === JSON.stringify(correctWords);
+
+      const normalize = (str: string) => str.replace(/[^a-zA-Z]/g, '').toLowerCase();
+      const guessNorm = guessWords.map(normalize).join('');
+      const correctNorm = correctWords.map(normalize).join('');
+
+      const correct = guessNorm === correctNorm;
       return res.json({ correct });
     }
 
