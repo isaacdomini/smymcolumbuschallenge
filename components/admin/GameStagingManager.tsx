@@ -39,6 +39,7 @@ const GameStagingManager: React.FC<GameStagingManagerProps> = ({ userId }) => {
     const [success, setSuccess] = useState<string | null>(null);
 
     const [previewGame, setPreviewGame] = useState<StagingGame | null>(null);
+    const [viewRawGame, setViewRawGame] = useState<StagingGame | null>(null);
     const [promoteGameId, setPromoteGameId] = useState<string | null>(null);
     
     // Promote Form
@@ -186,11 +187,37 @@ const GameStagingManager: React.FC<GameStagingManagerProps> = ({ userId }) => {
         );
     };
 
+    const renderRawJsonModal = () => {
+        if (!viewRawGame) return null;
+        return (
+            <div className="fixed inset-0 bg-black/80 z-50 overflow-y-auto p-4 flex justify-center items-start sm:items-center">
+                <div className="bg-gray-800 p-6 rounded-xl max-w-2xl w-full shadow-2xl border border-gray-700 my-8 sm:my-0 flex flex-col max-h-[90vh]">
+                    <div className="flex justify-between items-center mb-4 shrink-0">
+                        <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                            <span>{'{ }'}</span> Raw Game Data
+                        </h3>
+                        <button 
+                            onClick={() => setViewRawGame(null)}
+                            className="bg-gray-700 hover:bg-gray-600 text-white w-8 h-8 rounded-full flex items-center justify-center transition-colors"
+                        >
+                            ✕
+                        </button>
+                    </div>
+                    <div className="overflow-y-auto custom-scrollbar flex-grow bg-gray-900 rounded border border-gray-700">
+                        <pre className="p-4 text-green-400 text-sm overflow-x-auto">
+                            {JSON.stringify(viewRawGame.data, null, 2)}
+                        </pre>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     const renderPromoteModal = () => {
         if (!promoteGameId) return null;
         return (
-            <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
-                <div className="bg-gray-800 p-6 rounded-xl max-w-md w-full shadow-2xl border border-gray-700">
+            <div className="fixed inset-0 bg-black/80 z-50 overflow-y-auto p-4 flex justify-center items-start sm:items-center">
+                <div className="bg-gray-800 p-6 rounded-xl max-w-md w-full shadow-2xl border border-gray-700 my-8 sm:my-0">
                     <h3 className="text-xl font-bold text-white mb-4">Promote Game to Live</h3>
                     <p className="text-gray-400 mb-6 text-sm">Select the challenge and date to assign this game to.</p>
                     
@@ -247,21 +274,21 @@ const GameStagingManager: React.FC<GameStagingManagerProps> = ({ userId }) => {
     const renderGenerateModal = () => {
         if (!showGenerateModal) return null;
         return (
-            <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
-                <div className="bg-gray-800 p-6 rounded-xl max-w-md w-full shadow-2xl border border-gray-700">
+            <div className="fixed inset-0 bg-black/80 z-50 overflow-y-auto p-4 flex justify-center items-start sm:items-center">
+                <div className="bg-gray-800 p-6 rounded-xl max-w-md w-full shadow-2xl border border-gray-700 my-8 sm:my-0">
                     <h3 className="text-xl font-bold text-white mb-4">Generate Game Suggestions</h3>
                     <p className="text-gray-400 mb-6 text-sm">Select which game types you want the AI to generate new suggestions for. (Takes 1-3 mins per game)</p>
                     
-                    <div className="space-y-2 mb-6 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
                         {ALLOWED_GAME_TYPES.map(type => (
-                            <label key={type} className="flex items-center p-3 bg-gray-700 rounded cursor-pointer hover:bg-gray-600">
+                            <label key={type} className="flex items-center p-3 bg-gray-700 rounded cursor-pointer hover:bg-gray-600 transition-colors">
                                 <input
                                     type="checkbox"
                                     checked={generateTypes.includes(type)}
                                     onChange={() => toggleGenerateType(type)}
                                     className="mr-3 h-5 w-5 rounded border-gray-500 text-blue-500 focus:ring-blue-500 bg-gray-800"
                                 />
-                                <span className="text-white capitalize">{type.replace(/_/g, ' ')}</span>
+                                <span className="text-white capitalize text-sm font-medium">{type.replace(/_/g, ' ')}</span>
                             </label>
                         ))}
                     </div>
@@ -369,12 +396,20 @@ const GameStagingManager: React.FC<GameStagingManagerProps> = ({ userId }) => {
                             </div>
 
                             <div className="flex flex-col gap-2">
-                                <button
-                                    onClick={() => setPreviewGame(suggestion)}
-                                    className="w-full bg-gray-700 hover:bg-gray-600 text-white py-2 rounded font-bold transition-colors flex justify-center items-center gap-2"
-                                >
-                                    <span>👁️</span> Playable Preview
-                                </button>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => setPreviewGame(suggestion)}
+                                        className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded font-bold transition-colors flex justify-center items-center gap-2"
+                                    >
+                                        <span>👁️</span> Preview
+                                    </button>
+                                    <button
+                                        onClick={() => setViewRawGame(suggestion)}
+                                        className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded font-bold transition-colors flex justify-center items-center gap-2"
+                                    >
+                                        <span>{'{ }'}</span> JSON
+                                    </button>
+                                </div>
                                 <div className="flex gap-2">
                                     <button
                                         onClick={() => setPromoteGameId(suggestion.id)}
@@ -397,6 +432,7 @@ const GameStagingManager: React.FC<GameStagingManagerProps> = ({ userId }) => {
             )}
 
             {renderPreview()}
+            {renderRawJsonModal()}
             {renderPromoteModal()}
             {renderGenerateModal()}
         </div>
