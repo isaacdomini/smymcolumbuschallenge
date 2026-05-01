@@ -327,7 +327,7 @@ router.post('/login', async (req: Request, res: Response) => {
     );
     const groups = groupsResult.rows;
 
-    const token = jwt.sign({ id: user.id, isAdmin: user.is_admin }, JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ id: user.id, isAdmin: user.is_admin }, JWT_SECRET, { expiresIn: '365d' });
     res.json({ ...user, token, groups });
   } catch (error) {
     console.error('Login error:', error);
@@ -353,7 +353,7 @@ router.post('/migrate-session', async (req: Request, res: Response) => {
     delete user.reset_password_expires;
 
     // Issue new token
-    const token = jwt.sign({ id: user.id, isAdmin: user.is_admin }, JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ id: user.id, isAdmin: user.is_admin }, JWT_SECRET, { expiresIn: '365d' });
 
     // Return updated user object (with correct isAdmin from DB) and token
     res.json({ ...user, token });

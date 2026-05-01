@@ -4,6 +4,29 @@ import { User, Challenge, Game, GameType, GameSubmission, WordleData, Connection
 const USE_MOCK_DATA = import.meta.env.MODE === 'development';
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
+// --- GLOBAL FETCH INTERCEPTOR ---
+const originalFetch = globalThis.fetch;
+globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+    const response = await originalFetch(input, init);
+    
+    if (response.status === 401 || response.status === 403) {
+        const clonedResponse = response.clone();
+        try {
+            const data = await clonedResponse.json();
+            if (
+                data.error === 'Unauthorized: No token provided' || 
+                data.error === 'Forbidden: Invalid token' ||
+                data.error === 'Unauthorized'
+            ) {
+                window.dispatchEvent(new Event('auth:logout'));
+            }
+        } catch (e) {
+            // Ignore parse errors
+        }
+    }
+    
+    return response;
+};
 // Helper to check if current user is a "test" user (mock data)
 const isTestUser = async (): Promise<boolean> => {
     try {

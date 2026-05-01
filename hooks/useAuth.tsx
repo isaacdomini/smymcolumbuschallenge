@@ -90,6 +90,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     loadUser();
   }, []);
 
+  useEffect(() => {
+    const handleForceLogout = () => {
+      console.log("Forced logout event received, clearing session.");
+      // Manually clear storage here just in case the state updates don't propagate in time
+      storage.remove('user');
+      storage.remove('token');
+      setUser(null);
+    };
+
+    window.addEventListener('auth:logout', handleForceLogout);
+    return () => window.removeEventListener('auth:logout', handleForceLogout);
+  }, []);
+
   const login = async (email: string, pass: string) => {
     // The API returns the raw DB row, which has snake_case 'is_admin'
     const rawUser: any = await api.login(email, pass);
