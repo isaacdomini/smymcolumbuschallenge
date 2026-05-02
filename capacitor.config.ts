@@ -12,6 +12,8 @@ const config: CapacitorConfig = {
   server: {
     url: "https://smymgame.tesarsoft.com",
     allowNavigation: [
+      "youth.columbuschurch.org",
+      "*.youth.columbuschurch.org",
       "smymgame.tesarsoft.com",
       "*.smymgame.tesarsoft.com"
     ]
