@@ -1,19 +1,19 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.tesarsoft.smym.biblegames', // Your log shows 'com.tesarsoft.smym.biblegames', make sure this matches
+  appId: 'com.tesarsoft.smym.biblegames',
   appName: 'SMYM Bible Games',
-  webDir: 'dist', // The build output of Vite
+  webDir: 'dist',
   plugins: {
     PushNotifications: {
       presentationOptions: ["badge", "sound", "alert"],
     },
   },
   server: {
-    url: "https://youth.columbuschurch.org",
+    url: "https://smymgame.tesarsoft.com",
     allowNavigation: [
-      "youth.columbuschurch.org",
-      "*.youth.columbuschurch.org"
+      "smymgame.tesarsoft.com",
+      "*.smymgame.tesarsoft.com"
     ]
   }
 };
