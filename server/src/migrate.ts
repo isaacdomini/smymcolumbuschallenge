@@ -249,7 +249,30 @@ CREATE TABLE IF NOT EXISTS user_message_dismissals (
   `INSERT INTO user_groups (user_id, group_id, role)
    SELECT id, 'default', CASE WHEN is_admin THEN 'admin' ELSE 'member' END
    FROM users
-   ON CONFLICT (user_id, group_id) DO NOTHING`
+   ON CONFLICT (user_id, group_id) DO NOTHING`,
+
+  // Passkey credentials table
+  `CREATE TABLE IF NOT EXISTS passkey_credentials (
+    id TEXT PRIMARY KEY,
+    user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    public_key TEXT NOT NULL,
+    counter BIGINT NOT NULL DEFAULT 0,
+    transports JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_passkey_credentials_user_id ON passkey_credentials(user_id)`,
+
+  // Passkey challenges table (temporary, TTL enforced by expires_at)
+  `CREATE TABLE IF NOT EXISTS passkey_challenges (
+    id SERIAL PRIMARY KEY,
+    user_id VARCHAR(255) REFERENCES users(id) ON DELETE CASCADE,
+    challenge TEXT NOT NULL UNIQUE,
+    type VARCHAR(20) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_passkey_challenges_challenge ON passkey_challenges(challenge)`,
+  `CREATE INDEX IF NOT EXISTS idx_passkey_challenges_expires_at ON passkey_challenges(expires_at)`
 
 ];
 

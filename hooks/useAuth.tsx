@@ -3,6 +3,10 @@ import { User } from '@/types';
 import * as api from '@/services/api';
 import { storage } from '@/utils/storage';
 import { jwtDecode } from "jwt-decode";
+import {
+  startRegistration,
+  startAuthentication,
+} from '@simplewebauthn/browser';
 
 interface AuthContextType {
   user: User | null;
@@ -13,15 +17,32 @@ interface AuthContextType {
   resetPassword: (token: string, pass: string) => Promise<{ message: string }>;
   isLoading: boolean;
   updateUser: (data: Partial<User>) => Promise<void>;
+  /** Sign in using a registered passkey (biometric/platform authenticator) */
+  loginWithPasskey: () => Promise<void>;
+  /** Register a new passkey for the user identified by email */
+  registerPasskey: (email: string) => Promise<void>;
+  /** Whether WebAuthn / passkeys are supported on this device */
+  passkeySupported: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-
+/** Check if WebAuthn is available */
+function checkPasskeySupport(): boolean {
+  try {
+    return (
+      typeof window !== 'undefined' &&
+      typeof window.PublicKeyCredential !== 'undefined'
+    );
+  } catch {
+    return false;
+  }
+}
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [passkeySupported] = useState<boolean>(checkPasskeySupport);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -103,19 +124,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return () => window.removeEventListener('auth:logout', handleForceLogout);
   }, []);
 
-  const login = async (email: string, pass: string) => {
-    // The API returns the raw DB row, which has snake_case 'is_admin'
-    const rawUser: any = await api.login(email, pass);
-    console.log("RAW USER FROM API:", rawUser); // DEBUG LOG
-
-    // Map to our frontend User type (camelCase)
+  /** Helper: persist a raw API user response into state + storage */
+  const persistUser = useCallback(async (rawUser: any) => {
     let isAdmin = false;
     if (rawUser.token) {
       try {
         const decoded: any = jwtDecode(rawUser.token);
         isAdmin = decoded.isAdmin === true;
       } catch (e) {
-        console.error("Failed to decode token on login", e);
+        console.error("Failed to decode token", e);
       }
     }
 
@@ -123,17 +140,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       id: rawUser.id,
       name: rawUser.name,
       email: rawUser.email,
-      // IMPORTANT: Map is_admin from token payload for security
-      isAdmin: isAdmin,
-      token: rawUser.token // Save the token
+      isAdmin,
+      token: rawUser.token,
     };
-    console.log("MAPPED USER TO SAVE:", userToSave); // DEBUG LOG
 
     setUser(userToSave);
     await storage.set('user', JSON.stringify(userToSave));
     if (rawUser.token) {
       await storage.set('token', rawUser.token);
     }
+  }, []);
+
+  const login = async (email: string, pass: string) => {
+    const rawUser: any = await api.login(email, pass);
+    console.log("RAW USER FROM API:", rawUser);
+    await persistUser(rawUser);
   };
 
   const signup = async (name: string, email: string, pass: string, emailNotifications: boolean): Promise<{ message: string }> => {
@@ -163,8 +184,44 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     await storage.set('user', JSON.stringify(newUser));
   };
 
+  /**
+   * Sign in with a passkey.
+   * Opens the native OS passkey picker (Face ID, Touch ID, Windows Hello, etc.)
+   * No email required — uses discoverable / resident key flow.
+   */
+  const loginWithPasskey = useCallback(async () => {
+    // Step 1: get challenge from server
+    const options = await api.passkeyAuthChallenge();
+
+    // Step 2: browser/OS shows biometric prompt
+    const authResponse = await startAuthentication({ optionsJSON: options });
+
+    // Step 3: verify with server, get JWT back
+    const rawUser = await api.passkeyAuthVerify(authResponse);
+
+    await persistUser(rawUser);
+  }, [persistUser]);
+
+  /**
+   * Register a passkey for the given email.
+   * Called after password-based login to layer a passkey on top.
+   */
+  const registerPasskey = useCallback(async (email: string) => {
+    // Step 1: get registration options from server
+    const options = await api.passkeyRegisterChallenge(email);
+
+    // Step 2: browser/OS shows biometric enrolment prompt
+    const registrationResponse = await startRegistration({ optionsJSON: options });
+
+    // Step 3: verify with server (also returns a fresh token, but we don't need to re-login)
+    await api.passkeyRegisterVerify(email, registrationResponse);
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, login, signup, logout, forgotPassword, resetPassword, isLoading, updateUser }}>
+    <AuthContext.Provider value={{
+      user, login, signup, logout, forgotPassword, resetPassword,
+      isLoading, updateUser, loginWithPasskey, registerPasskey, passkeySupported,
+    }}>
       {children}
     </AuthContext.Provider>
   );

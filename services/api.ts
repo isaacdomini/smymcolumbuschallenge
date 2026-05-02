@@ -289,6 +289,91 @@ export const logout = (): void => {
     // No-op in mock, session is managed client-side
 };
 
+// --- PASSKEY (WebAuthn) API ---
+
+/** Check if a user (by email) has any registered passkeys */
+export const passkeyHasPasskey = async (email: string): Promise<boolean> => {
+    if (USE_MOCK_DATA) return false;
+    try {
+        const response = await fetch(`${API_BASE_URL}/passkey/has-passkey?email=${encodeURIComponent(email)}`);
+        if (!response.ok) return false;
+        const data = await response.json();
+        return data.hasPasskey === true;
+    } catch {
+        return false;
+    }
+};
+
+/**
+ * Registration Step 1 — Get options from server.
+ * Returns the PublicKeyCredentialCreationOptions JSON to pass to the browser.
+ */
+export const passkeyRegisterChallenge = async (email: string): Promise<any> => {
+    const response = await fetch(`${API_BASE_URL}/passkey/register-challenge`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+    });
+    if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to start passkey registration');
+    }
+    return await response.json();
+};
+
+/**
+ * Registration Step 2 — Send the browser's credential to the server.
+ * Returns a JWT token + user object on success.
+ */
+export const passkeyRegisterVerify = async (
+    email: string,
+    registrationResponse: any
+): Promise<any> => {
+    const response = await fetch(`${API_BASE_URL}/passkey/register-verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, registrationResponse }),
+    });
+    if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Passkey registration failed');
+    }
+    return await response.json();
+};
+
+/**
+ * Authentication Step 1 — Get challenge options.
+ * Returns PublicKeyCredentialRequestOptions to pass to the browser.
+ */
+export const passkeyAuthChallenge = async (): Promise<any> => {
+    const response = await fetch(`${API_BASE_URL}/passkey/authenticate-challenge`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+    });
+    if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to start passkey authentication');
+    }
+    return await response.json();
+};
+
+/**
+ * Authentication Step 2 — Send the browser's assertion to the server.
+ * Returns a JWT token + user object on success.
+ */
+export const passkeyAuthVerify = async (authenticationResponse: any): Promise<any> => {
+    const response = await fetch(`${API_BASE_URL}/passkey/authenticate-verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ authenticationResponse }),
+    });
+    if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Passkey authentication failed');
+    }
+    return await response.json();
+};
+
 export const forgotPassword = async (email: string): Promise<{ message: string }> => {
     const useMock = USE_MOCK_DATA; // ONLY use mock data in dev mode
     if (useMock) {

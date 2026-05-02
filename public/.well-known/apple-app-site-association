@@ -7,5 +7,10 @@
         "paths": [ "*" ]
       }
     ]
+  },
+  "webcredentials": {
+    "apps": [
+      "9U7QNFPALD.com.tesarsoft.smym.biblegames"
+    ]
   }
 }

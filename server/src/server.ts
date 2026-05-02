@@ -5,6 +5,7 @@ import rateLimit from 'express-rate-limit';
 import apiRoutes from './routes/api.js';
 import adminRoutes from './routes/admin.js';
 import groupsRoutes from './routes/groups.js';
+import passkeyRoutes from './routes/passkey.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { initScheduler } from './scheduler.js';
@@ -37,6 +38,7 @@ app.use('/api', limiter);
 // Routes
 app.use('/api/admin', adminRoutes);
 app.use('/api/groups', groupsRoutes);
+app.use('/api/passkey', passkeyRoutes);
 app.use('/api', apiRoutes);
 
 if (process.env.NODE_ENV !== 'development') {
